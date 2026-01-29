@@ -9,6 +9,9 @@ import '../services/notification_service.dart';
 import '../widgets/loan_card.dart';
 import '../theme/app_theme.dart';
 import 'add_loan_screen.dart';
+import 'calendar_screen.dart';
+import 'emi_calculator_screen.dart';
+import 'emi_progress_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final LoanStorageService? storageService;
@@ -242,59 +245,176 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                _getGreeting(),
-                style: TextStyle(
-                  fontSize: 14,
-                  color: AppTheme.textMedium,
-                  fontWeight: FontWeight.w500,
-                ),
+          // Left side - Menu button
+          Container(
+            decoration: BoxDecoration(
+              color: AppTheme.bgCard,
+              borderRadius: BorderRadius.circular(14),
+              boxShadow: AppTheme.softShadow,
+            ),
+            child: PopupMenuButton<String>(
+              icon: const Icon(Icons.menu_rounded, color: AppTheme.textDark, size: 22),
+              padding: const EdgeInsets.all(10),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
               ),
-              const SizedBox(height: 4),
-              const Text(
-                'Smart EMI',
-                style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                  color: AppTheme.textDark,
-                  letterSpacing: -0.5,
+              offset: const Offset(0, 50),
+              onSelected: (value) {
+                switch (value) {
+                  case 'calendar':
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => CalendarScreen(
+                          storageService: _storageService,
+                        ),
+                      ),
+                    );
+                    break;
+                  case 'calculator':
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const EMICalculatorScreen(),
+                      ),
+                    );
+                    break;
+                  case 'progress':
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => EMIProgressScreen(
+                          storageService: _storageService,
+                        ),
+                      ),
+                    );
+                    break;
+                  case 'settings':
+                    _showNotificationSettings();
+                    break;
+                }
+              },
+              itemBuilder: (context) => [
+                PopupMenuItem(
+                  value: 'calendar',
+                  child: Row(
+                    children: [
+                      Icon(Icons.calendar_month_rounded, color: AppTheme.primaryColor),
+                      const SizedBox(width: 12),
+                      const Text('EMI Calendar'),
+                    ],
+                  ),
                 ),
-              ),
-            ],
+                PopupMenuItem(
+                  value: 'calculator',
+                  child: Row(
+                    children: [
+                      Icon(Icons.calculate_rounded, color: AppTheme.primaryColor),
+                      const SizedBox(width: 12),
+                      const Text('EMI Calculator'),
+                    ],
+                  ),
+                ),
+                PopupMenuItem(
+                  value: 'progress',
+                  child: Row(
+                    children: [
+                      Icon(Icons.trending_up_rounded, color: AppTheme.primaryColor),
+                      const SizedBox(width: 12),
+                      const Text('Loan Progress'),
+                    ],
+                  ),
+                ),
+                const PopupMenuDivider(),
+                PopupMenuItem(
+                  value: 'settings',
+                  child: Row(
+                    children: [
+                      Icon(Icons.settings_rounded, color: AppTheme.textMedium),
+                      const SizedBox(width: 12),
+                      const Text('Settings'),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
-          Row(
-            children: [
-              // Settings button
-              Container(
-                decoration: BoxDecoration(
-                  color: AppTheme.bgCard,
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: AppTheme.softShadow,
+          const SizedBox(width: 16),
+          // Center - App title and date
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Text(
+                      _getGreeting(),
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: AppTheme.textMedium,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
                 ),
-                child: IconButton(
-                  icon: const Icon(Icons.settings_rounded, color: AppTheme.textMedium),
-                  onPressed: () => _showNotificationSettings(),
+                const Text(
+                  'Smart EMI',
+                  style: TextStyle(
+                    fontSize: 26,
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.textDark,
+                    letterSpacing: -0.5,
+                  ),
                 ),
-              ),
-              const SizedBox(width: 8),
-              // Test notification button
-              Container(
-                decoration: BoxDecoration(
-                  gradient: AppTheme.primaryGradient,
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: AppTheme.cardShadow,
+                Container(
+                  margin: const EdgeInsets.only(top: 4),
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: AppTheme.primaryColor.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.calendar_today_rounded,
+                        size: 12,
+                        color: AppTheme.primaryColor,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        DateFormat('EEE, MMM d, yyyy').format(DateTime.now()),
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: AppTheme.primaryColor,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-                child: IconButton(
-                  icon: const Icon(Icons.notifications_rounded, color: Colors.white),
-                  onPressed: () => _testNotification(),
+              ],
+            ),
+          ),
+          // Right side - Notification button
+          Container(
+            decoration: BoxDecoration(
+              gradient: AppTheme.primaryGradient,
+              borderRadius: BorderRadius.circular(14),
+              boxShadow: [
+                BoxShadow(
+                  color: AppTheme.primaryColor.withValues(alpha: 0.3),
+                  blurRadius: 8,
+                  offset: const Offset(0, 4),
                 ),
-              ),
-            ],
+              ],
+            ),
+            child: IconButton(
+              icon: const Icon(Icons.notifications_rounded, color: Colors.white, size: 22),
+              onPressed: () => _testNotification(),
+              padding: const EdgeInsets.all(10),
+            ),
           ),
         ],
       ),
@@ -478,99 +598,49 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      backgroundColor: Colors.transparent,
       builder: (context) => StatefulBuilder(
-        builder: (context, setModalState) => SafeArea(
-          child: Container(
-            padding: EdgeInsets.only(
-              left: 24,
-              right: 24,
-              top: 16,
-              bottom: MediaQuery.of(context).padding.bottom + 24,
+        builder: (context, setModalState) => Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.only(
+              topLeft: Radius.circular(24),
+              topRight: Radius.circular(24),
             ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Drag handle
-                Center(
-                  child: Container(
-                    width: 40,
-                    height: 4,
-                    margin: const EdgeInsets.only(bottom: 16),
-                    decoration: BoxDecoration(
-                      color: AppTheme.textLight,
-                      borderRadius: BorderRadius.circular(2),
+          ),
+          padding: EdgeInsets.only(
+            left: 20,
+            right: 20,
+            top: 12,
+            bottom: MediaQuery.of(context).padding.bottom + 20,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Drag handle
+              Container(
+                width: 40,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 20),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+
+              // Title Row
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Sort & Filter',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: AppTheme.textDark,
                     ),
                   ),
-                ),
-                const Text(
-                  '🔽 Sort & Filter',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: AppTheme.textDark,
-                  ),
-                ),
-                const SizedBox(height: 20),
-
-                // Sort Options
-                const Text(
-                  'Sort by',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: AppTheme.textMedium,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Wrap(
-                  spacing: 8,
-                  children: [
-                    _buildSortChip('Due Date', 'dueDate', setModalState),
-                    _buildSortChip('Name', 'name', setModalState),
-                    _buildSortChip('Amount', 'amount', setModalState),
-                  ],
-                ),
-                const SizedBox(height: 20),
-
-                // Filter Options
-                const Text(
-                  'Filter',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: AppTheme.textMedium,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                _buildFilterToggle(
-                  'Show Unpaid Only',
-                  _showUnpaidOnly,
-                  (value) {
-                    setModalState(() {
-                      _showUnpaidOnly = value;
-                      if (value) _showPaidOnly = false;
-                    });
-                    setState(() {});
-                  },
-                ),
-                _buildFilterToggle(
-                  'Show Paid Only',
-                  _showPaidOnly,
-                  (value) {
-                    setModalState(() {
-                      _showPaidOnly = value;
-                      if (value) _showUnpaidOnly = false;
-                    });
-                    setState(() {});
-                  },
-                ),
-                const SizedBox(height: 20),
-
-                // Reset Button
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
+                  TextButton(
                     onPressed: () {
                       setModalState(() {
                         _sortBy = 'dueDate';
@@ -579,54 +649,220 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       });
                       setState(() {});
                     },
-                    icon: const Icon(Icons.refresh_rounded),
-                    label: const Text('Reset Filters'),
+                    child: const Text('Reset'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+
+              // Sort Options - Horizontal scroll chips
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  'SORT BY',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: AppTheme.textMedium,
+                    letterSpacing: 1,
                   ),
                 ),
-                const SizedBox(height: 12),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: const Text('Apply'),
+              ),
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  _buildSortOption('Due Date', 'dueDate', Icons.event_rounded, setModalState),
+                  const SizedBox(width: 10),
+                  _buildSortOption('Name', 'name', Icons.sort_by_alpha_rounded, setModalState),
+                  const SizedBox(width: 10),
+                  _buildSortOption('Amount', 'amount', Icons.attach_money_rounded, setModalState),
+                ],
+              ),
+              const SizedBox(height: 24),
+
+              // Filter Options - Simple toggle buttons
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  'FILTER BY STATUS',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: AppTheme.textMedium,
+                    letterSpacing: 1,
                   ),
                 ),
-              ],
-            ),
+              ),
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildFilterOption(
+                      'All',
+                      !_showPaidOnly && !_showUnpaidOnly,
+                      Icons.list_rounded,
+                      () {
+                        setModalState(() {
+                          _showPaidOnly = false;
+                          _showUnpaidOnly = false;
+                        });
+                        setState(() {});
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: _buildFilterOption(
+                      'Unpaid',
+                      _showUnpaidOnly,
+                      Icons.schedule_rounded,
+                      () {
+                        setModalState(() {
+                          _showUnpaidOnly = true;
+                          _showPaidOnly = false;
+                        });
+                        setState(() {});
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: _buildFilterOption(
+                      'Paid',
+                      _showPaidOnly,
+                      Icons.check_circle_rounded,
+                      () {
+                        setModalState(() {
+                          _showPaidOnly = true;
+                          _showUnpaidOnly = false;
+                        });
+                        setState(() {});
+                      },
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 24),
+
+              // Quick Actions
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () {
+                        Navigator.pop(context);
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => CalendarScreen(
+                              storageService: _storageService,
+                            ),
+                          ),
+                        );
+                      },
+                      icon: const Icon(Icons.calendar_month_rounded, size: 18),
+                      label: const Text('Calendar'),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () => Navigator.pop(context),
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: const Text('Done'),
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
         ),
       ),
     );
   }
 
-  Widget _buildSortChip(String label, String value, StateSetter setModalState) {
+  Widget _buildSortOption(String label, String value, IconData icon, StateSetter setModalState) {
     final isSelected = _sortBy == value;
-    return ChoiceChip(
-      label: Text(label),
-      selected: isSelected,
-      onSelected: (selected) {
-        if (selected) {
-          setModalState(() {
-            _sortBy = value;
-          });
-          setState(() {});
-        }
+    return GestureDetector(
+      onTap: () {
+        setModalState(() => _sortBy = value);
+        setState(() {});
       },
-      selectedColor: AppTheme.primaryColor,
-      labelStyle: TextStyle(
-        color: isSelected ? Colors.white : AppTheme.textDark,
-        fontWeight: FontWeight.w500,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: isSelected ? AppTheme.primaryColor : AppTheme.bgLight,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isSelected ? AppTheme.primaryColor : Colors.grey.shade300,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              size: 16,
+              color: isSelected ? Colors.white : AppTheme.textMedium,
+            ),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: TextStyle(
+                color: isSelected ? Colors.white : AppTheme.textDark,
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                fontSize: 13,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildFilterToggle(String label, bool value, Function(bool) onChanged) {
-    return SwitchListTile(
-      title: Text(label),
-      value: value,
-      onChanged: onChanged,
-      contentPadding: EdgeInsets.zero,
-      activeColor: AppTheme.primaryColor,
+  Widget _buildFilterOption(String label, bool isSelected, IconData icon, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 14),
+        decoration: BoxDecoration(
+          color: isSelected ? AppTheme.primaryColor.withValues(alpha: 0.1) : AppTheme.bgLight,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isSelected ? AppTheme.primaryColor : Colors.grey.shade300,
+            width: isSelected ? 2 : 1,
+          ),
+        ),
+        child: Column(
+          children: [
+            Icon(
+              icon,
+              size: 22,
+              color: isSelected ? AppTheme.primaryColor : AppTheme.textMedium,
+            ),
+            const SizedBox(height: 6),
+            Text(
+              label,
+              style: TextStyle(
+                color: isSelected ? AppTheme.primaryColor : AppTheme.textDark,
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                fontSize: 13,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -983,9 +1219,17 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   Future<void> _markLoanPaid(Loan loan) async {
-    // Mark as paid
+    debugPrint('=== MARKING LOAN AS PAID ===');
+    debugPrint('Loan: ${loan.name}');
+    debugPrint('Before: isPaid = ${loan.isPaid}');
+
+    // Mark as paid and save directly (Loan extends HiveObject)
     loan.isPaid = true;
-    await _storageService.updateLoan(loan.id, loan);
+    debugPrint('After setting: isPaid = ${loan.isPaid}');
+
+    await loan.save();
+    debugPrint('After save: isPaid = ${loan.isPaid}');
+    debugPrint('loan.isInBox = ${loan.isInBox}');
 
     // Cancel current month's notifications
     await _notificationService.cancelLoanReminders(
@@ -1019,7 +1263,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   Future<void> _markLoanUnpaid(Loan loan) async {
     loan.isPaid = false;
-    await _storageService.updateLoan(loan.id, loan);
+    await loan.save();
     await _notificationService.scheduleLoadReminders(loan);
 
     _showSuccessSnackBar('${loan.name} marked as unpaid.');

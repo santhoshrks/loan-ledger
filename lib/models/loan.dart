@@ -37,6 +37,9 @@ class Loan extends HiveObject {
   @HiveField(10)
   late String currencyCode; // Currency code (INR, USD, EUR, etc.)
 
+  @HiveField(11)
+  late int emisPaidCount; // Number of EMIs already paid (for loans added with past start date)
+
   Loan({
     required this.id,
     required this.name,
@@ -49,6 +52,7 @@ class Loan extends HiveObject {
     this.tenureMonths,
     this.isPaid = false,
     this.currencyCode = 'INR', // Default to INR for backward compatibility
+    this.emisPaidCount = 0, // Default to 0 EMIs paid
   });
 
   /// Get currency symbol based on currency code
@@ -58,40 +62,78 @@ class Loan extends HiveObject {
   String get formattedEmi => '$currencySymbol${emiAmount.toStringAsFixed(0)}';
 
   /// Calculate next due date from today
+  /// If current month's EMI is unpaid and overdue, it still shows current month's due date
+  /// Only moves to next month if current month's EMI is marked as paid
   DateTime getNextDueDate() {
     final now = DateTime.now();
     int year = now.year;
     int month = now.month;
     int day = dueDay;
 
-    // Handle invalid days for some months
-    if (day > 28) {
-      final daysInMonth = DateTime(year, month + 1, 0).day;
-      if (day > daysInMonth) {
-        day = daysInMonth;
-      }
+    // Helper function to get valid day for a given month
+    int getValidDay(int y, int m, int desiredDay) {
+      final daysInMonth = DateTime(y, m + 1, 0).day;
+      return desiredDay > daysInMonth ? daysInMonth : desiredDay;
     }
 
-    DateTime dueDate = DateTime(year, month, day, 12, 0, 0); // Set to noon
+    // Get valid day for current month
+    day = getValidDay(year, month, dueDay);
+    DateTime dueDate = DateTime(year, month, day);
 
-    // If due date has passed this month, move to next month
-    if (dueDate.isBefore(now)) {
+    // If current month's EMI is marked as paid, move to next month
+    if (isPaid) {
       month++;
       if (month > 12) {
         month = 1;
         year++;
       }
-      dueDate = DateTime(year, month, day, 12, 0, 0); // Set to noon
+      day = getValidDay(year, month, dueDay);
+      dueDate = DateTime(year, month, day);
     }
+    // If due date has passed this month but NOT paid, still show current month (overdue)
+    // Only if NOT paid and due date hasn't come yet, show current month
+    // If NOT paid and due date has passed, show current month (it's overdue)
 
     return dueDate;
   }
 
-  /// Get days until due date
+  /// Get the due date that needs to be paid (current unpaid EMI)
+  /// Returns the overdue date if EMI is unpaid and past due
+  DateTime getCurrentDueDate() {
+    final now = DateTime.now();
+    int year = now.year;
+    int month = now.month;
+
+    // Helper function to get valid day for a given month
+    int getValidDay(int y, int m, int desiredDay) {
+      final daysInMonth = DateTime(y, m + 1, 0).day;
+      return desiredDay > daysInMonth ? daysInMonth : desiredDay;
+    }
+
+    int day = getValidDay(year, month, dueDay);
+    return DateTime(year, month, day);
+  }
+
+  /// Get days until due date (negative if overdue)
   int daysUntilDue() {
     final nextDue = getNextDueDate();
     final now = DateTime.now();
-    return nextDue.difference(now).inDays;
+
+    // Normalize both dates to midnight for accurate day comparison
+    final normalizedDue = DateTime(nextDue.year, nextDue.month, nextDue.day);
+    final normalizedNow = DateTime(now.year, now.month, now.day);
+
+    return normalizedDue.difference(normalizedNow).inDays;
+  }
+
+  /// Check if current month's EMI is overdue
+  bool isOverdue() {
+    if (isPaid) return false; // Already paid, not overdue
+    final currentDue = getCurrentDueDate();
+    final now = DateTime.now();
+    final normalizedDue = DateTime(currentDue.year, currentDue.month, currentDue.day);
+    final normalizedNow = DateTime(now.year, now.month, now.day);
+    return normalizedNow.isAfter(normalizedDue);
   }
 
   /// Check if reminder should be sent

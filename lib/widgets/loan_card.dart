@@ -23,10 +23,11 @@ class LoanCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final daysUntilDue = loan.daysUntilDue();
     final nextDueDate = loan.getNextDueDate();
-    final statusColor = _getStatusColor(daysUntilDue);
-    final statusGradient = _getStatusGradient(daysUntilDue);
-    final statusText = _getStatusText(daysUntilDue);
-    final statusIcon = _getStatusIcon(daysUntilDue);
+    final isOverdue = loan.isOverdue();
+    final statusColor = _getStatusColor(daysUntilDue, isOverdue);
+    final statusGradient = _getStatusGradient(daysUntilDue, isOverdue);
+    final statusText = _getStatusText(daysUntilDue, isOverdue);
+    final statusIcon = _getStatusIcon(daysUntilDue, isOverdue);
 
     return GestureDetector(
       onTap: onTap,
@@ -84,19 +85,54 @@ class LoanCard extends StatelessWidget {
                         Row(
                           children: [
                             Icon(
-                              Icons.calendar_today_rounded,
+                              Icons.event_rounded,
                               size: 14,
-                              color: AppTheme.textLight,
+                              color: isOverdue
+                                  ? AppTheme.statusError
+                                  : (loan.isPaid ? AppTheme.primaryColor : AppTheme.textLight),
                             ),
                             const SizedBox(width: 6),
                             Text(
-                              DateFormat('MMM d, yyyy').format(nextDueDate),
+                              _getDueDateText(nextDueDate, isOverdue),
                               style: TextStyle(
-                                color: AppTheme.textMedium,
+                                color: isOverdue
+                                    ? AppTheme.statusError
+                                    : (loan.isPaid ? AppTheme.primaryColor : AppTheme.textMedium),
                                 fontSize: 13,
+                                fontWeight: isOverdue || loan.isPaid ? FontWeight.w500 : FontWeight.normal,
                               ),
                             ),
                           ],
+                        ),
+                        // EMI Progress (if tenure is set)
+                        Builder(
+                          builder: (context) {
+                            debugPrint('Loan ${loan.name}: tenureMonths = ${loan.tenureMonths}');
+                            if (loan.tenureMonths != null && loan.tenureMonths! > 0) {
+                              return Padding(
+                                padding: const EdgeInsets.only(top: 4),
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      Icons.pie_chart_rounded,
+                                      size: 14,
+                                      color: AppTheme.secondaryColor,
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      'EMI: ${_getEmiPaidCount()}/${loan.tenureMonths} paid',
+                                      style: TextStyle(
+                                        color: AppTheme.secondaryColor,
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            }
+                            return const SizedBox.shrink();
+                          },
                         ),
                       ],
                     ),
@@ -160,18 +196,34 @@ class LoanCard extends StatelessWidget {
               ),
               child: Row(
                 children: [
-                  // Days remaining indicator
-                  if (!loan.isPaid)
+                  // Status indicator
+                  if (loan.isPaid)
+                    Row(
+                      children: [
+                        _buildInfoChip(
+                          icon: Icons.check_circle_outline,
+                          text: 'Paid',
+                          color: AppTheme.statusSuccess,
+                        ),
+                        const SizedBox(width: 8),
+                        _buildInfoChip(
+                          icon: Icons.schedule_rounded,
+                          text: 'Next in ${daysUntilDue}d',
+                          color: AppTheme.primaryColor,
+                        ),
+                      ],
+                    )
+                  else if (isOverdue)
+                    _buildInfoChip(
+                      icon: Icons.warning_rounded,
+                      text: '${daysUntilDue.abs()} days overdue',
+                      color: AppTheme.statusError,
+                    )
+                  else
                     _buildInfoChip(
                       icon: Icons.timer_outlined,
                       text: _getDaysText(daysUntilDue),
                       color: statusColor,
-                    )
-                  else
-                    _buildInfoChip(
-                      icon: Icons.check_circle_outline,
-                      text: 'Paid this month',
-                      color: AppTheme.statusSuccess,
                     ),
                   const Spacer(),
                   // Quick Actions
@@ -282,39 +334,51 @@ class LoanCard extends StatelessWidget {
   }
 
   /// Get color based on due date status
-  Color _getStatusColor(int daysUntilDue) {
+  Color _getStatusColor(int daysUntilDue, bool isOverdue) {
     if (loan.isPaid) return AppTheme.statusSuccess;
-    if (daysUntilDue < 0) return AppTheme.statusError; // Overdue
-    if (daysUntilDue == 0) return AppTheme.statusError; // Due today
+    if (isOverdue) return AppTheme.statusError; // Overdue (unpaid and past due date)
+    if (daysUntilDue == 0) return AppTheme.statusWarning; // Due today
     if (daysUntilDue <= 3) return AppTheme.statusWarning; // Due soon
     if (daysUntilDue <= 7) return AppTheme.statusInfo; // Coming up
     return AppTheme.secondaryColor; // Upcoming
   }
 
-  LinearGradient _getStatusGradient(int daysUntilDue) {
+  LinearGradient _getStatusGradient(int daysUntilDue, bool isOverdue) {
     if (loan.isPaid) return AppTheme.successGradient;
-    if (daysUntilDue < 0) return AppTheme.errorGradient;
-    if (daysUntilDue == 0) return AppTheme.errorGradient;
+    if (isOverdue) return AppTheme.errorGradient;
+    if (daysUntilDue == 0) return AppTheme.warningGradient;
     if (daysUntilDue <= 3) return AppTheme.warningGradient;
     return AppTheme.primaryGradient;
   }
 
-  IconData _getStatusIcon(int daysUntilDue) {
+  IconData _getStatusIcon(int daysUntilDue, bool isOverdue) {
     if (loan.isPaid) return Icons.check_circle_rounded;
-    if (daysUntilDue < 0) return Icons.error_rounded;
+    if (isOverdue) return Icons.error_rounded;
     if (daysUntilDue == 0) return Icons.warning_rounded;
     if (daysUntilDue <= 3) return Icons.schedule_rounded;
     return Icons.event_rounded;
   }
 
   /// Get status text
-  String _getStatusText(int daysUntilDue) {
+  String _getStatusText(int daysUntilDue, bool isOverdue) {
     if (loan.isPaid) return 'PAID';
-    if (daysUntilDue < 0) return 'OVERDUE';
+    if (isOverdue) return 'OVERDUE';
     if (daysUntilDue == 0) return 'DUE TODAY';
+    if (daysUntilDue == 1) return 'DUE TOMORROW';
     if (daysUntilDue <= 3) return 'DUE SOON';
     if (daysUntilDue <= 7) return 'THIS WEEK';
     return 'UPCOMING';
+  }
+
+  /// Get due date text based on status
+  String _getDueDateText(DateTime dueDate, bool isOverdue) {
+    if (loan.isPaid) {
+      return 'Next Due: ${DateFormat('MMM d, yyyy').format(dueDate)}';
+    } else if (isOverdue) {
+      return 'Overdue: ${DateFormat('MMM d, yyyy').format(dueDate)}';
+    } else {
+      return 'Due: ${DateFormat('MMM d, yyyy').format(dueDate)}';
+    }
   }
 
   String _getDaysText(int daysUntilDue) {
@@ -327,5 +391,28 @@ class LoanCard extends StatelessWidget {
     } else {
       return '$daysUntilDue days left';
     }
+  }
+
+  /// Calculate number of EMIs paid
+  int _getEmiPaidCount() {
+    if (loan.tenureMonths == null) return 0;
+
+    // Use the stored emisPaidCount as the base (manually entered by user)
+    int emisPaid = loan.emisPaidCount;
+
+    // If current month's EMI is marked as paid, add 1 to the stored count
+    if (loan.isPaid) {
+      emisPaid = emisPaid + 1;
+    }
+
+    // Clamp to valid range
+    if (emisPaid > loan.tenureMonths!) {
+      emisPaid = loan.tenureMonths!;
+    }
+    if (emisPaid < 0) {
+      emisPaid = 0;
+    }
+
+    return emisPaid;
   }
 }

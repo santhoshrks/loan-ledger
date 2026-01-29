@@ -31,6 +31,7 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
   late TextEditingController _loanAmountController;
   late TextEditingController _interestRateController;
   late TextEditingController _tenureController;
+  late TextEditingController _emisPaidController;
 
   DateTime? _selectedStartDate;
   bool _isLoading = false;
@@ -68,6 +69,7 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
     _loanAmountController = TextEditingController();
     _interestRateController = TextEditingController();
     _tenureController = TextEditingController();
+    _emisPaidController = TextEditingController(text: '0');
   }
 
   void _populateForm(Loan loan) {
@@ -78,6 +80,7 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
     _loanAmountController.text = loan.loanAmount?.toStringAsFixed(0) ?? '';
     _interestRateController.text = loan.interestRate?.toString() ?? '';
     _tenureController.text = loan.tenureMonths?.toString() ?? '';
+    _emisPaidController.text = loan.emisPaidCount.toString();
     _selectedStartDate = loan.startDate;
     _selectedCurrency = loan.currencyCode;
 
@@ -228,6 +231,28 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
                       },
                     ),
                     const SizedBox(height: 16),
+
+                    // EMIs Already Paid (shown only if start date is in the past)
+                    if (_selectedStartDate != null && _isStartDateInPast()) ...[
+                      _buildTextField(
+                        controller: _emisPaidController,
+                        label: 'EMIs Already Paid',
+                        hint: _getExpectedEmisPaid().toString(),
+                        icon: Icons.check_circle_rounded,
+                        keyboardType: TextInputType.number,
+                        inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                        helperText: 'Your loan started ${_getMonthsSinceStart()} months ago. Enter how many EMIs you\'ve already paid.',
+                        validator: (value) {
+                          if (value?.isEmpty ?? true) return null; // Optional
+                          final paid = int.tryParse(value!);
+                          if (paid == null || paid < 0) return 'Invalid';
+                          final tenure = int.tryParse(_tenureController.text) ?? 0;
+                          if (tenure > 0 && paid > tenure) return 'Cannot exceed tenure';
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                    ],
 
                     // Summary Card
                     _buildLoanSummaryCard(),
@@ -537,6 +562,7 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
     String? Function(String?)? validator,
     void Function(String)? onChanged,
     int maxLines = 1,
+    String? helperText,
   }) {
     return Container(
       decoration: BoxDecoration(
@@ -559,6 +585,8 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
         decoration: InputDecoration(
           labelText: label,
           hintText: hint,
+          helperText: helperText,
+          helperMaxLines: 3,
           prefixIcon: Icon(icon, color: AppTheme.primaryColor),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(16),
@@ -838,6 +866,9 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
             ? null
             : int.tryParse(_tenureController.text),
         currencyCode: _selectedCurrency,
+        emisPaidCount: _emisPaidController.text.isEmpty
+            ? 0
+            : int.tryParse(_emisPaidController.text) ?? 0,
       );
 
       if (widget.existingLoan != null) {
@@ -872,6 +903,29 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
     return '${timestamp}_$random';
   }
 
+  /// Check if start date is in the past (before current month)
+  bool _isStartDateInPast() {
+    if (_selectedStartDate == null) return false;
+    final now = DateTime.now();
+    // Consider past if start date is before current month
+    return _selectedStartDate!.year < now.year ||
+        (_selectedStartDate!.year == now.year && _selectedStartDate!.month < now.month);
+  }
+
+  /// Get months since start date (including start month)
+  int _getMonthsSinceStart() {
+    if (_selectedStartDate == null) return 0;
+    final now = DateTime.now();
+    // June 2025 to January 2026 = 8 months (including both June and January)
+    return (now.year - _selectedStartDate!.year) * 12 +
+           (now.month - _selectedStartDate!.month) + 1;
+  }
+
+  /// Get expected EMIs paid based on months since start
+  int _getExpectedEmisPaid() {
+    return _getMonthsSinceStart();
+  }
+
   @override
   void dispose() {
     _nameController.dispose();
@@ -881,6 +935,7 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
     _loanAmountController.dispose();
     _interestRateController.dispose();
     _tenureController.dispose();
+    _emisPaidController.dispose();
     super.dispose();
   }
 }

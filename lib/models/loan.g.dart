@@ -27,14 +27,15 @@ class LoanAdapter extends TypeAdapter<Loan> {
       interestRate: fields[7] as double?,
       tenureMonths: fields[8] as int?,
       isPaid: fields[9] as bool? ?? false,
-      currencyCode: fields[10] as String? ?? 'INR', // Default to INR for backward compatibility
+      currencyCode: fields[10] as String? ?? 'INR',
+      emisPaidCount: fields[11] as int? ?? 0,
     );
   }
 
   @override
   void write(BinaryWriter writer, Loan obj) {
     writer
-      ..writeByte(11)
+      ..writeByte(12)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -56,7 +57,9 @@ class LoanAdapter extends TypeAdapter<Loan> {
       ..writeByte(9)
       ..write(obj.isPaid)
       ..writeByte(10)
-      ..write(obj.currencyCode);
+      ..write(obj.currencyCode)
+      ..writeByte(11)
+      ..write(obj.emisPaidCount);
   }
 
   @override
