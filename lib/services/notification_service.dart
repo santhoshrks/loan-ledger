@@ -166,15 +166,15 @@ class NotificationService {
       '12:0': 'Pacific/Auckland',  // New Zealand
 
       // Middle East
-      '3:0': 'Asia/Riyadh',        // Saudi Arabia
+      '3:0': 'Asia/Riyadh',        // Saudi Arabia, East Africa
       '3:30': 'Asia/Tehran',       // Iran
       '4:0': 'Asia/Dubai',         // UAE
       '4:30': 'Asia/Kabul',        // Afghanistan
 
       // Europe
       '0:0': 'Europe/London',      // UK (GMT)
-      '1:0': 'Europe/Paris',       // Central Europe
-      '2:0': 'Europe/Helsinki',    // Eastern Europe
+      '1:0': 'Europe/Paris',       // Central Europe, West Africa
+      '2:0': 'Europe/Helsinki',    // Eastern Europe, Egypt
 
       // Americas
       '-5:0': 'America/New_York',  // US Eastern
@@ -182,12 +182,7 @@ class NotificationService {
       '-7:0': 'America/Denver',    // US Mountain
       '-8:0': 'America/Los_Angeles', // US Pacific
       '-3:0': 'America/Sao_Paulo', // Brazil
-      '-4:0': 'America/New_York',  // US Eastern (DST)
-
-      // Africa
-      '1:0': 'Africa/Lagos',       // West Africa
-      '2:0': 'Africa/Cairo',       // Egypt
-      '3:0': 'Africa/Nairobi',     // East Africa
+      '-4:0': 'America/Caracas',   // Venezuela, Atlantic
     };
 
     final key = '$hours:${minutes.abs()}';

@@ -6,6 +6,7 @@ import 'package:app_settings/app_settings.dart';
 import '../models/loan.dart';
 import '../services/loan_storage_service.dart';
 import '../services/notification_service.dart';
+import '../services/backup_service.dart';
 import '../widgets/loan_card.dart';
 import '../theme/app_theme.dart';
 import 'add_loan_screen.dart';
@@ -30,6 +31,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   late LoanStorageService _storageService;
   late NotificationService _notificationService;
+  late BackupService _backupService;
   late AnimationController _fabAnimationController;
   bool _isInitialized = false;
   String? _initError;
@@ -64,6 +66,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         _notificationService = NotificationService();
         await _notificationService.init();
       }
+
+      // Initialize backup service
+      _backupService = BackupService(_storageService);
 
       if (mounted) {
         setState(() {
@@ -293,6 +298,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   case 'settings':
                     _showNotificationSettings();
                     break;
+                  case 'backup':
+                    _exportBackup();
+                    break;
+                  case 'restore':
+                    _importBackup();
+                    break;
                 }
               },
               itemBuilder: (context) => [
@@ -323,6 +334,27 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       Icon(Icons.trending_up_rounded, color: AppTheme.primaryColor),
                       const SizedBox(width: 12),
                       const Text('Loan Progress'),
+                    ],
+                  ),
+                ),
+                const PopupMenuDivider(),
+                PopupMenuItem(
+                  value: 'backup',
+                  child: Row(
+                    children: [
+                      Icon(Icons.backup_rounded, color: AppTheme.statusSuccess),
+                      const SizedBox(width: 12),
+                      const Text('Backup Data'),
+                    ],
+                  ),
+                ),
+                PopupMenuItem(
+                  value: 'restore',
+                  child: Row(
+                    children: [
+                      Icon(Icons.restore_rounded, color: AppTheme.statusInfo),
+                      const SizedBox(width: 12),
+                      const Text('Restore Data'),
                     ],
                   ),
                 ),
@@ -1145,7 +1177,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 await _notificationService.scheduleLoadReminders(loan, testMode: true);
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Test notification sent!')),
+                    const SnackBar(
+                      content: Text('Test notification sent!'),
+                      duration: Duration(seconds: 3),
+                    ),
                   );
                 }
               },
@@ -1213,7 +1248,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
     if (result != null && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Loan updated successfully!')),
+        const SnackBar(
+          content: Text('Loan updated successfully!'),
+          duration: Duration(seconds: 3),
+        ),
       );
     }
   }
@@ -1295,6 +1333,22 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
 
     if (confirmed ?? false) {
+      // Store loan data for potential undo
+      final deletedLoan = Loan(
+        id: loan.id,
+        name: loan.name,
+        emiAmount: loan.emiAmount,
+        dueDay: loan.dueDay,
+        startDate: loan.startDate,
+        notes: loan.notes,
+        loanAmount: loan.loanAmount,
+        interestRate: loan.interestRate,
+        tenureMonths: loan.tenureMonths,
+        isPaid: loan.isPaid,
+        currencyCode: loan.currencyCode,
+        emisPaidCount: loan.emisPaidCount,
+      );
+
       await _storageService.deleteLoan(loan.id);
       await _notificationService.cancelLoanReminders(
         loan.id,
@@ -1302,14 +1356,31 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       );
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        final messenger = ScaffoldMessenger.of(context);
+        messenger.clearSnackBars();
+        messenger.showSnackBar(
           SnackBar(
-            content: Text('${loan.name} deleted!'),
+            content: Row(
+              children: [
+                const Icon(Icons.delete_outline, color: Colors.white, size: 20),
+                const SizedBox(width: 12),
+                Expanded(child: Text('${deletedLoan.name} deleted!')),
+              ],
+            ),
+            backgroundColor: AppTheme.textDark,
+            duration: const Duration(seconds: 4),
+            behavior: SnackBarBehavior.floating,
+            margin: const EdgeInsets.all(16),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             action: SnackBarAction(
-              label: 'Undo',
+              label: 'UNDO',
+              textColor: AppTheme.accentOrange,
               onPressed: () async {
-                await _storageService.addLoan(loan);
-                await _notificationService.scheduleLoadReminders(loan);
+                await _storageService.addLoan(deletedLoan);
+                await _notificationService.scheduleLoadReminders(deletedLoan);
+                if (mounted) {
+                  setState(() {});
+                }
               },
             ),
           ),
@@ -1324,6 +1395,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Test notification sent! Check your notification panel.'),
+          duration: Duration(seconds: 3),
         ),
       );
     }
@@ -1690,6 +1762,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           SnackBar(
             content: Text('❌ Error: $e'),
             backgroundColor: AppTheme.statusError,
+            duration: const Duration(seconds: 4),
           ),
         );
       }
@@ -1799,5 +1872,221 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         ],
       ),
     );
+  }
+
+  /// Export backup of all loans
+  Future<void> _exportBackup() async {
+    try {
+      final loans = _storageService.getAllLoans();
+
+      if (loans.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No loans to backup'),
+            backgroundColor: Colors.orange,
+            duration: Duration(seconds: 3),
+          ),
+        );
+        return;
+      }
+
+      // Show options dialog
+      final choice = await showDialog<String>(
+        context: context,
+        builder: (context) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: const Row(
+            children: [
+              Icon(Icons.backup_rounded, color: Colors.green),
+              SizedBox(width: 12),
+              Text('Backup Data'),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('${loans.length} loan(s) will be backed up.'),
+              const SizedBox(height: 16),
+              const Text(
+                'Choose how to save your backup:',
+                style: TextStyle(fontWeight: FontWeight.w500),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            OutlinedButton.icon(
+              onPressed: () => Navigator.pop(context, 'save'),
+              icon: const Icon(Icons.save_alt_rounded),
+              label: const Text('Save to Device'),
+            ),
+            ElevatedButton.icon(
+              onPressed: () => Navigator.pop(context, 'share'),
+              icon: const Icon(Icons.share_rounded),
+              label: const Text('Share'),
+            ),
+          ],
+        ),
+      );
+
+      if (choice == null) return;
+
+      // Show loading
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Row(
+              children: [
+                SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Colors.white,
+                  ),
+                ),
+                SizedBox(width: 16),
+                Text('Creating backup...'),
+              ],
+            ),
+            duration: Duration(seconds: 10),
+          ),
+        );
+      }
+
+      String? savedPath;
+      if (choice == 'save') {
+        savedPath = await _backupService.saveBackupToLocation();
+      } else {
+        savedPath = await _backupService.exportLoans();
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(savedPath != null
+                ? '✅ Backup saved with ${loans.length} loans'
+                : '✅ Backup created with ${loans.length} loans'),
+            backgroundColor: AppTheme.statusSuccess,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ Backup failed: $e'),
+            backgroundColor: AppTheme.statusError,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
+    }
+  }
+
+  /// Import backup from file
+  Future<void> _importBackup() async {
+    // Show confirmation dialog
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.restore_rounded, color: Colors.blue),
+            SizedBox(width: 8),
+            Text('Restore Backup'),
+          ],
+        ),
+        content: const Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('This will import loans from a backup file.'),
+            SizedBox(height: 12),
+            Text(
+              'Note: Imported loans will be added to your existing loans.',
+              style: TextStyle(fontSize: 13, color: Colors.grey),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Select File'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    try {
+      // Show loading
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Row(
+            children: [
+              SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: Colors.white,
+                ),
+              ),
+              SizedBox(width: 16),
+              Text('Restoring backup...'),
+            ],
+          ),
+          duration: Duration(seconds: 30),
+        ),
+      );
+
+      final importedCount = await _backupService.importLoans();
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+
+        if (importedCount > 0) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('✅ Restored $importedCount loans successfully'),
+              backgroundColor: AppTheme.statusSuccess,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+          setState(() {}); // Refresh the list
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('No loans imported. Please select a valid backup file.'),
+              backgroundColor: Colors.orange,
+              duration: Duration(seconds: 4),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ Restore failed: $e'),
+            backgroundColor: AppTheme.statusError,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
+    }
   }
 }
