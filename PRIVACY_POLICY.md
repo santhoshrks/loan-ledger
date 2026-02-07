@@ -1,6 +1,6 @@
 # Privacy Policy
 
-**Smart EMI: Loan Reminder App**
+**EMI Reminder & Loan Tracker**
 
 *Last Updated: January 27, 2026*
 

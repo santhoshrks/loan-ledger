@@ -1,4 +1,4 @@
-# 📊 Smart EMI & Tenure Summary Feature
+# 📊 EMI Reminder & Tenure Summary Feature
 
 ## 🎉 New Form Layout with Real-Time Summary
 

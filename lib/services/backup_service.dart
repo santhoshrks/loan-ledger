@@ -71,7 +71,7 @@ class BackupService {
       // Also share the file so user can save to Drive, etc.
       await Share.shareXFiles(
         [XFile(savedPath)],
-        subject: 'Smart EMI Backup',
+        subject: 'EMI Reminder Backup',
         text: 'My EMI Reminder backup - ${loans.length} loans',
       );
 

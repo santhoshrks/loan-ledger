@@ -24,7 +24,7 @@ class NotificationService {
     icon: '@mipmap/ic_launcher',
     largeIcon: DrawableResourceAndroidBitmap('@mipmap/ic_launcher'),
     styleInformation: BigTextStyleInformation(''),
-    ticker: 'Smart EMI',
+    ticker: 'EMI Reminder',
     visibility: NotificationVisibility.public,
     category: AndroidNotificationCategory.reminder,
     fullScreenIntent: true,
@@ -219,7 +219,7 @@ class NotificationService {
       try {
         await _flutterLocalNotificationsPlugin.show(
           DateTime.now().millisecondsSinceEpoch ~/ 1000,
-          '🔔 Smart EMI Test',
+          '🔔 EMI Reminder Test',
           '${loan.name} - $currencySymbol${loan.emiAmount.toStringAsFixed(0)} notification is working!',
           const NotificationDetails(android: androidDetails),
           payload: loan.id,

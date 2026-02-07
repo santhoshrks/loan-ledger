@@ -158,7 +158,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             ),
             const SizedBox(height: 32),
             const Text(
-              'Smart EMI',
+              'EMI Reminder',
               style: TextStyle(
                 fontSize: 28,
                 fontWeight: FontWeight.bold,
@@ -391,7 +391,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   ],
                 ),
                 const Text(
-                  'Smart EMI',
+                  'EMI Reminder',
                   style: TextStyle(
                     fontSize: 26,
                     fontWeight: FontWeight.bold,
@@ -1531,7 +1531,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     _buildInstructionItem(
                       '1',
                       'Disable Battery Optimization',
-                      'Settings → Apps → Smart EMI → Battery → Unrestricted',
+                      'Settings → Apps → EMI Reminder → Battery → Unrestricted',
                     ),
                     _buildInstructionItem(
                       '2',

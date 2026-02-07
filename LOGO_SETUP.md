@@ -1,7 +1,7 @@
 # Logo Setup Guide
 
 ## App Name
-**Smart EMI: Loan Reminder App**
+**EMI Reminder & Loan Tracker**
 
 ## Quick Setup (3 Steps)
 

@@ -70,9 +70,8 @@ android {
                 "proguard-rules.pro"
             )
 
-            // TODO: Update key.properties with correct keystore password for Play Store release
-            // For now, using debug signing to test the build
-            signingConfig = signingConfigs.getByName("debug")
+            // Use release signing for Play Store
+            signingConfig = signingConfigs.getByName("release")
         }
 
         debug {
