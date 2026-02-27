@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 /// EMI Calculator for calculating loan EMI, interest, and tenure
 class EMICalculator {
   /// Calculate EMI (Equated Monthly Installment)
@@ -22,8 +24,9 @@ class EMICalculator {
       return principal / tenureMonths;
     }
 
-    final numerator = principal * monthlyRate * pow(1 + monthlyRate, tenureMonths);
-    final denominator = pow(1 + monthlyRate, tenureMonths) - 1;
+    final factor = math.pow(1 + monthlyRate, tenureMonths).toDouble();
+    final numerator = principal * monthlyRate * factor;
+    final denominator = factor - 1;
 
     return numerator / denominator;
   }
@@ -74,8 +77,8 @@ class EMICalculator {
     }
 
     // Using the formula: n = log(EMI / (EMI - P*r)) / log(1 + r)
-    final numerator = log(emi / (emi - principal * monthlyRate));
-    final denominator = log(1 + monthlyRate);
+    final numerator = math.log(emi / (emi - principal * monthlyRate));
+    final denominator = math.log(1 + monthlyRate);
 
     return (numerator / denominator).ceil();
   }
@@ -148,30 +151,66 @@ class EMICalculator {
       'tenure': tenureMonths,
     };
   }
-}
 
-/// Helper function for power calculation
-double pow(double base, int exponent) {
-  double result = 1.0;
-  for (int i = 0; i < exponent; i++) {
-    result *= base;
-  }
-  return result;
-}
-
-/// Helper function for natural logarithm
-double log(double value) {
-  if (value <= 0) return 0;
-  // Using Taylor series approximation for ln(x)
-  double result = 0.0;
-  double x = (value - 1) / (value + 1);
-  double xSquared = x * x;
-  double numerator = x;
-
-  for (int i = 1; i <= 100; i += 2) {
-    result += numerator / i;
-    numerator *= xSquared;
+  /// Calculate future value for a compound interest (principal compounded periodically)
+  /// principal: initial amount
+  /// annualRate: annual nominal rate in percent (e.g., 8.5)
+  /// years: number of years
+  /// compoundingPerYear: times interest compounds per year (default 12 - monthly)
+  static double calculateCompoundFutureValue({
+    required double principal,
+    required double annualRate,
+    required int years,
+    int compoundingPerYear = 12,
+  }) {
+    if (principal <= 0 || annualRate < 0 || years <= 0 || compoundingPerYear <= 0) return 0;
+    final ratePerPeriod = annualRate / compoundingPerYear / 100;
+    final totalPeriods = years * compoundingPerYear;
+    return principal * math.pow(1 + ratePerPeriod, totalPeriods).toDouble();
   }
 
-  return 2.0 * result;
+  /// Calculate SIP future value with optional missed months.
+  /// monthlyInvestment: amount invested each period (monthly)
+  /// annualRate: annual rate in percent
+  /// months: total number of months
+  /// missedMonths: optional list of 1-based month indices that were missed (e.g., [3,5])
+  /// contributionAtStart: if true, treat contribution as at start of month (compounds one extra period)
+  /// Returns a map with 'futureValue' and 'totalInvested'
+  static Map<String, double> calculateSIP({
+    required double monthlyInvestment,
+    required double annualRate,
+    required int months,
+    List<int>? missedMonths,
+    bool contributionAtStart = false,
+  }) {
+    if (monthlyInvestment <= 0 || months <= 0 || annualRate < 0) {
+      return {'futureValue': 0.0, 'totalInvested': 0.0};
+    }
+
+    final monthlyRate = annualRate / 12 / 100;
+    double fv = 0.0;
+    double invested = 0.0;
+
+    // Normalize missedMonths to a set for quick lookup
+    final missed = <int>{};
+    if (missedMonths != null) {
+      for (var m in missedMonths) {
+        if (m >= 1 && m <= months) missed.add(m);
+      }
+    }
+
+    for (int m = 1; m <= months; m++) {
+      if (missed.contains(m)) continue; // skipped contribution
+      invested += monthlyInvestment;
+
+      // Number of compounding periods the contribution will enjoy
+      // If contribution is at end of month m, it compounds for (months - m) periods
+      // If at start, compounds for (months - m + 1)
+      final remainingPeriods = contributionAtStart ? (months - m + 1) : (months - m);
+      final factor = remainingPeriods > 0 ? math.pow(1 + monthlyRate, remainingPeriods).toDouble() : 1.0;
+      fv += monthlyInvestment * factor;
+    }
+
+    return {'futureValue': fv, 'totalInvested': invested};
+  }
 }
