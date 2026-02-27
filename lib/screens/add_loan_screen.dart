@@ -298,7 +298,7 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
                           child: _buildTextField(
                             controller: _loanAmountController,
                             label: 'Loan Amount',
-                            hint: '₹0',
+                            hint: '${CurrencyHelper.getSymbol(_selectedCurrency)}0',
                             icon: Icons.account_balance_wallet_rounded,
                             keyboardType: TextInputType.number,
                             inputFormatters: [FilteringTextInputFormatter.digitsOnly],
@@ -661,6 +661,9 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
       return const SizedBox.shrink();
     }
 
+    // Use selected currency symbol for display
+    final currencySymbol = CurrencyHelper.getSymbol(_selectedCurrency);
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -705,7 +708,7 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
               Expanded(
                 child: _buildSummaryItem(
                   'Monthly EMI',
-                  '₹${NumberFormat('#,##,###').format(emi)}',
+                  '$currencySymbol${NumberFormat('#,##,###').format(emi)}',
                   Icons.calendar_month_rounded,
                 ),
               ),
@@ -717,7 +720,7 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
               Expanded(
                 child: _buildSummaryItem(
                   'Total Payment',
-                  '₹${NumberFormat('#,##,###').format(totalAmount)}',
+                  '$currencySymbol${NumberFormat('#,##,###').format(totalAmount)}',
                   Icons.account_balance_wallet_rounded,
                 ),
               ),

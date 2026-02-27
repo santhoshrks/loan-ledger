@@ -106,17 +106,17 @@ class DashboardCard extends StatelessWidget {
                 children: [
                   _buildAmountRow(
                     'Total Monthly EMI',
-                    '₹${stats['totalMonthlyEMI'].toStringAsFixed(0)}',
+                    stats['totalMonthlyEMIFormatted'] as String,
                   ),
                   const SizedBox(height: 8),
                   _buildAmountRow(
                     'Total Loan Amount',
-                    '₹${stats['totalLoanAmount'].toStringAsFixed(0)}',
+                    stats['totalLoanAmountFormatted'] as String,
                   ),
                   const SizedBox(height: 8),
                   _buildAmountRow(
                     'Estimated Interest',
-                    '₹${stats['estimatedInterest'].toStringAsFixed(0)}',
+                    stats['estimatedInterestFormatted'] as String,
                   ),
                 ],
               ),
@@ -250,14 +250,16 @@ class DashboardCard extends StatelessWidget {
     int activeLoans = loans.where((l) => !l.isPaid).length;
     int paidLoans = loans.where((l) => l.isPaid).length;
 
-    double totalMonthlyEMI = 0;
-    double totalLoanAmount = 0;
-    double estimatedInterest = 0;
+    // Aggregate monetary values per currency so we don't mix currencies together
+    final Map<String, double> monthlyByCurrency = {};
+    final Map<String, double> principalByCurrency = {};
+    final Map<String, double> interestByCurrency = {};
 
     for (var loan in loans) {
-      totalMonthlyEMI += loan.emiAmount;
+      final currency = loan.currencyCode.isNotEmpty ? loan.currencyCode : 'INR';
+      monthlyByCurrency[currency] = (monthlyByCurrency[currency] ?? 0) + loan.emiAmount;
       if (loan.loanAmount != null) {
-        totalLoanAmount += loan.loanAmount!;
+        principalByCurrency[currency] = (principalByCurrency[currency] ?? 0) + loan.loanAmount!;
       }
       if (loan.interestRate != null && loan.loanAmount != null && loan.tenureMonths != null) {
         final monthlyRate = loan.interestRate! / 12 / 100;
@@ -265,26 +267,48 @@ class DashboardCard extends StatelessWidget {
         final denominator = pow(1 + monthlyRate, loan.tenureMonths!) - 1;
         final emi = numerator / denominator;
         final totalInterest = (emi * loan.tenureMonths!) - loan.loanAmount!;
-        estimatedInterest += totalInterest;
+        interestByCurrency[currency] = (interestByCurrency[currency] ?? 0) + totalInterest;
       }
+    }
+
+    // Helper to format a currency->amount map into a single string like "₹1.2K • $200"
+    String formatCurrencyMap(Map<String, double> map) {
+      if (map.isEmpty) return '—';
+      final parts = <String>[];
+      map.forEach((currency, amount) {
+        final symbol = CurrencyHelper.getSymbol(currency);
+        // Use compact formatting similar to _formatCurrency in progress screen
+        String amtStr;
+        if (amount >= 10000000) {
+          amtStr = '${(amount / 10000000).toStringAsFixed(2)} Cr';
+        } else if (amount >= 100000) {
+          amtStr = '${(amount / 100000).toStringAsFixed(2)} L';
+        } else if (amount >= 1000) {
+          amtStr = '${(amount / 1000).toStringAsFixed(1)}K';
+        } else {
+          amtStr = amount.toStringAsFixed(0);
+        }
+        parts.add('$symbol$amtStr');
+      });
+      return parts.join(' • ');
     }
 
     return {
       'totalLoans': totalLoans,
       'activeLoans': activeLoans,
       'paidLoans': paidLoans,
-      'totalMonthlyEMI': totalMonthlyEMI,
-      'totalLoanAmount': totalLoanAmount,
-      'estimatedInterest': estimatedInterest,
+      'totalMonthlyEMIFormatted': formatCurrencyMap(monthlyByCurrency),
+      'totalLoanAmountFormatted': formatCurrencyMap(principalByCurrency),
+      'estimatedInterestFormatted': formatCurrencyMap(interestByCurrency),
     };
   }
-}
 
-/// Helper function for power calculation
-double pow(double base, int exponent) {
-  double result = 1.0;
-  for (int i = 0; i < exponent; i++) {
-    result *= base;
+  /// Helper function for power calculation
+  double pow(double base, int exponent) {
+    double result = 1.0;
+    for (int i = 0; i < exponent; i++) {
+      result *= base;
+    }
+    return result;
   }
-  return result;
 }

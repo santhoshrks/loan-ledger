@@ -66,9 +66,6 @@ class Loan extends HiveObject {
   /// Only moves to next month if current month's EMI is marked as paid
   DateTime getNextDueDate() {
     final now = DateTime.now();
-    int year = now.year;
-    int month = now.month;
-    int day = dueDay;
 
     // Helper function to get valid day for a given month
     int getValidDay(int y, int m, int desiredDay) {
@@ -76,12 +73,21 @@ class Loan extends HiveObject {
       return desiredDay > daysInMonth ? daysInMonth : desiredDay;
     }
 
-    // Get valid day for current month
-    day = getValidDay(year, month, dueDay);
+    // Start from the later of today or the loan's startDate month
+    DateTime reference = now;
+    if (startDate.isAfter(now)) {
+      // Use startDate as reference so we don't schedule before the loan starts
+      reference = DateTime(startDate.year, startDate.month, startDate.day);
+    }
+
+    int year = reference.year;
+    int month = reference.month;
+    int day = getValidDay(year, month, dueDay);
     DateTime dueDate = DateTime(year, month, day);
 
-    // If current month's EMI is marked as paid, move to next month
-    if (isPaid) {
+    // If the reference is the startDate and the computed dueDate is before the actual startDate
+    // advance to next month so the first due is on/after startDate
+    if (dueDate.isBefore(startDate)) {
       month++;
       if (month > 12) {
         month = 1;
@@ -90,9 +96,18 @@ class Loan extends HiveObject {
       day = getValidDay(year, month, dueDay);
       dueDate = DateTime(year, month, day);
     }
-    // If due date has passed this month but NOT paid, still show current month (overdue)
-    // Only if NOT paid and due date hasn't come yet, show current month
-    // If NOT paid and due date has passed, show current month (it's overdue)
+
+    // If current/first due month is already marked as paid, move to next month
+    if (isPaid) {
+      month = dueDate.month + 1;
+      year = dueDate.year;
+      if (month > 12) {
+        month = 1;
+        year++;
+      }
+      day = getValidDay(year, month, dueDay);
+      dueDate = DateTime(year, month, day);
+    }
 
     return dueDate;
   }
@@ -101,8 +116,6 @@ class Loan extends HiveObject {
   /// Returns the overdue date if EMI is unpaid and past due
   DateTime getCurrentDueDate() {
     final now = DateTime.now();
-    int year = now.year;
-    int month = now.month;
 
     // Helper function to get valid day for a given month
     int getValidDay(int y, int m, int desiredDay) {
@@ -110,6 +123,26 @@ class Loan extends HiveObject {
       return desiredDay > daysInMonth ? daysInMonth : desiredDay;
     }
 
+    // If loan hasn't started yet, the current due date should be its first due date
+    if (startDate.isAfter(now)) {
+      int year = startDate.year;
+      int month = startDate.month;
+      int day = getValidDay(year, month, dueDay);
+      DateTime dueDate = DateTime(year, month, day);
+      if (dueDate.isBefore(startDate)) {
+        month++;
+        if (month > 12) {
+          month = 1;
+          year++;
+        }
+        day = getValidDay(year, month, dueDay);
+        dueDate = DateTime(year, month, day);
+      }
+      return dueDate;
+    }
+
+    int year = now.year;
+    int month = now.month;
     int day = getValidDay(year, month, dueDay);
     return DateTime(year, month, day);
   }

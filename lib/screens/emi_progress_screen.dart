@@ -134,11 +134,13 @@ class _EMIProgressScreenState extends State<EMIProgressScreen> {
 
   Widget _buildSummaryHeader(List<Loan> loans) {
     double totalPrincipal = 0;
-    double totalInterest = 0;
-    double totalPaid = 0;
-    double totalRemaining = 0;
     int totalEmisPaid = 0;
     int totalEmisRemaining = 0;
+
+    // Aggregate paid/remaining/interest amounts per currency to avoid mixing currencies
+    final Map<String, double> paidByCurrency = {};
+    final Map<String, double> remainingByCurrency = {};
+    final Map<String, double> interestByCurrency = {};
 
     debugPrint('=== Building Summary Header ===');
     debugPrint('Number of loans: ${loans.length}');
@@ -154,9 +156,15 @@ class _EMIProgressScreenState extends State<EMIProgressScreen> {
       // Add to totals from progress calculation
       totalEmisPaid += emisPaid;
       totalEmisRemaining += emisRemaining;
-      totalPaid += (progress['amountPaid'] as double?) ?? 0;
-      totalRemaining += (progress['amountRemaining'] as double?) ?? 0;
-      totalInterest += (progress['totalInterest'] as double?) ?? 0;
+
+      final currency = loan.currencyCode.isNotEmpty ? loan.currencyCode : 'INR';
+      final amtPaid = (progress['amountPaid'] as double?) ?? 0;
+      final amtRemaining = (progress['amountRemaining'] as double?) ?? 0;
+      final totInterest = (progress['totalInterest'] as double?) ?? 0;
+
+      paidByCurrency[currency] = (paidByCurrency[currency] ?? 0) + amtPaid;
+      remainingByCurrency[currency] = (remainingByCurrency[currency] ?? 0) + amtRemaining;
+      interestByCurrency[currency] = (interestByCurrency[currency] ?? 0) + totInterest;
 
       if (loan.loanAmount != null) {
         totalPrincipal += loan.loanAmount!;
@@ -279,7 +287,7 @@ class _EMIProgressScreenState extends State<EMIProgressScreen> {
                 Column(
                   children: [
                     Text(
-                      _formatCurrency(totalPaid),
+                      _formatCurrencyMap(paidByCurrency),
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 16,
@@ -300,7 +308,7 @@ class _EMIProgressScreenState extends State<EMIProgressScreen> {
                 Column(
                   children: [
                     Text(
-                      _formatCurrency(totalRemaining),
+                      _formatCurrencyMap(remainingByCurrency),
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 16,
@@ -675,6 +683,27 @@ class _EMIProgressScreenState extends State<EMIProgressScreen> {
       return '₹${(amount / 1000).toStringAsFixed(1)}K';
     }
     return '₹${amount.toStringAsFixed(0)}';
+  }
+
+  // Format a map of currency->amount into a compact readable string
+  String _formatCurrencyMap(Map<String, double> map) {
+    if (map.isEmpty) return '—';
+    final parts = <String>[];
+    map.forEach((currency, amount) {
+      final symbol = CurrencyHelper.getSymbol(currency);
+      String amtStr;
+      if (amount >= 10000000) {
+        amtStr = '${(amount / 10000000).toStringAsFixed(2)} Cr';
+      } else if (amount >= 100000) {
+        amtStr = '${(amount / 100000).toStringAsFixed(2)} L';
+      } else if (amount >= 1000) {
+        amtStr = '${(amount / 1000).toStringAsFixed(1)}K';
+      } else {
+        amtStr = amount.toStringAsFixed(0);
+      }
+      parts.add('$symbol$amtStr');
+    });
+    return parts.join(' • ');
   }
 
   String _getDaySuffix(int day) {
