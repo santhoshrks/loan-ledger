@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:provider/provider.dart';
 import 'screens/home_screen.dart';
 import 'services/loan_storage_service.dart';
 import 'services/notification_service.dart';
+import 'services/language_provider.dart';
 import 'theme/app_theme.dart';
+import 'localization/app_localizations.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -27,6 +31,7 @@ Future<void> main() async {
   // Initialize services with error handling
   LoanStorageService? storageService;
   NotificationService? notificationService;
+  LanguageProvider languageProvider = LanguageProvider();
 
   try {
     // Initialize Hive for local storage
@@ -46,10 +51,21 @@ Future<void> main() async {
     debugPrint('❌ Notification service error: $e');
   }
 
+  try {
+    // Initialize language provider
+    await languageProvider.init();
+    debugPrint('✅ Language provider initialized');
+  } catch (e) {
+    debugPrint('❌ Language provider error: $e');
+  }
+
   runApp(
-    EmiReminderApp(
-      storageService: storageService,
-      notificationService: notificationService,
+    ChangeNotifierProvider<LanguageProvider>.value(
+      value: languageProvider,
+      child: EmiReminderApp(
+        storageService: storageService,
+        notificationService: notificationService,
+      ),
     ),
   );
 }
@@ -66,15 +82,32 @@ class EmiReminderApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      title: 'EMI Reminder & Loan Tracker',
-      theme: AppTheme.lightTheme,
-      themeMode: ThemeMode.light,
-      home: HomeScreen(
-        storageService: storageService,
-        notificationService: notificationService,
-      ),
+    return Consumer<LanguageProvider>(
+      builder: (context, languageProvider, _) {
+        return MaterialApp(
+          debugShowCheckedModeBanner: false,
+          title: 'EMI Reminder & Loan Tracker',
+          theme: AppTheme.lightTheme,
+          themeMode: ThemeMode.light,
+          locale: languageProvider.currentLocale,
+          localizationsDelegates: [
+            AppLocalizations.delegate,
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
+          supportedLocales: const [
+            Locale('en'),
+            Locale('ta'),
+            Locale('te'),
+            Locale('hi'),
+          ],
+          home: HomeScreen(
+            storageService: storageService,
+            notificationService: notificationService,
+          ),
+        );
+      },
     );
   }
 }

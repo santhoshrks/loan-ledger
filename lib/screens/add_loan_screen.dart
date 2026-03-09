@@ -6,6 +6,7 @@ import '../models/loan.dart';
 import '../services/loan_storage_service.dart';
 import '../services/notification_service.dart';
 import '../theme/app_theme.dart';
+import '../localization/app_localizations.dart';
 
 class AddLoanScreen extends StatefulWidget {
   final LoanStorageService storageService;
@@ -131,7 +132,9 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
                       mainAxisAlignment: MainAxisAlignment.end,
                       children: [
                         Text(
-                          widget.existingLoan == null ? 'Add New Loan' : 'Edit Loan',
+                          widget.existingLoan == null
+                            ? AppLocalizations.of(context).addLoanTitle
+                            : AppLocalizations.of(context).editLoanTitle,
                           style: const TextStyle(
                             color: Colors.white,
                             fontSize: 28,
@@ -141,8 +144,8 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
                         const SizedBox(height: 4),
                         Text(
                           widget.existingLoan == null
-                              ? 'Track your EMI payments'
-                              : 'Update loan details',
+                              ? AppLocalizations.of(context).trackYourEmiPayments
+                              : AppLocalizations.of(context).updateLoanDetails,
                           style: TextStyle(
                             color: Colors.white.withValues(alpha: 0.8),
                             fontSize: 14,
@@ -165,17 +168,17 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // Loan Type Selection
-                    _buildSectionTitle('Loan Type'),
+                    _buildSectionTitle(AppLocalizations.of(context).loanType),
                     const SizedBox(height: 12),
                     _buildLoanTypeSelector(),
                     const SizedBox(height: 24),
 
                     // Loan Name
-                    _buildSectionTitle('Loan Details'),
+                    _buildSectionTitle(AppLocalizations.of(context).loanDetails),
                     const SizedBox(height: 12),
                     _buildTextField(
                       controller: _nameController,
-                      label: 'Loan Name',
+                      label: AppLocalizations.of(context).loanName,
                       hint: 'e.g., HDFC Home Loan',
                       icon: Icons.label_rounded,
                       validator: (value) {
@@ -198,7 +201,7 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
                           flex: 2,
                           child: _buildTextField(
                             controller: _emiController,
-                            label: 'EMI Amount',
+                            label: AppLocalizations.of(context).emiAmount,
                             hint: '${CurrencyHelper.getSymbol(_selectedCurrency)}0',
                             icon: Icons.payments_rounded,
                             keyboardType: TextInputType.number,
@@ -218,7 +221,7 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
                     // Tenure Field
                     _buildTextField(
                       controller: _tenureController,
-                      label: 'Tenure (Months)',
+                      label: AppLocalizations.of(context).tenure,
                       hint: '60 months',
                       icon: Icons.schedule_rounded,
                       keyboardType: TextInputType.number,
@@ -259,14 +262,14 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
                     const SizedBox(height: 24),
 
                     // Due Date
-                    _buildSectionTitle('Payment Schedule'),
+                    _buildSectionTitle(AppLocalizations.of(context).paymentSchedule),
                     const SizedBox(height: 12),
                     Row(
                       children: [
                         Expanded(
                           child: _buildTextField(
                             controller: _dueDayController,
-                            label: 'Due Day',
+                            label: AppLocalizations.of(context).dueDay,
                             hint: '1-31',
                             icon: Icons.calendar_month_rounded,
                             keyboardType: TextInputType.number,
@@ -290,14 +293,14 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
                     const SizedBox(height: 24),
 
                     // Optional Details
-                    _buildSectionTitle('Additional Details (Optional)'),
+                    _buildSectionTitle(AppLocalizations.of(context).additionalDetails),
                     const SizedBox(height: 12),
                     Row(
                       children: [
                         Expanded(
                           child: _buildTextField(
                             controller: _loanAmountController,
-                            label: 'Loan Amount',
+                            label: AppLocalizations.of(context).loanAmount,
                             hint: '${CurrencyHelper.getSymbol(_selectedCurrency)}0',
                             icon: Icons.account_balance_wallet_rounded,
                             keyboardType: TextInputType.number,
@@ -308,7 +311,7 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
                         Expanded(
                           child: _buildTextField(
                             controller: _interestRateController,
-                            label: 'Interest Rate',
+                            label: AppLocalizations.of(context).interestRate,
                             hint: '0%',
                             icon: Icons.percent_rounded,
                             keyboardType: const TextInputType.numberWithOptions(decimal: true),
@@ -319,7 +322,7 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
                     const SizedBox(height: 16),
                     _buildTextField(
                       controller: _notesController,
-                      label: 'Notes',
+                      label: AppLocalizations.of(context).notes,
                       hint: 'Add any additional details...',
                       icon: Icons.notes_rounded,
                       maxLines: 3,
@@ -363,16 +366,19 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
           return GestureDetector(
             onTap: () {
               setState(() {
-                // Check if current name matches any loan type (auto-generated)
+                // Check if current name matches any loan type (auto-generated) in any language
+                final l = AppLocalizations.of(context);
                 final isAutoName = _loanTypes.any((t) =>
                     _nameController.text == t['name'] ||
+                    _nameController.text == l.getLoanTypeName(t['name']) ||
                     _nameController.text.isEmpty);
 
                 _selectedLoanType = type['name'];
 
                 // Update name only if it's empty or was auto-generated from another type
+                // Use localized name
                 if (isAutoName) {
-                  _nameController.text = type['name'];
+                  _nameController.text = l.getLoanTypeName(type['name']);
                 }
               });
             },
@@ -398,7 +404,7 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    type['name'].toString().split(' ')[0],
+                    AppLocalizations.of(context).getLoanTypeName(type['name']).split(' ')[0],
                     style: TextStyle(
                       color: isSelected ? Colors.white : AppTheme.textMedium,
                       fontSize: 11,
@@ -619,7 +625,7 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Start Date',
+                    AppLocalizations.of(context).startDate,
                     style: TextStyle(
                       fontSize: 12,
                       color: AppTheme.textMedium,
@@ -677,9 +683,9 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
-                'Loan Summary',
-                style: TextStyle(
+              Text(
+                AppLocalizations.of(context).loanSummary,
+                style: const TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
                   color: Colors.white70,
@@ -692,7 +698,7 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
-                  '$tenure months',
+                  '$tenure ${AppLocalizations.of(context).months}',
                   style: const TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
@@ -707,7 +713,7 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
             children: [
               Expanded(
                 child: _buildSummaryItem(
-                  'Monthly EMI',
+                  AppLocalizations.of(context).monthlyEmi,
                   '$currencySymbol${NumberFormat('#,##,###').format(emi)}',
                   Icons.calendar_month_rounded,
                 ),
@@ -719,7 +725,7 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
               ),
               Expanded(
                 child: _buildSummaryItem(
-                  'Total Payment',
+                  AppLocalizations.of(context).totalPayment,
                   '$currencySymbol${NumberFormat('#,##,###').format(totalAmount)}',
                   Icons.account_balance_wallet_rounded,
                 ),
@@ -793,7 +799,9 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
                   ),
                   const SizedBox(width: 8),
                   Text(
-                    widget.existingLoan == null ? 'Add Loan' : 'Update Loan',
+                    widget.existingLoan == null
+                      ? AppLocalizations.of(context).addLoan
+                      : AppLocalizations.of(context).save,
                     style: const TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,

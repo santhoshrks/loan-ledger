@@ -5,6 +5,7 @@ import '../models/loan.dart';
 import '../services/loan_storage_service.dart';
 import '../services/notification_service.dart';
 import '../theme/app_theme.dart';
+import '../localization/app_localizations.dart';
 
 class AddLoanScreen extends StatefulWidget {
   final LoanStorageService storageService;
@@ -58,6 +59,7 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     return Scaffold(
       backgroundColor: AppTheme.bgLight,
       appBar: AppBar(
@@ -208,7 +210,7 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
                       await widget.notificationService.showTestNotification();
                       if (mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Test notification sent! Check notification bar.')),
+                          SnackBar(content: Text(l.testNotificationSent)),
                         );
                       }
                     } catch (e) {
@@ -220,7 +222,7 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
                     }
                   },
                   icon: const Icon(Icons.notifications_active),
-                  label: const Text('Test Notification'),
+                  label: Text(l.testNotification),
                   style: OutlinedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 12),
                     foregroundColor: Colors.orange,

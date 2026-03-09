@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../models/loan.dart';
 import '../theme/app_theme.dart';
+import '../localization/app_localizations.dart';
 
 class LoanCard extends StatelessWidget {
   final Loan loan;
@@ -25,394 +26,303 @@ class LoanCard extends StatelessWidget {
     final nextDueDate = loan.getNextDueDate();
     final isOverdue = loan.isOverdue();
     final statusColor = _getStatusColor(daysUntilDue, isOverdue);
-    final statusGradient = _getStatusGradient(daysUntilDue, isOverdue);
-    final statusText = _getStatusText(daysUntilDue, isOverdue);
-    final statusIcon = _getStatusIcon(daysUntilDue, isOverdue);
+    final l = AppLocalizations.of(context);
 
     return GestureDetector(
       onTap: onTap,
       child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
         decoration: BoxDecoration(
-          color: AppTheme.bgCard,
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: AppTheme.softShadow,
-        ),
-        child: Column(
-          children: [
-            // Main Content
-            Padding(
-              padding: const EdgeInsets.all(20),
-              child: Row(
-                children: [
-                  // Loan Icon with Status
-                  Container(
-                    width: 56,
-                    height: 56,
-                    decoration: BoxDecoration(
-                      gradient: statusGradient,
-                      borderRadius: BorderRadius.circular(16),
-                      boxShadow: [
-                        BoxShadow(
-                          color: statusColor.withValues(alpha: 0.3),
-                          blurRadius: 12,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: Icon(
-                      _getLoanIcon(),
-                      color: Colors.white,
-                      size: 28,
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  // Loan Details
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          loan.name,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 17,
-                            color: AppTheme.textDark,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        const SizedBox(height: 6),
-                        Row(
-                          children: [
-                            Icon(
-                              Icons.event_rounded,
-                              size: 14,
-                              color: isOverdue
-                                  ? AppTheme.statusError
-                                  : (loan.isPaid ? AppTheme.primaryColor : AppTheme.textLight),
-                            ),
-                            const SizedBox(width: 6),
-                            Text(
-                              _getDueDateText(nextDueDate, isOverdue),
-                              style: TextStyle(
-                                color: isOverdue
-                                    ? AppTheme.statusError
-                                    : (loan.isPaid ? AppTheme.primaryColor : AppTheme.textMedium),
-                                fontSize: 13,
-                                fontWeight: isOverdue || loan.isPaid ? FontWeight.w500 : FontWeight.normal,
-                              ),
-                            ),
-                          ],
-                        ),
-                        // EMI Progress (if tenure is set)
-                        Builder(
-                          builder: (context) {
-                            debugPrint('Loan ${loan.name}: tenureMonths = ${loan.tenureMonths}');
-                            if (loan.tenureMonths != null && loan.tenureMonths! > 0) {
-                              return Padding(
-                                padding: const EdgeInsets.only(top: 4),
-                                child: Row(
-                                  children: [
-                                    Icon(
-                                      Icons.pie_chart_rounded,
-                                      size: 14,
-                                      color: AppTheme.secondaryColor,
-                                    ),
-                                    const SizedBox(width: 6),
-                                    Text(
-                                      'EMI: ${_getEmiPaidCount()}/${loan.tenureMonths} paid',
-                                      style: TextStyle(
-                                        color: AppTheme.secondaryColor,
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              );
-                            }
-                            return const SizedBox.shrink();
-                          },
-                        ),
-                      ],
-                    ),
-                  ),
-                  // Amount and Status
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Text(
-                        '${loan.currencySymbol}${NumberFormat('#,##,###').format(loan.emiAmount)}',
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 18,
-                          color: AppTheme.textDark,
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: statusColor.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              statusIcon,
-                              size: 12,
-                              color: statusColor,
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              statusText,
-                              style: TextStyle(
-                                color: statusColor,
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            // Bottom Action Bar
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              decoration: BoxDecoration(
-                color: AppTheme.bgLight.withValues(alpha: 0.5),
-                borderRadius: const BorderRadius.only(
-                  bottomLeft: Radius.circular(20),
-                  bottomRight: Radius.circular(20),
-                ),
-              ),
-              child: Row(
-                children: [
-                  // Status indicator
-                  if (loan.isPaid)
-                    Row(
-                      children: [
-                        _buildInfoChip(
-                          icon: Icons.check_circle_outline,
-                          text: 'Paid',
-                          color: AppTheme.statusSuccess,
-                        ),
-                        const SizedBox(width: 8),
-                        _buildInfoChip(
-                          icon: Icons.schedule_rounded,
-                          text: 'Next in ${daysUntilDue}d',
-                          color: AppTheme.primaryColor,
-                        ),
-                      ],
-                    )
-                  else if (isOverdue)
-                    _buildInfoChip(
-                      icon: Icons.warning_rounded,
-                      text: '${daysUntilDue.abs()} days overdue',
-                      color: AppTheme.statusError,
-                    )
-                  else
-                    _buildInfoChip(
-                      icon: Icons.timer_outlined,
-                      text: _getDaysText(daysUntilDue),
-                      color: statusColor,
-                    ),
-                  const Spacer(),
-                  // Quick Actions
-                  if (!loan.isPaid && onMarkPaid != null)
-                    _buildActionButton(
-                      icon: Icons.check_rounded,
-                      color: AppTheme.statusSuccess,
-                      onTap: onMarkPaid!,
-                      tooltip: 'Mark Paid',
-                    )
-                  else if (loan.isPaid && onMarkUnpaid != null)
-                    _buildActionButton(
-                      icon: Icons.undo_rounded,
-                      color: AppTheme.statusWarning,
-                      onTap: onMarkUnpaid!,
-                      tooltip: 'Mark Unpaid',
-                    ),
-                  const SizedBox(width: 8),
-                  _buildActionButton(
-                    icon: Icons.arrow_forward_rounded,
-                    color: AppTheme.primaryColor,
-                    onTap: onTap,
-                    tooltip: 'View Details',
-                  ),
-                ],
-              ),
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.06),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
             ),
           ],
         ),
-      ),
-    );
-  }
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Row 1: Icon, Name, Amount
+              Row(
+                children: [
+                  // Icon
+                  Container(
+                    width: 46,
+                    height: 46,
+                    decoration: BoxDecoration(
+                      color: statusColor.withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(_getLoanIcon(), color: statusColor, size: 24),
+                  ),
+                  const SizedBox(width: 12),
+                  // Name
+                  Expanded(
+                    child: Text(
+                      _getTranslatedLoanName(l),
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 16,
+                        color: Color(0xFF1F2937),
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  // Amount
+                  Text(
+                    '${loan.currencySymbol}${NumberFormat('#,##,###').format(loan.emiAmount)}',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 18,
+                      color: Color(0xFF1F2937),
+                    ),
+                  ),
+                ],
+              ),
 
-  Widget _buildInfoChip({
-    required IconData icon,
-    required String text,
-    required Color color,
-  }) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 14, color: color),
-          const SizedBox(width: 6),
-          Text(
-            text,
-            style: TextStyle(
-              color: color,
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+              const SizedBox(height: 14),
 
-  Widget _buildActionButton({
-    required IconData icon,
-    required Color color,
-    required VoidCallback onTap,
-    required String tooltip,
-  }) {
-    return Tooltip(
-      message: tooltip,
-      child: GestureDetector(
-        onTap: onTap,
-        child: Container(
-          width: 36,
-          height: 36,
-          decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: Icon(
-            icon,
-            size: 18,
-            color: color,
+              // Row 2: Due Date and Status Badge
+              Row(
+                children: [
+                  Icon(Icons.calendar_today_rounded, size: 14, color: Colors.grey[500]),
+                  const SizedBox(width: 6),
+                  Text(
+                    DateFormat('MMM d, yyyy').format(nextDueDate),
+                    style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+                  ),
+                  const Spacer(),
+                  // Status Badge
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: statusColor.withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      _getStatusText(context, daysUntilDue, isOverdue),
+                      style: TextStyle(
+                        color: statusColor,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+
+              // Row 3: Progress bar (if tenure exists)
+              if (loan.tenureMonths != null && loan.tenureMonths! > 0) ...[
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(4),
+                        child: LinearProgressIndicator(
+                          value: _getEmiPaidCount() / loan.tenureMonths!,
+                          backgroundColor: Colors.grey[200],
+                          valueColor: AlwaysStoppedAnimation<Color>(statusColor),
+                          minHeight: 6,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Text(
+                      '${_getEmiPaidCount()}/${loan.tenureMonths}',
+                      style: TextStyle(
+                        color: Colors.grey[600],
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+
+              const SizedBox(height: 14),
+
+              // Divider
+              Divider(height: 1, color: Colors.grey[200]),
+
+              const SizedBox(height: 12),
+
+              // Row 4: Days left + Actions
+              Row(
+                children: [
+                  Icon(
+                    loan.isPaid ? Icons.check_circle_rounded : Icons.schedule_rounded,
+                    size: 16,
+                    color: statusColor,
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      _getDaysText(context, l, daysUntilDue, isOverdue),
+                      style: TextStyle(
+                        color: statusColor,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  // Action Buttons
+                  if (!loan.isPaid && onMarkPaid != null)
+                    _actionBtn(Icons.check_rounded, Colors.green, onMarkPaid!),
+                  if (loan.isPaid && onMarkUnpaid != null)
+                    _actionBtn(Icons.undo_rounded, Colors.orange, onMarkUnpaid!),
+                  const SizedBox(width: 8),
+                  _actionBtn(Icons.arrow_forward_ios_rounded, AppTheme.primaryColor, onTap),
+                ],
+              ),
+            ],
           ),
         ),
       ),
     );
+  }
+
+  Widget _actionBtn(IconData icon, Color color, VoidCallback onTap) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Icon(icon, size: 16, color: color),
+      ),
+    );
+  }
+
+  String _getStatusText(BuildContext context, int daysUntilDue, bool isOverdue) {
+    final l = AppLocalizations.of(context);
+    if (loan.isPaid) return l.paidStatus;
+    if (isOverdue) return l.overdueStatus;
+    if (daysUntilDue == 0) return l.dueTodayStatus;
+    if (daysUntilDue == 1) return l.dueTomorrowStatus;
+    if (daysUntilDue <= 3) return l.dueSoonStatus;
+    return l.upcomingStatus;
+  }
+
+  String _getDaysText(BuildContext context, AppLocalizations l, int daysUntilDue, bool isOverdue) {
+    if (loan.isPaid) return l.paid;
+    if (isOverdue) return '${daysUntilDue.abs()} ${l.daysOverdue}';
+    if (daysUntilDue == 0) return l.dueTodayLabel;
+    if (daysUntilDue == 1) return l.dueTomorrowLabel;
+    return '$daysUntilDue ${l.daysLeft}';
   }
 
   IconData _getLoanIcon() {
     final name = loan.name.toLowerCase();
-    if (name.contains('home') || name.contains('house') || name.contains('flat')) {
+
+    // Home Loan
+    if (name.contains('home') || name.contains('house') ||
+        name.contains('வீட்டு') || name.contains('வீடு') ||
+        name.contains('గృహ') || name.contains('गृह')) {
       return Icons.home_rounded;
-    } else if (name.contains('car') || name.contains('vehicle') || name.contains('bike')) {
+    }
+    // Car Loan
+    if (name.contains('car') || name.contains('vehicle') ||
+        name.contains('வாகன') ||
+        name.contains('వాహన') || name.contains('कार')) {
       return Icons.directions_car_rounded;
-    } else if (name.contains('personal')) {
+    }
+    // Personal Loan
+    if (name.contains('personal') ||
+        name.contains('தனிநபர்') ||
+        name.contains('వ్యక్తిగత') || name.contains('व्यक्तिगत')) {
       return Icons.person_rounded;
-    } else if (name.contains('education') || name.contains('study')) {
+    }
+    // Education Loan
+    if (name.contains('education') || name.contains('study') ||
+        name.contains('கல்வி') ||
+        name.contains('విద్య') || name.contains('शिक्षा')) {
       return Icons.school_rounded;
-    } else if (name.contains('business')) {
+    }
+    // Business Loan
+    if (name.contains('business') ||
+        name.contains('தொழில்') ||
+        name.contains('వ్యాపార') || name.contains('व्यापार')) {
       return Icons.business_center_rounded;
-    } else if (name.contains('gold')) {
+    }
+    // Gold Loan
+    if (name.contains('gold') ||
+        name.contains('நகை') ||
+        name.contains('బంగారు') || name.contains('स्वर्ण')) {
       return Icons.diamond_rounded;
-    } else if (name.contains('credit')) {
+    }
+    // Credit Card
+    if (name.contains('credit') ||
+        name.contains('கிரெடிட்') ||
+        name.contains('క్రెడిట్') || name.contains('क्रेडिट')) {
       return Icons.credit_card_rounded;
     }
+
     return Icons.account_balance_rounded;
   }
 
-  /// Get color based on due date status
+  /// Translate standard loan type names to current language
+  String _getTranslatedLoanName(AppLocalizations l) {
+    final name = loan.name.toLowerCase();
+
+    // Check if it's a standard loan type and translate it
+    if (name == 'home loan' || name.contains('வீட்டுக் கடன்') ||
+        name.contains('గృహ రుణం') || name.contains('गृह ऋण')) {
+      return l.getLoanTypeName('Home Loan');
+    }
+    if (name == 'car loan' || name.contains('வாகனக் கடன்') ||
+        name.contains('వాహన రుణం') || name.contains('कार ऋण')) {
+      return l.getLoanTypeName('Car Loan');
+    }
+    if (name == 'personal loan' || name.contains('தனிநபர் கடன்') ||
+        name.contains('వ్యక్తిగత రుణం') || name.contains('व्यक्तिगत ऋण')) {
+      return l.getLoanTypeName('Personal Loan');
+    }
+    if (name == 'education loan' || name.contains('கல்விக் கடன்') ||
+        name.contains('విద్యా రుణం') || name.contains('शिक्षा ऋण')) {
+      return l.getLoanTypeName('Education Loan');
+    }
+    if (name == 'business loan' || name.contains('தொழில் கடன்') ||
+        name.contains('వ్యాపార రుణం') || name.contains('व्यापार ऋण')) {
+      return l.getLoanTypeName('Business Loan');
+    }
+    if (name == 'gold loan' || name.contains('நகைக்கடன்') ||
+        name.contains('బంగారు రుణం') || name.contains('स्वर्ण ऋण')) {
+      return l.getLoanTypeName('Gold Loan');
+    }
+    if (name == 'credit card' || name.contains('கிரெடிட் கார்டு') ||
+        name.contains('క్రెడిట్ కార్డ్') || name.contains('क्रेडिट कार्ड')) {
+      return l.getLoanTypeName('Credit Card');
+    }
+
+    // If not a standard type, return original name
+    return loan.name;
+  }
+
   Color _getStatusColor(int daysUntilDue, bool isOverdue) {
-    if (loan.isPaid) return AppTheme.statusSuccess;
-    if (isOverdue) return AppTheme.statusError; // Overdue (unpaid and past due date)
-    if (daysUntilDue == 0) return AppTheme.statusWarning; // Due today
-    if (daysUntilDue <= 3) return AppTheme.statusWarning; // Due soon
-    if (daysUntilDue <= 7) return AppTheme.statusInfo; // Coming up
-    return AppTheme.secondaryColor; // Upcoming
+    if (loan.isPaid) return const Color(0xFF10B981);
+    if (isOverdue) return const Color(0xFFEF4444);
+    if (daysUntilDue <= 3) return const Color(0xFFF59E0B);
+    return AppTheme.primaryColor;
   }
 
-  LinearGradient _getStatusGradient(int daysUntilDue, bool isOverdue) {
-    if (loan.isPaid) return AppTheme.successGradient;
-    if (isOverdue) return AppTheme.errorGradient;
-    if (daysUntilDue == 0) return AppTheme.warningGradient;
-    if (daysUntilDue <= 3) return AppTheme.warningGradient;
-    return AppTheme.primaryGradient;
-  }
-
-  IconData _getStatusIcon(int daysUntilDue, bool isOverdue) {
-    if (loan.isPaid) return Icons.check_circle_rounded;
-    if (isOverdue) return Icons.error_rounded;
-    if (daysUntilDue == 0) return Icons.warning_rounded;
-    if (daysUntilDue <= 3) return Icons.schedule_rounded;
-    return Icons.event_rounded;
-  }
-
-  /// Get status text
-  String _getStatusText(int daysUntilDue, bool isOverdue) {
-    if (loan.isPaid) return 'PAID';
-    if (isOverdue) return 'OVERDUE';
-    if (daysUntilDue == 0) return 'DUE TODAY';
-    if (daysUntilDue == 1) return 'DUE TOMORROW';
-    if (daysUntilDue <= 3) return 'DUE SOON';
-    if (daysUntilDue <= 7) return 'THIS WEEK';
-    return 'UPCOMING';
-  }
-
-  /// Get due date text based on status
-  String _getDueDateText(DateTime dueDate, bool isOverdue) {
-    if (loan.isPaid) {
-      return 'Next Due: ${DateFormat('MMM d, yyyy').format(dueDate)}';
-    } else if (isOverdue) {
-      return 'Overdue: ${DateFormat('MMM d, yyyy').format(dueDate)}';
-    } else {
-      return 'Due: ${DateFormat('MMM d, yyyy').format(dueDate)}';
-    }
-  }
-
-  String _getDaysText(int daysUntilDue) {
-    if (daysUntilDue < 0) {
-      return '${daysUntilDue.abs()} days overdue';
-    } else if (daysUntilDue == 0) {
-      return 'Due today';
-    } else if (daysUntilDue == 1) {
-      return 'Due tomorrow';
-    } else {
-      return '$daysUntilDue days left';
-    }
-  }
-
-  /// Calculate number of EMIs paid
   int _getEmiPaidCount() {
     if (loan.tenureMonths == null) return 0;
-
-    // Use the stored emisPaidCount as the base (manually entered by user)
     int emisPaid = loan.emisPaidCount;
-
-    // If current month's EMI is marked as paid, add 1 to the stored count
-    if (loan.isPaid) {
-      emisPaid = emisPaid + 1;
-    }
-
-    // Clamp to valid range
-    if (emisPaid > loan.tenureMonths!) {
-      emisPaid = loan.tenureMonths!;
-    }
-    if (emisPaid < 0) {
-      emisPaid = 0;
-    }
-
-    return emisPaid;
+    if (loan.isPaid) emisPaid++;
+    return emisPaid.clamp(0, loan.tenureMonths!);
   }
 }

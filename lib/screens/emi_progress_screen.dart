@@ -4,6 +4,7 @@ import '../models/loan.dart';
 import '../services/loan_storage_service.dart';
 import '../theme/app_theme.dart';
 import '../utils/emi_calculator.dart';
+import '../localization/app_localizations.dart';
 
 class EMIProgressScreen extends StatefulWidget {
   final LoanStorageService storageService;
@@ -47,10 +48,11 @@ class _EMIProgressScreenState extends State<EMIProgressScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     return Scaffold(
       backgroundColor: AppTheme.bgLight,
       appBar: AppBar(
-        title: const Text('EMI Progress'),
+        title: Text(l.emiProgress),
         backgroundColor: AppTheme.primaryColor,
         foregroundColor: Colors.white,
         elevation: 0,
@@ -58,14 +60,14 @@ class _EMIProgressScreenState extends State<EMIProgressScreen> {
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: _loadLoans,
-            tooltip: 'Refresh',
+            tooltip: l.refresh,
           ),
         ],
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _loans.isEmpty
-              ? _buildEmptyState()
+              ? _buildEmptyState(context)
               : RefreshIndicator(
                   onRefresh: _loadLoans,
                   child: SingleChildScrollView(
@@ -73,7 +75,7 @@ class _EMIProgressScreenState extends State<EMIProgressScreen> {
                     child: Column(
                       children: [
                         // Header Summary
-                        _buildSummaryHeader(_loans),
+                        _buildSummaryHeader(context, _loans),
 
                         // Individual Loan Progress
                         Padding(
@@ -81,16 +83,16 @@ class _EMIProgressScreenState extends State<EMIProgressScreen> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Text(
-                                'Loan-wise Progress',
-                                style: TextStyle(
+                              Text(
+                                l.loanWiseProgress,
+                                style: const TextStyle(
                                   fontSize: 18,
                                   fontWeight: FontWeight.bold,
                                   color: AppTheme.textDark,
                                 ),
                               ),
                               const SizedBox(height: 16),
-                              ..._loans.map((loan) => _buildLoanProgressCard(loan)),
+                              ..._loans.map((loan) => _buildLoanProgressCard(context, loan)),
                             ],
                           ),
                         ),
@@ -101,7 +103,8 @@ class _EMIProgressScreenState extends State<EMIProgressScreen> {
     );
   }
 
-  Widget _buildEmptyState() {
+  Widget _buildEmptyState(BuildContext context) {
+    final l = AppLocalizations.of(context);
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -113,7 +116,7 @@ class _EMIProgressScreenState extends State<EMIProgressScreen> {
           ),
           const SizedBox(height: 16),
           Text(
-            'No loans to track',
+            l.noLoansToTrack,
             style: TextStyle(
               fontSize: 18,
               color: Colors.grey.shade600,
@@ -121,7 +124,7 @@ class _EMIProgressScreenState extends State<EMIProgressScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-            'Add a loan to see your progress',
+            l.addLoanToSeeProgress,
             style: TextStyle(
               fontSize: 14,
               color: Colors.grey.shade500,
@@ -132,7 +135,8 @@ class _EMIProgressScreenState extends State<EMIProgressScreen> {
     );
   }
 
-  Widget _buildSummaryHeader(List<Loan> loans) {
+  Widget _buildSummaryHeader(BuildContext context, List<Loan> loans) {
+    final l = AppLocalizations.of(context);
     double totalPrincipal = 0;
     int totalEmisPaid = 0;
     int totalEmisRemaining = 0;
@@ -193,9 +197,9 @@ class _EMIProgressScreenState extends State<EMIProgressScreen> {
       ),
       child: Column(
         children: [
-          const Text(
-            'Overall Progress',
-            style: TextStyle(
+          Text(
+            l.overallProgress,
+            style: const TextStyle(
               color: Colors.white70,
               fontSize: 14,
             ),
@@ -230,9 +234,9 @@ class _EMIProgressScreenState extends State<EMIProgressScreen> {
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                    const Text(
-                      'Completed',
-                      style: TextStyle(
+                    Text(
+                      l.completed,
+                      style: const TextStyle(
                         color: Colors.white70,
                         fontSize: 12,
                       ),
@@ -250,21 +254,21 @@ class _EMIProgressScreenState extends State<EMIProgressScreen> {
             children: [
               Expanded(
                 child: _buildSummaryItem(
-                  'Total Loans',
+                  l.totalLoans,
                   '${loans.length}',
                   Icons.account_balance,
                 ),
               ),
               Expanded(
                 child: _buildSummaryItem(
-                  'EMIs Paid',
+                  l.emisPaid,
                   '$totalEmisPaid',
                   Icons.check_circle_outline,
                 ),
               ),
               Expanded(
                 child: _buildSummaryItem(
-                  'EMIs Left',
+                  l.emisLeft,
                   '$totalEmisRemaining',
                   Icons.schedule,
                 ),
@@ -294,9 +298,9 @@ class _EMIProgressScreenState extends State<EMIProgressScreen> {
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                    const Text(
-                      'Paid',
-                      style: TextStyle(color: Colors.white70, fontSize: 12),
+                    Text(
+                      l.paid,
+                      style: const TextStyle(color: Colors.white70, fontSize: 12),
                     ),
                   ],
                 ),
@@ -315,9 +319,9 @@ class _EMIProgressScreenState extends State<EMIProgressScreen> {
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                    const Text(
-                      'Remaining',
-                      style: TextStyle(color: Colors.white70, fontSize: 12),
+                    Text(
+                      l.remaining,
+                      style: const TextStyle(color: Colors.white70, fontSize: 12),
                     ),
                   ],
                 ),
@@ -353,7 +357,8 @@ class _EMIProgressScreenState extends State<EMIProgressScreen> {
     );
   }
 
-  Widget _buildLoanProgressCard(Loan loan) {
+  Widget _buildLoanProgressCard(BuildContext context, Loan loan) {
+    final l = AppLocalizations.of(context);
     final progress = _calculateLoanProgress(loan);
     final progressPercent = (progress['progressPercent'] as double?) ?? 0.0;
     final emisPaid = (progress['emisPaid'] as int?) ?? 0;
@@ -410,7 +415,7 @@ class _EMIProgressScreenState extends State<EMIProgressScreen> {
                               children: [
                                 Expanded(
                                   child: Text(
-                                    loan.name,
+                                    _getTranslatedLoanName(loan, l),
                                     style: const TextStyle(
                                       fontWeight: FontWeight.bold,
                                       fontSize: 16,
@@ -428,7 +433,7 @@ class _EMIProgressScreenState extends State<EMIProgressScreen> {
                                       borderRadius: BorderRadius.circular(10),
                                     ),
                                     child: Text(
-                                      'PAID',
+                                      l.paidStatus,
                                       style: TextStyle(
                                         color: AppTheme.statusSuccess,
                                         fontSize: 10,
@@ -491,7 +496,7 @@ class _EMIProgressScreenState extends State<EMIProgressScreen> {
               children: [
                 Expanded(
                   child: _buildStatItem(
-                    'EMIs Paid',
+                    l.emisPaid,
                     loan.tenureMonths != null
                         ? '$emisPaid / ${loan.tenureMonths}'
                         : '$emisPaid',
@@ -501,7 +506,7 @@ class _EMIProgressScreenState extends State<EMIProgressScreen> {
                 ),
                 Expanded(
                   child: _buildStatItem(
-                    'Remaining',
+                    l.remaining,
                     '$emisRemaining',
                     Icons.schedule,
                     AppTheme.statusWarning,
@@ -519,7 +524,7 @@ class _EMIProgressScreenState extends State<EMIProgressScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Paid',
+                        l.paid,
                         style: TextStyle(
                           color: Colors.grey.shade600,
                           fontSize: 12,
@@ -539,7 +544,7 @@ class _EMIProgressScreenState extends State<EMIProgressScreen> {
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
                       Text(
-                        'Remaining',
+                        l.remaining,
                         style: TextStyle(
                           color: Colors.grey.shade600,
                           fontSize: 12,
@@ -714,5 +719,43 @@ class _EMIProgressScreenState extends State<EMIProgressScreen> {
       case 3: return 'rd';
       default: return 'th';
     }
+  }
+
+  /// Translate standard loan type names to current language
+  String _getTranslatedLoanName(Loan loan, AppLocalizations l) {
+    final name = loan.name.toLowerCase();
+
+    // Check if it's a standard loan type and translate it
+    if (name == 'home loan' || name.contains('வீட்டுக் கடன்') ||
+        name.contains('గృహ రుణం') || name.contains('गृह ऋण')) {
+      return l.getLoanTypeName('Home Loan');
+    }
+    if (name == 'car loan' || name.contains('வாகனக் கடன்') ||
+        name.contains('వాహన రుణం') || name.contains('कार ऋण')) {
+      return l.getLoanTypeName('Car Loan');
+    }
+    if (name == 'personal loan' || name.contains('தனிநபர் கடன்') ||
+        name.contains('వ்యக்తిగత రుణం') || name.contains('व्यक्तिगत ऋण')) {
+      return l.getLoanTypeName('Personal Loan');
+    }
+    if (name == 'education loan' || name.contains('கல்விக் கடன்') ||
+        name.contains('విద்యா రుణం') || name.contains('शिक्षा ऋण')) {
+      return l.getLoanTypeName('Education Loan');
+    }
+    if (name == 'business loan' || name.contains('தொழில் கடன்') ||
+        name.contains('వ్యాపార రుణం') || name.contains('व्यापार ऋण')) {
+      return l.getLoanTypeName('Business Loan');
+    }
+    if (name == 'gold loan' || name.contains('நகைக்கடன்') ||
+        name.contains('బంగారు రుణం') || name.contains('स्वर्ण ऋण')) {
+      return l.getLoanTypeName('Gold Loan');
+    }
+    if (name == 'credit card' || name.contains('கிரெடிட் கார்டு') ||
+        name.contains('క్రెడిట్ కార్డ్') || name.contains('क्रेडिट कार्ड')) {
+      return l.getLoanTypeName('Credit Card');
+    }
+
+    // If not a standard type, return original name
+    return loan.name;
   }
 }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../theme/app_theme.dart';
 import '../utils/emi_calculator.dart';
+import '../localization/app_localizations.dart';
 
 class EMICalculatorScreen extends StatefulWidget {
   const EMICalculatorScreen({super.key});
@@ -190,10 +191,11 @@ class _EMICalculatorScreenState extends State<EMICalculatorScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     return Scaffold(
       backgroundColor: AppTheme.bgLight,
       appBar: AppBar(
-        title: const Text('EMI Calculator'),
+        title: Text(l.emiCalculator),
         backgroundColor: AppTheme.primaryColor,
         foregroundColor: Colors.white,
         elevation: 0,
@@ -201,7 +203,7 @@ class _EMICalculatorScreenState extends State<EMICalculatorScreen> {
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: _reset,
-            tooltip: 'Reset',
+            tooltip: l.reset,
           ),
         ],
       ),
@@ -228,7 +230,7 @@ class _EMICalculatorScreenState extends State<EMICalculatorScreen> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Calculate your loan EMI',
+                    l.calculateYourLoanEmi,
                     style: TextStyle(
                       color: Colors.white.withValues(alpha: 0.9),
                       fontSize: 16,
@@ -253,9 +255,9 @@ class _EMICalculatorScreenState extends State<EMICalculatorScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        const Text(
-                          'Enter Loan Details',
-                          style: TextStyle(
+                        Text(
+                          l.enterLoanDetails,
+                          style: const TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
                             color: AppTheme.textDark,
@@ -274,7 +276,7 @@ class _EMICalculatorScreenState extends State<EMICalculatorScreen> {
                             ),
                             const SizedBox(width: 8),
                             ChoiceChip(
-                              label: const Text('Compound'),
+                              label: Text(l.compound),
                               selected: _calcType == 'Compound',
                               onSelected: (v) => setState(() => _calcType = 'Compound'),
                             ),
@@ -296,7 +298,7 @@ class _EMICalculatorScreenState extends State<EMICalculatorScreen> {
                             FilteringTextInputFormatter.allow(RegExp(r'[\d.]')),
                           ],
                           decoration: InputDecoration(
-                            labelText: 'Interest Rate (% per annum)',
+                            labelText: l.interestRatePerAnnum,
                             hintText: 'e.g., 8.5',
                             prefixIcon: Icon(Icons.percent, color: AppTheme.primaryColor),
                             border: OutlineInputBorder(
@@ -329,8 +331,8 @@ class _EMICalculatorScreenState extends State<EMICalculatorScreen> {
                               FilteringTextInputFormatter.allow(RegExp(r'[\d,]')),
                             ],
                             decoration: InputDecoration(
-                              labelText: _calcType == 'Compound' ? 'Initial Amount' : 'Loan Amount',
-                              hintText: 'e.g., 500000',
+                              labelText: _calcType == 'Compound' ? l.principalAmount : l.loanAmount,
+                              hintText: l.loanAmountHint,
                               prefixIcon: Icon(Icons.currency_rupee, color: AppTheme.primaryColor),
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
@@ -342,11 +344,11 @@ class _EMICalculatorScreenState extends State<EMICalculatorScreen> {
                             ),
                             validator: (value) {
                               if (value == null || value.isEmpty) {
-                                return 'Please enter amount';
+                                return l.pleaseEnterValidAmount;
                               }
                               final parsed = double.tryParse(value.replaceAll(',', ''));
                               if (parsed == null || parsed <= 0) {
-                                return 'Enter a valid amount';
+                                return l.pleaseEnterValidAmount;
                               }
                               return null;
                             },
@@ -359,7 +361,7 @@ class _EMICalculatorScreenState extends State<EMICalculatorScreen> {
                               FilteringTextInputFormatter.allow(RegExp(r'[\d,]')),
                             ],
                             decoration: InputDecoration(
-                              labelText: 'Monthly Investment',
+                              labelText: l.monthlyInvestment,
                               hintText: 'e.g., 5000',
                               prefixIcon: Icon(Icons.savings, color: AppTheme.primaryColor),
                               border: OutlineInputBorder(
@@ -367,9 +369,9 @@ class _EMICalculatorScreenState extends State<EMICalculatorScreen> {
                               ),
                             ),
                             validator: (value) {
-                              if (value == null || value.isEmpty) return 'Please enter monthly amount';
+                              if (value == null || value.isEmpty) return l.pleaseEnterValidAmount;
                               final p = double.tryParse(value.replaceAll(',', ''));
-                              if (p == null || p <= 0) return 'Enter valid amount';
+                              if (p == null || p <= 0) return l.pleaseEnterValidAmount;
                               return null;
                             },
                           ),
@@ -382,7 +384,7 @@ class _EMICalculatorScreenState extends State<EMICalculatorScreen> {
                             keyboardType: TextInputType.number,
                             inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                             decoration: InputDecoration(
-                              labelText: 'Loan Tenure (months)',
+                              labelText: l.tenureMonthsLabel,
                               hintText: 'e.g., 60',
                               prefixIcon: Icon(Icons.calendar_month, color: AppTheme.primaryColor),
                               border: OutlineInputBorder(
@@ -394,9 +396,9 @@ class _EMICalculatorScreenState extends State<EMICalculatorScreen> {
                               ),
                             ),
                             validator: (value) {
-                              if (value == null || value.isEmpty) return 'Please enter tenure';
+                              if (value == null || value.isEmpty) return l.pleaseEnterValidTenure;
                               final parsed = int.tryParse(value);
-                              if (parsed == null || parsed <= 0 || parsed > 360) return 'Enter valid tenure (1-360 months)';
+                              if (parsed == null || parsed <= 0 || parsed > 360) return l.pleaseEnterValidTenure;
                               return null;
                             },
                           )
@@ -408,15 +410,15 @@ class _EMICalculatorScreenState extends State<EMICalculatorScreen> {
                                 keyboardType: TextInputType.number,
                                 inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                                 decoration: InputDecoration(
-                                  labelText: 'Years',
+                                  labelText: l.yearsLabel,
                                   hintText: 'e.g., 5',
                                   prefixIcon: Icon(Icons.calendar_today, color: AppTheme.primaryColor),
                                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                                 ),
                                 validator: (value) {
-                                  if (value == null || value.isEmpty) return 'Please enter years';
+                                  if (value == null || value.isEmpty) return l.pleaseEnterValidTenure;
                                   final parsed = int.tryParse(value);
-                                  if (parsed == null || parsed <= 0) return 'Enter valid years';
+                                  if (parsed == null || parsed <= 0) return l.pleaseEnterValidTenure;
                                   return null;
                                 },
                               ),
@@ -426,15 +428,15 @@ class _EMICalculatorScreenState extends State<EMICalculatorScreen> {
                                 keyboardType: TextInputType.number,
                                 inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                                 decoration: InputDecoration(
-                                  labelText: 'Compounds per year',
+                                  labelText: l.compoundsPerYear,
                                   hintText: '12',
                                   prefixIcon: Icon(Icons.repeat, color: AppTheme.primaryColor),
                                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                                 ),
                                 validator: (value) {
-                                  if (value == null || value.isEmpty) return 'Please enter compounding frequency';
+                                  if (value == null || value.isEmpty) return l.pleaseEnterValidAmount;
                                   final parsed = int.tryParse(value);
-                                  if (parsed == null || parsed <= 0) return 'Enter valid number';
+                                  if (parsed == null || parsed <= 0) return l.pleaseEnterValidAmount;
                                   return null;
                                 },
                               ),
@@ -448,15 +450,15 @@ class _EMICalculatorScreenState extends State<EMICalculatorScreen> {
                                 keyboardType: TextInputType.number,
                                 inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                                 decoration: InputDecoration(
-                                  labelText: 'Months',
+                                  labelText: l.investmentPeriodMonths,
                                   hintText: 'e.g., 60',
                                   prefixIcon: Icon(Icons.calendar_today, color: AppTheme.primaryColor),
                                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                                 ),
                                 validator: (value) {
-                                  if (value == null || value.isEmpty) return 'Please enter months';
+                                  if (value == null || value.isEmpty) return l.pleaseEnterValidTenure;
                                   final parsed = int.tryParse(value);
-                                  if (parsed == null || parsed <= 0) return 'Enter valid months';
+                                  if (parsed == null || parsed <= 0) return l.pleaseEnterValidTenure;
                                   return null;
                                 },
                               ),
@@ -466,40 +468,11 @@ class _EMICalculatorScreenState extends State<EMICalculatorScreen> {
                                 controller: _missedMonthsController,
                                 keyboardType: TextInputType.text,
                                 decoration: InputDecoration(
-                                  labelText: 'Missed Months (indices or range)',
-                                  hintText: 'e.g., 3,5 or 3-5; single number treated as count (last N months)',
+                                  labelText: l.missedMonths,
+                                  hintText: 'e.g., 3,5 or 3-5',
                                   prefixIcon: Icon(Icons.block, color: AppTheme.primaryColor),
                                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                                 ),
-                              ),
-                              const SizedBox(height: 8),
-                              TextFormField(
-                                controller: _missedCountController,
-                                keyboardType: TextInputType.number,
-                                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                                decoration: InputDecoration(
-                                  labelText: 'Missed count (optional)',
-                                  hintText: 'e.g., 3 (marks last N months as missed)',
-                                  prefixIcon: Icon(Icons.remove_circle_outline, color: AppTheme.primaryColor),
-                                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                                ),
-                                validator: (value) {
-                                  if (value == null || value.isEmpty) return null;
-                                  final parsed = int.tryParse(value);
-                                  if (parsed == null || parsed < 0) return 'Enter a valid number';
-                                  return null;
-                                },
-                              ),
-                              const SizedBox(height: 8),
-                              Row(
-                                children: [
-                                  Checkbox(
-                                    value: _sipContributionAtStart,
-                                    onChanged: (v) => setState(() => _sipContributionAtStart = v ?? false),
-                                  ),
-                                  const SizedBox(width: 6),
-                                  const Text('Contribution at start of month'),
-                                ],
                               ),
                             ],
                           ),
@@ -517,14 +490,14 @@ class _EMICalculatorScreenState extends State<EMICalculatorScreen> {
                             ),
                             elevation: 2,
                           ),
-                          child: const Row(
+                          child: Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Icon(Icons.calculate),
-                              SizedBox(width: 8),
+                              const Icon(Icons.calculate),
+                              const SizedBox(width: 8),
                               Text(
-                                'Calculate EMI',
-                                style: TextStyle(
+                                l.calculate,
+                                style: const TextStyle(
                                   fontSize: 16,
                                   fontWeight: FontWeight.bold,
                                 ),
@@ -565,9 +538,9 @@ class _EMICalculatorScreenState extends State<EMICalculatorScreen> {
                       children: [
                         // Title and main value depend on calculator type
                         if (_calcType == 'EMI') ...[
-                          const Text(
-                            'Your EMI',
-                            style: TextStyle(
+                          Text(
+                            l.monthlyEmiLabel,
+                            style: const TextStyle(
                               fontSize: 14,
                               color: AppTheme.textMedium,
                             ),
@@ -582,30 +555,26 @@ class _EMICalculatorScreenState extends State<EMICalculatorScreen> {
                             ),
                           ),
                           Text(
-                            'per month',
+                            l.perMonth,
                             style: TextStyle(
                               fontSize: 14,
                               color: AppTheme.textMedium,
                             ),
                           ),
                         ] else if (_calcType == 'Compound') ...[
-                          const Text(
-                            'Future Value',
-                            style: TextStyle(fontSize: 14, color: AppTheme.textMedium),
+                          Text(
+                            l.futureValue,
+                            style: const TextStyle(fontSize: 14, color: AppTheme.textMedium),
                           ),
                           const SizedBox(height: 8),
                           Text(
                             '₹${_formatNumber(_totalAmount ?? 0)}',
                             style: TextStyle(fontSize: 36, fontWeight: FontWeight.bold, color: AppTheme.primaryColor),
-                          ),
-                          Text(
-                            'at end of period',
-                            style: TextStyle(fontSize: 14, color: AppTheme.textMedium),
                           ),
                         ] else if (_calcType == 'SIP') ...[
-                          const Text(
-                            'SIP Future Value',
-                            style: TextStyle(fontSize: 14, color: AppTheme.textMedium),
+                          Text(
+                            l.futureValue,
+                            style: const TextStyle(fontSize: 14, color: AppTheme.textMedium),
                           ),
                           const SizedBox(height: 8),
                           Text(
@@ -613,7 +582,7 @@ class _EMICalculatorScreenState extends State<EMICalculatorScreen> {
                             style: TextStyle(fontSize: 36, fontWeight: FontWeight.bold, color: AppTheme.primaryColor),
                           ),
                           Text(
-                            'Total Invested: ₹${_formatNumber(_totalInvested ?? 0)}',
+                            '${l.totalInvested}: ₹${_formatNumber(_totalInvested ?? 0)}',
                             style: TextStyle(fontSize: 14, color: AppTheme.textMedium),
                           ),
                         ],
@@ -625,21 +594,21 @@ class _EMICalculatorScreenState extends State<EMICalculatorScreen> {
                         // Breakdown rows
                         if (_calcType == 'EMI') ...[
                           _buildResultRow(
-                            'Principal Amount',
+                            l.principalAmount,
                             '₹${_formatNumber(_getPrincipalForDisplay())}',
                             Icons.account_balance,
                             AppTheme.primaryColor,
                           ),
                           const SizedBox(height: 12),
                           _buildResultRow(
-                            'Total Interest',
+                            l.totalInterest,
                             '₹${_formatNumber(_totalInterest ?? 0)}',
                             Icons.trending_up,
                             AppTheme.statusWarning,
                           ),
                           const SizedBox(height: 12),
                           _buildResultRow(
-                            'Total Amount',
+                            l.totalPayment,
                             '₹${_formatNumber(_totalAmount ?? 0)}',
                             Icons.payments,
                             AppTheme.statusSuccess,
@@ -652,21 +621,21 @@ class _EMICalculatorScreenState extends State<EMICalculatorScreen> {
                           ),
                         ] else if (_calcType == 'Compound') ...[
                           _buildResultRow(
-                            'Initial Amount',
+                            l.principalAmount,
                             '₹${_formatNumber(_getPrincipalForDisplay())}',
                             Icons.account_balance,
                             AppTheme.primaryColor,
                           ),
                           const SizedBox(height: 12),
                           _buildResultRow(
-                            'Total Interest',
+                            l.totalInterest,
                             '₹${_formatNumber(_totalInterest ?? 0)}',
                             Icons.trending_up,
                             AppTheme.statusWarning,
                           ),
                           const SizedBox(height: 12),
                           _buildResultRow(
-                            'Future Value',
+                            l.futureValue,
                             '₹${_formatNumber(_totalAmount ?? 0)}',
                             Icons.payments,
                             AppTheme.statusSuccess,
@@ -679,21 +648,21 @@ class _EMICalculatorScreenState extends State<EMICalculatorScreen> {
                           ),
                         ] else if (_calcType == 'SIP') ...[
                           _buildResultRow(
-                            'Monthly Investment',
+                            l.monthlyInvestment,
                             '₹${_formatNumber(_getMonthlyInvestmentForDisplay())}',
                             Icons.savings,
                             AppTheme.primaryColor,
                           ),
                           const SizedBox(height: 12),
                           _buildResultRow(
-                            'Total Invested',
+                            l.totalInvested,
                             '₹${_formatNumber(_totalInvested ?? 0)}',
                             Icons.account_balance_wallet_rounded,
                             AppTheme.primaryColor,
                           ),
                           const SizedBox(height: 12),
                           _buildResultRow(
-                            'Gains',
+                            l.estimatedReturns,
                             '₹${_formatNumber((_totalAmount ?? 0) - (_totalInvested ?? 0))}',
                             Icons.trending_up,
                             AppTheme.statusWarning,

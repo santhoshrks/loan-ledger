@@ -4,6 +4,7 @@ import 'package:table_calendar/table_calendar.dart';
 import '../models/loan.dart';
 import '../services/loan_storage_service.dart';
 import '../theme/app_theme.dart';
+import '../localization/app_localizations.dart';
 
 class CalendarScreen extends StatefulWidget {
   final LoanStorageService storageService;
@@ -78,11 +79,12 @@ class _CalendarScreenState extends State<CalendarScreen> {
   @override
   Widget build(BuildContext context) {
     final events = _getEmiEvents();
+    final l = AppLocalizations.of(context);
 
     return Scaffold(
       backgroundColor: AppTheme.bgLight,
       appBar: AppBar(
-        title: const Text('EMI Calendar'),
+        title: Text(l.emiCalendar),
         backgroundColor: AppTheme.primaryColor,
         foregroundColor: Colors.white,
         elevation: 0,
@@ -102,7 +104,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
             child: Column(
               children: [
                 Text(
-                  'Track your EMI due dates',
+                  l.trackYourEmiDueDates,
                   style: TextStyle(
                     color: Colors.white.withValues(alpha: 0.9),
                     fontSize: 14,
@@ -213,6 +215,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
   Widget _buildSelectedDayLoans() {
     final loans = _getLoansForDay(_selectedDay ?? DateTime.now());
     final selectedDate = _selectedDay ?? DateTime.now();
+    final l = AppLocalizations.of(context);
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -223,12 +226,14 @@ class _CalendarScreenState extends State<CalendarScreen> {
             children: [
               Icon(Icons.event, color: AppTheme.primaryColor, size: 20),
               const SizedBox(width: 8),
-              Text(
-                'EMIs due on ${DateFormat('MMMM d').format(selectedDate)}',
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: AppTheme.textDark,
+              Expanded(
+                child: Text(
+                  '${l.loansOnThisDay} - ${DateFormat('MMMM d').format(selectedDate)}',
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.textDark,
+                  ),
                 ),
               ),
             ],
@@ -248,7 +253,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                         ),
                         const SizedBox(height: 12),
                         Text(
-                          'No EMIs due on this day',
+                          l.noEmiDueOnThisDay,
                           style: TextStyle(
                             color: Colors.grey.shade600,
                             fontSize: 16,
@@ -280,14 +285,14 @@ class _CalendarScreenState extends State<CalendarScreen> {
                             ),
                           ),
                           title: Text(
-                            loan.name,
+                            _getTranslatedLoanName(loan, l),
                             style: const TextStyle(
                               fontWeight: FontWeight.bold,
                               fontSize: 16,
                             ),
                           ),
                           subtitle: Text(
-                            'Due: ${loan.dueDay}${_getDaySuffix(loan.dueDay)} of every month',
+                            '${l.dueDay}: ${loan.dueDay}${_getDaySuffix(loan.dueDay)} ${l.everyMonth}',
                             style: TextStyle(
                               color: Colors.grey.shade600,
                               fontSize: 13,
@@ -305,10 +310,10 @@ class _CalendarScreenState extends State<CalendarScreen> {
                                   color: AppTheme.primaryColor,
                                 ),
                               ),
-                              Text(
+                              const Text(
                                 'EMI',
                                 style: TextStyle(
-                                  color: Colors.grey.shade600,
+                                  color: Colors.grey,
                                   fontSize: 12,
                                 ),
                               ),
@@ -332,5 +337,41 @@ class _CalendarScreenState extends State<CalendarScreen> {
       case 3: return 'rd';
       default: return 'th';
     }
+  }
+
+  /// Translate standard loan type names to current language
+  String _getTranslatedLoanName(Loan loan, AppLocalizations l) {
+    final name = loan.name.toLowerCase();
+
+    if (name == 'home loan' || name.contains('வீட்டுக் கடன்') ||
+        name.contains('గృహ రుణం') || name.contains('गृह ऋण')) {
+      return l.getLoanTypeName('Home Loan');
+    }
+    if (name == 'car loan' || name.contains('வாகனக் கடன்') ||
+        name.contains('వాహన రుణం') || name.contains('कार ऋण')) {
+      return l.getLoanTypeName('Car Loan');
+    }
+    if (name == 'personal loan' || name.contains('தனிநபர் கடன்') ||
+        name.contains('వ్యக்తిగత రుణం') || name.contains('व्यक्तिगत ऋण')) {
+      return l.getLoanTypeName('Personal Loan');
+    }
+    if (name == 'education loan' || name.contains('கல்விக் கடன்') ||
+        name.contains('విద்యా రుణం') || name.contains('शिक्षा ऋण')) {
+      return l.getLoanTypeName('Education Loan');
+    }
+    if (name == 'business loan' || name.contains('தொழில் கடன்') ||
+        name.contains('வ్యాபార రుణం') || name.contains('व्यापार ऋण')) {
+      return l.getLoanTypeName('Business Loan');
+    }
+    if (name == 'gold loan' || name.contains('நகைக்கடன்') ||
+        name.contains('బంగారు రుణం') || name.contains('स्वर्ण ऋण')) {
+      return l.getLoanTypeName('Gold Loan');
+    }
+    if (name == 'credit card' || name.contains('கிரெடிட் கார்டு') ||
+        name.contains('క్రెడిట్ కార్డ్') || name.contains('क्रेडिट कार्ड')) {
+      return l.getLoanTypeName('Credit Card');
+    }
+
+    return loan.name;
   }
 }

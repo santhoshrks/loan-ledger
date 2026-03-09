@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<full-backup-content>
+    <!-- Include shared preferences (where loans are stored) -->
+    <include domain="sharedpref" path="." />
+    <!-- Include all app files -->
+    <include domain="file" path="." />
+    <!-- Include database if any -->
+    <include domain="database" path="." />
+</full-backup-content>
+

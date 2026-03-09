@@ -2,6 +2,7 @@ import 'dart:ui';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter/services.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:timezone/data/latest.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 import '../models/loan.dart';
@@ -210,6 +211,8 @@ class NotificationService {
     }
 
     final currencySymbol = loan.currencySymbol;
+    final lang = await _getCurrentLanguage();
+    final translatedLoanName = _getTranslatedLoanName(loan.name, lang);
 
     if (testMode) {
       // TEST MODE: Show immediate notification to verify it works
@@ -217,10 +220,13 @@ class NotificationService {
       debugPrint('🧪 TEST MODE: Attempting to show notification');
       debugPrint('Loan: ${loan.name}, EMI: ${loan.emiAmount}');
       try {
+        final testTitle = '🔔 ${_getLocalizedText('emiReminderTest', lang)}';
+        final testBody = '$translatedLoanName - $currencySymbol${loan.emiAmount.toStringAsFixed(0)} ${_getLocalizedText('notificationWorking', lang)}';
+
         await _flutterLocalNotificationsPlugin.show(
           DateTime.now().millisecondsSinceEpoch ~/ 1000,
-          '🔔 EMI Reminder Test',
-          '${loan.name} - $currencySymbol${loan.emiAmount.toStringAsFixed(0)} notification is working!',
+          testTitle,
+          testBody,
           const NotificationDetails(android: androidDetails),
           payload: loan.id,
         );
@@ -261,10 +267,11 @@ class NotificationService {
     for (int hour in notificationHours) {
       final scheduledDate = DateTime(day3Before.year, day3Before.month, day3Before.day, hour, 0, 0);
       if (scheduledDate.isAfter(now)) {
+        final title = await _getNotificationTitle(3, hour);
         final success = await _scheduleNotification(
           id: baseId + notificationIndex,
-          title: _getNotificationTitle(3, hour),
-          body: '${loan.name} - $currencySymbol${loan.emiAmount.toStringAsFixed(0)} due on ${loan.dueDay}${_getDaySuffix(loan.dueDay)}',
+          title: title,
+          body: '$translatedLoanName - $currencySymbol${loan.emiAmount.toStringAsFixed(0)} ${_getLocalizedText('dueOn', lang)} ${loan.dueDay}${_getDaySuffix(loan.dueDay)}',
           scheduledDate: scheduledDate,
           payload: loan.id,
         );
@@ -277,10 +284,11 @@ class NotificationService {
     for (int hour in notificationHours) {
       final scheduledDate = DateTime(day1Before.year, day1Before.month, day1Before.day, hour, 0, 0);
       if (scheduledDate.isAfter(now)) {
+        final title = await _getNotificationTitle(1, hour);
         final success = await _scheduleNotification(
           id: baseId + notificationIndex,
-          title: _getNotificationTitle(1, hour),
-          body: '${loan.name} - $currencySymbol${loan.emiAmount.toStringAsFixed(0)} is due tomorrow! Don\'t forget to pay.',
+          title: title,
+          body: '$translatedLoanName - $currencySymbol${loan.emiAmount.toStringAsFixed(0)} ${_getLocalizedText('dueTomorrow', lang)}',
           scheduledDate: scheduledDate,
           payload: loan.id,
         );
@@ -293,10 +301,11 @@ class NotificationService {
     for (int hour in notificationHours) {
       final scheduledDate = DateTime(dueDay.year, dueDay.month, dueDay.day, hour, 0, 0);
       if (scheduledDate.isAfter(now)) {
+        final title = await _getNotificationTitle(0, hour);
         final success = await _scheduleNotification(
           id: baseId + notificationIndex,
-          title: _getNotificationTitle(0, hour),
-          body: '${loan.name} - $currencySymbol${loan.emiAmount.toStringAsFixed(0)} is due today! Pay now to avoid late fees.',
+          title: title,
+          body: '$translatedLoanName - $currencySymbol${loan.emiAmount.toStringAsFixed(0)} ${_getLocalizedText('dueToday', lang)}',
           scheduledDate: scheduledDate,
           payload: loan.id,
         );
@@ -313,7 +322,8 @@ class NotificationService {
   }
 
   /// Get notification title based on days remaining and time
-  String _getNotificationTitle(int daysRemaining, int hour) {
+  Future<String> _getNotificationTitle(int daysRemaining, int hour) async {
+    final lang = await _getCurrentLanguage();
     String timeEmoji;
     if (hour == 9) {
       timeEmoji = '🌅'; // Morning
@@ -326,12 +336,112 @@ class NotificationService {
     }
 
     if (daysRemaining == 3) {
-      return '$timeEmoji EMI Due in 3 Days';
+      return '$timeEmoji ${_getLocalizedText('emiDueIn3Days', lang)}';
     } else if (daysRemaining == 1) {
-      return '$timeEmoji EMI Due Tomorrow';
+      return '$timeEmoji ${_getLocalizedText('emiDueTomorrow', lang)}';
     } else {
-      return '🔴 $timeEmoji EMI Due Today!';
+      return '🔴 $timeEmoji ${_getLocalizedText('emiDueToday', lang)}';
     }
+  }
+
+  /// Get current language from SharedPreferences
+  Future<String> _getCurrentLanguage() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      return prefs.getString('selected_language') ?? 'en';
+    } catch (e) {
+      return 'en';
+    }
+  }
+
+  /// Get localized text for notifications
+  String _getLocalizedText(String key, String lang) {
+    final translations = {
+      'emiDueIn3Days': {
+        'en': 'EMI Due in 3 Days',
+        'ta': '3 நாட்களில் EMI செலுத்த வேண்டும்',
+        'te': '3 రోజుల్లో EMI చెల్లించాలి',
+        'hi': '3 दिनों में EMI देय है',
+      },
+      'emiDueTomorrow': {
+        'en': 'EMI Due Tomorrow',
+        'ta': 'நாளை EMI செலுத்த வேண்டும்',
+        'te': 'రేపు EMI చెల్లించాలి',
+        'hi': 'कल EMI देय है',
+      },
+      'emiDueToday': {
+        'en': 'EMI Due Today!',
+        'ta': 'இன்று EMI செலுத்த வேண்டும்!',
+        'te': 'ఈరోజు EMI చెల్లించాలి!',
+        'hi': 'आज EMI देय है!',
+      },
+      'dueOn': {
+        'en': 'due on',
+        'ta': 'செலுத்த வேண்டிய தேதி',
+        'te': 'చెల్లించాల్సిన తేదీ',
+        'hi': 'देय तिथि',
+      },
+      'dueTomorrow': {
+        'en': 'is due tomorrow! Don\'t forget to pay.',
+        'ta': 'நாளை செலுத்த வேண்டும்! மறக்காதீர்கள்.',
+        'te': 'రేపు చెల్లించాలి! మర్చిపోకండి.',
+        'hi': 'कल देय है! भुगतान करना न भूलें।',
+      },
+      'dueToday': {
+        'en': 'is due today! Pay now to avoid late fees.',
+        'ta': 'இன்று செலுத்த வேண்டும்! தாமதக் கட்டணத்தைத் தவிர்க்க இப்போதே செலுத்துங்கள்.',
+        'te': 'ఈరోజు చెల్లించాలి! ఆలస్య రుసుము నివారించడానికి ఇప్పుడే చెల్లించండి.',
+        'hi': 'आज देय है! विलंब शुल्क से बचने के लिए अभी भुगतान करें।',
+      },
+      'emiReminderTest': {
+        'en': 'EMI Reminder Test',
+        'ta': 'EMI நினைவூட்டல் சோதனை',
+        'te': 'EMI రిమైండర్ టెస్ట్',
+        'hi': 'EMI रिमाइंडर टेस्ट',
+      },
+      'notificationWorking': {
+        'en': 'notification is working!',
+        'ta': 'அறிவிப்பு வேலை செய்கிறது!',
+        'te': 'నోటిఫికేషన్ పని చేస్తోంది!',
+        'hi': 'नोटिफिकेशन काम कर रहा है!',
+      },
+      'testNotification': {
+        'en': 'Test Notification',
+        'ta': 'சோதனை அறிவிப்பு',
+        'te': 'టెస్ట్ నోటిఫికేషన్',
+        'hi': 'टेस्ट नोटिफिकेशन',
+      },
+      'testNotificationBody': {
+        'en': 'EMI Reminder is working! You will receive timely reminders for your EMI payments.',
+        'ta': 'EMI நினைவூட்டல் வேலை செய்கிறது! உங்கள் EMI கட்டணங்களுக்கு சரியான நேரத்தில் நினைவூட்டல்களைப் பெறுவீர்கள்.',
+        'te': 'EMI రిమైండర్ పని చేస్తోంది! మీ EMI చెల్లింపులకు సకాలంలో రిమైండర్లు అందుకుంటారు.',
+        'hi': 'EMI रिमाइंडर काम कर रहा है! आपको अपने EMI भुगतान के लिए समय पर रिमाइंडर मिलेंगे।',
+      },
+    };
+
+    return translations[key]?[lang] ?? translations[key]?['en'] ?? key;
+  }
+
+  /// Get translated loan type name
+  String _getTranslatedLoanName(String loanName, String lang) {
+    final name = loanName.toLowerCase();
+
+    final loanTypes = {
+      'home loan': {'ta': 'வீட்டுக் கடன்', 'te': 'గృహ రుణం', 'hi': 'गृह ऋण'},
+      'car loan': {'ta': 'வாகனக் கடன்', 'te': 'వాహన రుణం', 'hi': 'कार ऋण'},
+      'personal loan': {'ta': 'தனிநபர் கடன்', 'te': 'వ్యక్తిగత రుణం', 'hi': 'व्यक्तिगत ऋण'},
+      'education loan': {'ta': 'கல்விக் கடன்', 'te': 'విద్యా రుణం', 'hi': 'शिक्षा ऋण'},
+      'business loan': {'ta': 'தொழில் கடன்', 'te': 'వ్యాపార రుణం', 'hi': 'व्यापार ऋण'},
+      'gold loan': {'ta': 'நகைக்கடன்', 'te': 'బంగారు రుణం', 'hi': 'स्वर्ण ऋण'},
+      'credit card': {'ta': 'கிரெடிட் கார்டு', 'te': 'క్రెడిట్ కార్డ్', 'hi': 'क्रेडिट कार्ड'},
+    };
+
+    for (var entry in loanTypes.entries) {
+      if (name == entry.key) {
+        return entry.value[lang] ?? loanName;
+      }
+    }
+    return loanName;
   }
 
   /// Schedule a single notification
@@ -444,13 +554,17 @@ class NotificationService {
   /// Test notification
   Future<void> showTestNotification() async {
     try {
+      final lang = await _getCurrentLanguage();
+      final title = '🔔 ${_getLocalizedText('testNotification', lang)}';
+      final body = _getLocalizedText('testNotificationBody', lang);
+
       await _flutterLocalNotificationsPlugin.show(
         0,
-        '🔔 Test Notification',
-        'EMI Reminder is working! You will receive timely reminders for your EMI payments.',
+        title,
+        body,
         const NotificationDetails(android: androidDetails),
       );
-      debugPrint('✅ Test notification sent');
+      debugPrint('✅ Test notification sent in language: $lang');
     } catch (e) {
       debugPrint('❌ Error sending test notification: $e');
     }
@@ -502,6 +616,40 @@ class NotificationService {
     }
 
     return permissions;
+  }
+
+  /// Check if notification permission is granted
+  Future<bool> checkPermissions() async {
+    try {
+      final androidImplementation = _flutterLocalNotificationsPlugin
+          .resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin>();
+
+      if (androidImplementation != null) {
+        return await androidImplementation.areNotificationsEnabled() ?? false;
+      }
+      return _hasPermission;
+    } catch (e) {
+      debugPrint('❌ Error checking notification permission: $e');
+      return false;
+    }
+  }
+
+  /// Check if exact alarm permission is granted
+  Future<bool> checkExactAlarmPermission() async {
+    try {
+      final androidImplementation = _flutterLocalNotificationsPlugin
+          .resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin>();
+
+      if (androidImplementation != null) {
+        return await androidImplementation.canScheduleExactNotifications() ?? false;
+      }
+      return true;
+    } catch (e) {
+      debugPrint('❌ Error checking exact alarm permission: $e');
+      return true;
+    }
   }
 
   /// Get debug info for troubleshooting

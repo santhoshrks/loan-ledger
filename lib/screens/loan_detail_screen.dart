@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../models/loan.dart';
 import '../utils/emi_calculator.dart';
+import '../localization/app_localizations.dart';
 
 class LoanDetailScreen extends StatelessWidget {
   final Loan loan;
@@ -22,7 +23,7 @@ class LoanDetailScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Loan Details'),
+        title: Text(AppLocalizations.of(context).loanDetails_title),
         actions: [
           IconButton(
             icon: const Icon(Icons.edit),
@@ -57,7 +58,7 @@ class LoanDetailScreen extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      loan.name,
+                      _getTranslatedLoanName(context),
                       style: const TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.bold,
@@ -75,7 +76,7 @@ class LoanDetailScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'Monthly EMI',
+                      AppLocalizations.of(context).monthlyEmi,
                       style: TextStyle(
                         fontSize: 14,
                         color: Colors.white.withValues(alpha: 0.8),
@@ -89,21 +90,21 @@ class LoanDetailScreen extends StatelessWidget {
 
             // Due Date Section
             _buildSection(
-              title: 'Due Date',
+              title: AppLocalizations.of(context).dueDay_label,
               children: [
                 _buildDetailRow(
                   icon: Icons.calendar_today,
-                  label: 'Next Due',
+                  label: AppLocalizations.of(context).nextDue,
                   value: DateFormat('MMM d, yyyy').format(nextDue),
                 ),
                 _buildDetailRow(
                   icon: Icons.schedule,
-                  label: 'Days Until Due',
+                  label: AppLocalizations.of(context).daysUntilDue,
                   value: daysUntilDue == 0
-                      ? 'Today'
+                      ? AppLocalizations.of(context).today
                       : daysUntilDue < 0
-                          ? 'Overdue by ${(-daysUntilDue)} days'
-                          : '$daysUntilDue days',
+                          ? '${AppLocalizations.of(context).overdue} ${(-daysUntilDue)} ${AppLocalizations.of(context).days}'
+                          : '$daysUntilDue ${AppLocalizations.of(context).days}',
                   valueColor: daysUntilDue < 0
                       ? Colors.red
                       : daysUntilDue <= 3
@@ -112,8 +113,8 @@ class LoanDetailScreen extends StatelessWidget {
                 ),
                 _buildDetailRow(
                   icon: Icons.calendar_month,
-                  label: 'Due Day',
-                  value: '${loan.dueDay}${_getDaySuffix(loan.dueDay)} of every month',
+                  label: AppLocalizations.of(context).dueDay,
+                  value: '${loan.dueDay}${_getDaySuffix(loan.dueDay)} of ${AppLocalizations.of(context).everyMonth}',
                 ),
               ],
             ),
@@ -121,30 +122,30 @@ class LoanDetailScreen extends StatelessWidget {
 
             // Loan Details Section
             _buildSection(
-              title: 'Loan Details',
+              title: AppLocalizations.of(context).loanDetails_header,
               children: [
                 _buildDetailRow(
                   icon: Icons.date_range,
-                  label: 'Start Date',
+                  label: AppLocalizations.of(context).startDate_label,
                   value: DateFormat('MMM d, yyyy').format(loan.startDate),
                 ),
                 if (loan.loanAmount != null)
                   _buildDetailRow(
                     icon: Icons.money,
-                    label: 'Loan Amount',
+                    label: AppLocalizations.of(context).loanAmount_label,
                     value: '₹${loan.loanAmount!.toStringAsFixed(2)}',
                   ),
                 if (loan.interestRate != null)
                   _buildDetailRow(
                     icon: Icons.percent,
-                    label: 'Interest Rate',
-                    value: '${loan.interestRate!.toStringAsFixed(2)}% p.a.',
+                    label: AppLocalizations.of(context).interestRate_label,
+                    value: '${loan.interestRate!.toStringAsFixed(2)}% ${AppLocalizations.of(context).perAnnum}',
                   ),
                 if (loan.tenureMonths != null)
                   _buildDetailRow(
                     icon: Icons.hourglass_bottom,
-                    label: 'Tenure',
-                    value: '${loan.tenureMonths} months',
+                    label: AppLocalizations.of(context).tenure_label,
+                    value: '${loan.tenureMonths} ${AppLocalizations.of(context).months}',
                   ),
               ],
             ),
@@ -160,7 +161,7 @@ class LoanDetailScreen extends StatelessWidget {
             // Notes Section
             if (loan.notes != null && loan.notes!.isNotEmpty)
               _buildSection(
-                title: 'Notes',
+                title: AppLocalizations.of(context).notes_label,
                 children: [
                   Text(
                     loan.notes!,
@@ -286,5 +287,44 @@ class LoanDetailScreen extends StatelessWidget {
       default:
         return 'th';
     }
+  }
+
+  /// Translate standard loan type names to current language
+  String _getTranslatedLoanName(BuildContext context) {
+    final l = AppLocalizations.of(context);
+    final name = loan.name.toLowerCase();
+
+    // Check if it's a standard loan type and translate it
+    if (name == 'home loan' || name.contains('வீட்டுக் கடன்') ||
+        name.contains('గృహ రుణం') || name.contains('गृह ऋण')) {
+      return l.getLoanTypeName('Home Loan');
+    }
+    if (name == 'car loan' || name.contains('வாகனக் கடன்') ||
+        name.contains('వాహన రుణం') || name.contains('कार ऋण')) {
+      return l.getLoanTypeName('Car Loan');
+    }
+    if (name == 'personal loan' || name.contains('தனிநபர் கடன்') ||
+        name.contains('వ్యక్తిగత రుణం') || name.contains('व्यक्तिगत ऋण')) {
+      return l.getLoanTypeName('Personal Loan');
+    }
+    if (name == 'education loan' || name.contains('கல்விக் கடன்') ||
+        name.contains('విద్యా రుణం') || name.contains('शिक्षा ऋण')) {
+      return l.getLoanTypeName('Education Loan');
+    }
+    if (name == 'business loan' || name.contains('தொழில் கடன்') ||
+        name.contains('వ్యాపార రుణం') || name.contains('व्यापार ऋण')) {
+      return l.getLoanTypeName('Business Loan');
+    }
+    if (name == 'gold loan' || name.contains('நகைக்கடன்') ||
+        name.contains('బంగారు రుణం') || name.contains('स्वर्ण ऋण')) {
+      return l.getLoanTypeName('Gold Loan');
+    }
+    if (name == 'credit card' || name.contains('கிரெடிட் கார்டு') ||
+        name.contains('క్రెడిట్ కార్డ్') || name.contains('क्रेडिट कार्ड')) {
+      return l.getLoanTypeName('Credit Card');
+    }
+
+    // If not a standard type, return original name
+    return loan.name;
   }
 }

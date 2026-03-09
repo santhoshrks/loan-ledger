@@ -3,16 +3,21 @@ import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:intl/intl.dart';
 import 'package:app_settings/app_settings.dart';
+import 'package:provider/provider.dart';
 import '../models/loan.dart';
 import '../services/loan_storage_service.dart';
 import '../services/notification_service.dart';
+import '../services/language_provider.dart';
 import '../services/backup_service.dart';
+import '../services/backup_reminder_service.dart';
 import '../widgets/loan_card.dart';
 import '../theme/app_theme.dart';
+import '../localization/app_localizations.dart';
 import 'add_loan_screen.dart';
 import 'calendar_screen.dart';
 import 'emi_calculator_screen.dart';
 import 'emi_progress_screen.dart';
+import 'settings_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final LoanStorageService? storageService;
@@ -75,6 +80,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           _isInitialized = true;
         });
         _fabAnimationController.forward();
+
+        // Check if backup reminder should be shown
+        _checkBackupReminder();
       }
     } catch (e) {
       if (mounted) {
@@ -129,7 +137,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         child: FloatingActionButton.extended(
           onPressed: () => _navigateToAddLoan(context),
           icon: const Icon(Icons.add_rounded),
-          label: const Text('Add Loan'),
+          label: Text(AppLocalizations.of(context).addLoan),
           elevation: 4,
         ),
       ),
@@ -157,9 +165,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               ),
             ),
             const SizedBox(height: 32),
-            const Text(
-              'EMI Reminder',
-              style: TextStyle(
+            Text(
+              AppLocalizations.of(context).appName,
+              style: const TextStyle(
                 fontSize: 28,
                 fontWeight: FontWeight.bold,
                 color: AppTheme.textDark,
@@ -167,7 +175,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             ),
             const SizedBox(height: 8),
             Text(
-              'Loading your loans...',
+              AppLocalizations.of(context).loadingYourLoans,
               style: TextStyle(
                 fontSize: 14,
                 color: AppTheme.textMedium,
@@ -237,7 +245,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   _initializeServices();
                 },
                 icon: const Icon(Icons.refresh_rounded),
-                label: const Text('Try Again'),
+                label: Text(AppLocalizations.of(context).ok),
               ),
             ],
           ),
@@ -296,7 +304,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     );
                     break;
                   case 'settings':
-                    _showNotificationSettings();
+                    _showSettingsMenu();
                     break;
                   case 'backup':
                     _exportBackup();
@@ -313,7 +321,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     children: [
                       Icon(Icons.calendar_month_rounded, color: AppTheme.primaryColor),
                       const SizedBox(width: 12),
-                      const Text('EMI Calendar'),
+                      Text(AppLocalizations.of(context).calendar),
                     ],
                   ),
                 ),
@@ -323,7 +331,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     children: [
                       Icon(Icons.calculate_rounded, color: AppTheme.primaryColor),
                       const SizedBox(width: 12),
-                      const Text('EMI Calculator'),
+                      Text(AppLocalizations.of(context).emiCalculator),
                     ],
                   ),
                 ),
@@ -333,7 +341,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     children: [
                       Icon(Icons.trending_up_rounded, color: AppTheme.primaryColor),
                       const SizedBox(width: 12),
-                      const Text('Loan Progress'),
+                      Text(AppLocalizations.of(context).progress),
                     ],
                   ),
                 ),
@@ -344,7 +352,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     children: [
                       Icon(Icons.backup_rounded, color: AppTheme.statusSuccess),
                       const SizedBox(width: 12),
-                      const Text('Backup Data'),
+                      Text(AppLocalizations.of(context).backup),
                     ],
                   ),
                 ),
@@ -354,7 +362,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     children: [
                       Icon(Icons.restore_rounded, color: AppTheme.statusInfo),
                       const SizedBox(width: 12),
-                      const Text('Restore Data'),
+                      Text(AppLocalizations.of(context).restore),
                     ],
                   ),
                 ),
@@ -365,7 +373,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     children: [
                       Icon(Icons.settings_rounded, color: AppTheme.textMedium),
                       const SizedBox(width: 12),
-                      const Text('Settings'),
+                      Text(AppLocalizations.of(context).settings),
                     ],
                   ),
                 ),
@@ -486,9 +494,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text(
-                        'Monthly Overview',
-                        style: TextStyle(
+                      Text(
+                        AppLocalizations.of(context).monthlyOverview,
+                        style: const TextStyle(
                           color: Colors.white70,
                           fontSize: 14,
                           fontWeight: FontWeight.w500,
@@ -521,9 +529,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       letterSpacing: -1,
                     ),
                   ),
-                  const Text(
-                    'Total Monthly EMI',
-                    style: TextStyle(
+                  Text(
+                    AppLocalizations.of(context).totalMonthlyEmi,
+                    style: const TextStyle(
                       color: Colors.white70,
                       fontSize: 14,
                     ),
@@ -534,21 +542,21 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       _buildStatCard(
                         icon: Icons.receipt_long_rounded,
                         value: '${loans.length}',
-                        label: 'Total Loans',
+                        label: AppLocalizations.of(context).totalLoans,
                         color: Colors.white,
                       ),
                       const SizedBox(width: 12),
                       _buildStatCard(
                         icon: Icons.warning_rounded,
                         value: '$dueSoon',
-                        label: 'Due Soon',
+                        label: AppLocalizations.of(context).dueSoon,
                         color: dueSoon > 0 ? AppTheme.accentOrange : Colors.white,
                       ),
                       const SizedBox(width: 12),
                       _buildStatCard(
                         icon: Icons.check_circle_rounded,
                         value: '$paidThisMonth',
-                        label: 'Paid',
+                        label: AppLocalizations.of(context).paid,
                         color: AppTheme.statusSuccess,
                       ),
                     ],
@@ -608,9 +616,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          const Text(
-            'Your Loans',
-            style: TextStyle(
+          Text(
+            AppLocalizations.of(context).yourLoans,
+            style: const TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.bold,
               color: AppTheme.textDark,
@@ -619,7 +627,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           TextButton.icon(
             onPressed: () => _showFilterOptions(),
             icon: const Icon(Icons.filter_list_rounded, size: 20),
-            label: const Text('Filter'),
+            label: Text(AppLocalizations.of(context).filter),
           ),
         ],
       ),
@@ -632,7 +640,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) => StatefulBuilder(
-        builder: (context, setModalState) => Container(
+        builder: (context, setModalState) {
+          final l = AppLocalizations.of(context);
+          return Container(
           decoration: const BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.only(
@@ -664,9 +674,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text(
-                    'Sort & Filter',
-                    style: TextStyle(
+                  Text(
+                    l.sortAndFilter,
+                    style: const TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
                       color: AppTheme.textDark,
@@ -681,7 +691,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       });
                       setState(() {});
                     },
-                    child: const Text('Reset'),
+                    child: Text(l.reset),
                   ),
                 ],
               ),
@@ -691,7 +701,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               Align(
                 alignment: Alignment.centerLeft,
                 child: Text(
-                  'SORT BY',
+                  l.sortBy,
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
@@ -703,11 +713,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               const SizedBox(height: 10),
               Row(
                 children: [
-                  _buildSortOption('Due Date', 'dueDate', Icons.event_rounded, setModalState),
+                  _buildSortOption(l.dueDate, 'dueDate', Icons.event_rounded, setModalState),
                   const SizedBox(width: 10),
-                  _buildSortOption('Name', 'name', Icons.sort_by_alpha_rounded, setModalState),
+                  _buildSortOption(l.name, 'name', Icons.sort_by_alpha_rounded, setModalState),
                   const SizedBox(width: 10),
-                  _buildSortOption('Amount', 'amount', Icons.attach_money_rounded, setModalState),
+                  _buildSortOption(l.amount, 'amount', Icons.attach_money_rounded, setModalState),
                 ],
               ),
               const SizedBox(height: 24),
@@ -716,7 +726,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               Align(
                 alignment: Alignment.centerLeft,
                 child: Text(
-                  'FILTER BY STATUS',
+                  l.filterByStatus,
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
@@ -730,7 +740,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 children: [
                   Expanded(
                     child: _buildFilterOption(
-                      'All',
+                      l.all,
                       !_showPaidOnly && !_showUnpaidOnly,
                       Icons.list_rounded,
                       () {
@@ -745,7 +755,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   const SizedBox(width: 10),
                   Expanded(
                     child: _buildFilterOption(
-                      'Unpaid',
+                      l.unpaid,
                       _showUnpaidOnly,
                       Icons.schedule_rounded,
                       () {
@@ -760,7 +770,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   const SizedBox(width: 10),
                   Expanded(
                     child: _buildFilterOption(
-                      'Paid',
+                      l.paid,
                       _showPaidOnly,
                       Icons.check_circle_rounded,
                       () {
@@ -793,7 +803,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                         );
                       },
                       icon: const Icon(Icons.calendar_month_rounded, size: 18),
-                      label: const Text('Calendar'),
+                      label: Text(l.calendar),
                       style: OutlinedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 12),
                         shape: RoundedRectangleBorder(
@@ -812,14 +822,15 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                           borderRadius: BorderRadius.circular(12),
                         ),
                       ),
-                      child: const Text('Done'),
+                      child: Text(l.done),
                     ),
                   ),
                 ],
               ),
             ],
           ),
-        ),
+        );
+        },
       ),
     );
   }
@@ -946,7 +957,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    'No loans match your filter',
+                    AppLocalizations.of(context).noLoansMatchFilter,
                     style: TextStyle(
                       fontSize: 16,
                       color: AppTheme.textMedium,
@@ -960,7 +971,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                         _showUnpaidOnly = false;
                       });
                     },
-                    child: const Text('Clear Filters'),
+                    child: Text(AppLocalizations.of(context).clearFilters),
                   ),
                 ],
               ),
@@ -1019,9 +1030,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             ),
           ),
           const SizedBox(height: 32),
-          const Text(
-            'No loans yet',
-            style: TextStyle(
+          Text(
+            AppLocalizations.of(context).noLoans,
+            style: const TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.bold,
               color: AppTheme.textDark,
@@ -1029,7 +1040,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           ),
           const SizedBox(height: 12),
           Text(
-            'Add your first loan to start tracking\nyour EMI payments',
+            AppLocalizations.of(context).addYourFirstLoan,
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 15,
@@ -1149,8 +1160,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             const SizedBox(height: 24),
             _buildActionTile(
               icon: Icons.edit_rounded,
-              title: 'Edit Loan',
-              subtitle: 'Modify loan details',
+              title: AppLocalizations.of(context).editLoan,
+              subtitle: AppLocalizations.of(context).modifyLoanDetails,
               onTap: () {
                 Navigator.pop(context);
                 _editLoan(context, loan);
@@ -1159,8 +1170,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             if (!loan.isPaid)
               _buildActionTile(
                 icon: Icons.check_circle_rounded,
-                title: 'Mark as Paid',
-                subtitle: 'Record this month\'s payment',
+                title: AppLocalizations.of(context).markPaid,
+                subtitle: AppLocalizations.of(context).recordThisMonthsPayment,
                 color: AppTheme.statusSuccess,
                 onTap: () {
                   Navigator.pop(context);
@@ -1169,17 +1180,17 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               ),
             _buildActionTile(
               icon: Icons.notifications_rounded,
-              title: 'Test Notification',
-              subtitle: 'Send a test reminder',
+              title: AppLocalizations.of(context).testNotification,
+              subtitle: AppLocalizations.of(context).sendTestReminder,
               color: AppTheme.statusInfo,
               onTap: () async {
                 Navigator.pop(context);
                 await _notificationService.scheduleLoadReminders(loan, testMode: true);
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Test notification sent!'),
-                      duration: Duration(seconds: 3),
+                    SnackBar(
+                      content: Text(AppLocalizations.of(context).testNotificationSent),
+                      duration: const Duration(seconds: 3),
                     ),
                   );
                 }
@@ -1187,8 +1198,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             ),
             _buildActionTile(
               icon: Icons.delete_rounded,
-              title: 'Delete Loan',
-              subtitle: 'Remove this loan permanently',
+              title: AppLocalizations.of(context).deleteLoan,
+              subtitle: AppLocalizations.of(context).removeThisLoanPermanently,
               color: AppTheme.statusError,
               onTap: () {
                 Navigator.pop(context);
@@ -1442,9 +1453,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      '🔔 Notification Settings',
-                      style: TextStyle(
+                    Text(
+                      '🔔 ${AppLocalizations.of(context).notificationSettings}',
+                      style: const TextStyle(
                         fontSize: 22,
                         fontWeight: FontWeight.bold,
                         color: AppTheme.textDark,
@@ -1452,7 +1463,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'Ensure you receive EMI reminders even when app is closed',
+                      AppLocalizations.of(context).ensureYouReceiveReminders,
                       style: TextStyle(
                         fontSize: 14,
                         color: AppTheme.textMedium,
@@ -1964,6 +1975,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         savedPath = await _backupService.exportLoans();
       }
 
+      // Record backup date
+      await BackupReminderService.setLastBackupDate();
+
       if (mounted) {
         ScaffoldMessenger.of(context).hideCurrentSnackBar();
         ScaffoldMessenger.of(context).showSnackBar(
@@ -1988,6 +2002,114 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         );
       }
     }
+  }
+
+  /// Check if backup reminder should be shown
+  Future<void> _checkBackupReminder() async {
+    // Wait a bit for the UI to settle
+    await Future.delayed(const Duration(seconds: 2));
+
+    if (!mounted) return;
+
+    final loans = _storageService.getAllLoans();
+    final shouldShow = await BackupReminderService.shouldShowReminder(loans.length);
+
+    if (!shouldShow || !mounted) return;
+
+    final l = AppLocalizations.of(context);
+    final daysSinceBackup = await BackupReminderService.getDaysSinceBackup();
+    final hasBackedUp = await BackupReminderService.hasEverBackedUp();
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.orange.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(Icons.backup_rounded, color: Colors.orange, size: 24),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                l.backupReminder,
+                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              l.backupReminderMessage,
+              style: TextStyle(fontSize: 14, color: Colors.grey[700]),
+            ),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.orange.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    hasBackedUp ? Icons.history : Icons.warning_rounded,
+                    color: Colors.orange,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      hasBackedUp
+                        ? '$daysSinceBackup ${l.lastBackupDaysAgo}'
+                        : l.neverBackedUp,
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Colors.orange[800],
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              '${loans.length} ${l.loansStored}',
+              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              BackupReminderService.dismissReminder();
+              Navigator.pop(context);
+            },
+            child: Text(l.later, style: const TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _exportBackup();
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.primaryColor,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            child: Text(l.backupNow),
+          ),
+        ],
+      ),
+    );
   }
 
   /// Import backup from file
@@ -2088,5 +2210,72 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         );
       }
     }
+  }
+
+  Future<void> _showSettingsMenu() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => SettingsScreen(
+          storageService: _storageService,
+          backupService: _backupService,
+          notificationService: _notificationService,
+          onDataChanged: () => setState(() {}),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showLanguageDialogDirect() async {
+    showDialog(
+      context: context,
+      builder: (context) => Consumer<LanguageProvider>(
+        builder: (context, languageProvider, _) {
+          return AlertDialog(
+            title: Text(AppLocalizations.of(context).language),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _buildLanguageOption('en', 'English'),
+                _buildLanguageOption('ta', 'தமிழ் (Tamil)'),
+                _buildLanguageOption('te', 'తెలుగు (Telugu)'),
+                _buildLanguageOption('hi', 'हिन्दी (Hindi)'),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text(AppLocalizations.of(context).cancel),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+
+  Widget _buildLanguageOption(String code, String name) {
+    return Consumer<LanguageProvider>(
+      builder: (context, languageProvider, _) {
+        final isSelected = languageProvider.currentLocale.languageCode == code;
+        return ListTile(
+          title: Text(name),
+          trailing: isSelected
+              ? const Icon(Icons.check_circle_rounded, color: Colors.green)
+              : null,
+          selected: isSelected,
+          onTap: () {
+            languageProvider.setLanguage(code);
+            // Close the dialog after 500ms to allow the change to propagate
+            Future.delayed(const Duration(milliseconds: 500), () {
+              if (context.mounted) {
+                Navigator.pop(context);
+              }
+            });
+          },
+        );
+      },
+    );
   }
 }
