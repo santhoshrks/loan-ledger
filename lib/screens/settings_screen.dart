@@ -16,12 +16,12 @@ class SettingsScreen extends StatefulWidget {
   final VoidCallback onDataChanged;
 
   const SettingsScreen({
-    Key? key,
+    super.key,
     required this.storageService,
     required this.backupService,
     this.notificationService,
     required this.onDataChanged,
-  }) : super(key: key);
+  });
 
   @override
   State<SettingsScreen> createState() => _SettingsScreenState();
@@ -354,10 +354,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Widget _buildLanguageSelector(BuildContext context) {
     final languages = [
-      {'code': 'en', 'name': 'English', 'nativeName': 'English'},
-      {'code': 'ta', 'name': 'Tamil', 'nativeName': 'தமிழ்'},
-      {'code': 'te', 'name': 'Telugu', 'nativeName': 'తెలుగు'},
-      {'code': 'hi', 'name': 'Hindi', 'nativeName': 'हिन्दी'},
+      {'code': 'en',  'name': 'English',           'nativeName': 'English'},
+      {'code': 'hi',  'name': 'Hindi',              'nativeName': 'हिन्दी'},
+      {'code': 'ta',  'name': 'Tamil',              'nativeName': 'தமிழ்'},
+      {'code': 'te',  'name': 'Telugu',             'nativeName': 'తెలుగు'},
+      {'code': 'kn',  'name': 'Kannada',            'nativeName': 'ಕನ್ನಡ'},
+      {'code': 'ml',  'name': 'Malayalam',          'nativeName': 'മലയാളം'},
+      {'code': 'mr',  'name': 'Marathi',            'nativeName': 'मराठी'},
+      {'code': 'bn',  'name': 'Bengali',            'nativeName': 'বাংলা'},
+      {'code': 'gu',  'name': 'Gujarati',           'nativeName': 'ગુજરાતી'},
+      {'code': 'ur',  'name': 'Urdu',               'nativeName': 'اردو'},
+      {'code': 'id',  'name': 'Bahasa Indonesia',   'nativeName': 'Indonesia'},
+      {'code': 'fil', 'name': 'Filipino',           'nativeName': 'Filipino'},
+      {'code': 'es',  'name': 'Spanish',            'nativeName': 'Español'},
     ];
 
     return Consumer<LanguageProvider>(

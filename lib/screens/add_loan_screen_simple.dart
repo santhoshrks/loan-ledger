@@ -13,11 +13,11 @@ class AddLoanScreen extends StatefulWidget {
   final Loan? existingLoan;
 
   const AddLoanScreen({
-    Key? key,
+    super.key,
     required this.storageService,
     required this.notificationService,
     this.existingLoan,
-  }) : super(key: key);
+  });
 
   @override
   State<AddLoanScreen> createState() => _AddLoanScreenState();
@@ -103,9 +103,9 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
                 controller: _emiController,
                 keyboardType: TextInputType.number,
                 decoration: InputDecoration(
-                  labelText: 'EMI Amount (₹)',
+                  labelText: 'EMI Amount',
                   hintText: '15000',
-                  prefixIcon: const Icon(Icons.currency_rupee),
+                  prefixIcon: const Icon(Icons.payments_rounded),
                 ),
                 validator: (value) {
                   if (value?.isEmpty ?? true) {

@@ -35,6 +35,7 @@ class _EMICalculatorScreenState extends State<EMICalculatorScreen> {
   bool _showResults = false;
 
   String _calcType = 'EMI'; // 'EMI', 'Compound', 'SIP'
+  final String _currencySymbol = '\$'; // Generic default symbol for standalone calculator
 
   @override
   void dispose() {
@@ -333,7 +334,7 @@ class _EMICalculatorScreenState extends State<EMICalculatorScreen> {
                             decoration: InputDecoration(
                               labelText: _calcType == 'Compound' ? l.principalAmount : l.loanAmount,
                               hintText: l.loanAmountHint,
-                              prefixIcon: Icon(Icons.currency_rupee, color: AppTheme.primaryColor),
+                              prefixIcon: Icon(Icons.payments_rounded, color: AppTheme.primaryColor),
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
                               ),
@@ -547,7 +548,7 @@ class _EMICalculatorScreenState extends State<EMICalculatorScreen> {
                           ),
                           const SizedBox(height: 8),
                           Text(
-                            '₹${_formatNumber(_emi ?? 0)}',
+                            '$_currencySymbol${_formatNumber(_emi ?? 0)}',
                             style: TextStyle(
                               fontSize: 36,
                               fontWeight: FontWeight.bold,
@@ -568,7 +569,7 @@ class _EMICalculatorScreenState extends State<EMICalculatorScreen> {
                           ),
                           const SizedBox(height: 8),
                           Text(
-                            '₹${_formatNumber(_totalAmount ?? 0)}',
+                            '$_currencySymbol${_formatNumber(_totalAmount ?? 0)}',
                             style: TextStyle(fontSize: 36, fontWeight: FontWeight.bold, color: AppTheme.primaryColor),
                           ),
                         ] else if (_calcType == 'SIP') ...[
@@ -578,11 +579,11 @@ class _EMICalculatorScreenState extends State<EMICalculatorScreen> {
                           ),
                           const SizedBox(height: 8),
                           Text(
-                            '₹${_formatNumber(_totalAmount ?? 0)}',
+                            '$_currencySymbol${_formatNumber(_totalAmount ?? 0)}',
                             style: TextStyle(fontSize: 36, fontWeight: FontWeight.bold, color: AppTheme.primaryColor),
                           ),
                           Text(
-                            '${l.totalInvested}: ₹${_formatNumber(_totalInvested ?? 0)}',
+                            '${l.totalInvested}: $_currencySymbol${_formatNumber(_totalInvested ?? 0)}',
                             style: TextStyle(fontSize: 14, color: AppTheme.textMedium),
                           ),
                         ],
@@ -595,21 +596,21 @@ class _EMICalculatorScreenState extends State<EMICalculatorScreen> {
                         if (_calcType == 'EMI') ...[
                           _buildResultRow(
                             l.principalAmount,
-                            '₹${_formatNumber(_getPrincipalForDisplay())}',
+                            '$_currencySymbol${_formatNumber(_getPrincipalForDisplay())}',
                             Icons.account_balance,
                             AppTheme.primaryColor,
                           ),
                           const SizedBox(height: 12),
                           _buildResultRow(
                             l.totalInterest,
-                            '₹${_formatNumber(_totalInterest ?? 0)}',
+                            '$_currencySymbol${_formatNumber(_totalInterest ?? 0)}',
                             Icons.trending_up,
                             AppTheme.statusWarning,
                           ),
                           const SizedBox(height: 12),
                           _buildResultRow(
                             l.totalPayment,
-                            '₹${_formatNumber(_totalAmount ?? 0)}',
+                            '$_currencySymbol${_formatNumber(_totalAmount ?? 0)}',
                             Icons.payments,
                             AppTheme.statusSuccess,
                           ),
@@ -622,21 +623,21 @@ class _EMICalculatorScreenState extends State<EMICalculatorScreen> {
                         ] else if (_calcType == 'Compound') ...[
                           _buildResultRow(
                             l.principalAmount,
-                            '₹${_formatNumber(_getPrincipalForDisplay())}',
+                            '$_currencySymbol${_formatNumber(_getPrincipalForDisplay())}',
                             Icons.account_balance,
                             AppTheme.primaryColor,
                           ),
                           const SizedBox(height: 12),
                           _buildResultRow(
                             l.totalInterest,
-                            '₹${_formatNumber(_totalInterest ?? 0)}',
+                            '$_currencySymbol${_formatNumber(_totalInterest ?? 0)}',
                             Icons.trending_up,
                             AppTheme.statusWarning,
                           ),
                           const SizedBox(height: 12),
                           _buildResultRow(
                             l.futureValue,
-                            '₹${_formatNumber(_totalAmount ?? 0)}',
+                            '$_currencySymbol${_formatNumber(_totalAmount ?? 0)}',
                             Icons.payments,
                             AppTheme.statusSuccess,
                           ),
@@ -649,21 +650,21 @@ class _EMICalculatorScreenState extends State<EMICalculatorScreen> {
                         ] else if (_calcType == 'SIP') ...[
                           _buildResultRow(
                             l.monthlyInvestment,
-                            '₹${_formatNumber(_getMonthlyInvestmentForDisplay())}',
+                            '$_currencySymbol${_formatNumber(_getMonthlyInvestmentForDisplay())}',
                             Icons.savings,
                             AppTheme.primaryColor,
                           ),
                           const SizedBox(height: 12),
                           _buildResultRow(
                             l.totalInvested,
-                            '₹${_formatNumber(_totalInvested ?? 0)}',
+                            '$_currencySymbol${_formatNumber(_totalInvested ?? 0)}',
                             Icons.account_balance_wallet_rounded,
                             AppTheme.primaryColor,
                           ),
                           const SizedBox(height: 12),
                           _buildResultRow(
                             l.estimatedReturns,
-                            '₹${_formatNumber((_totalAmount ?? 0) - (_totalInvested ?? 0))}',
+                            '$_currencySymbol${_formatNumber((_totalAmount ?? 0) - (_totalInvested ?? 0))}',
                             Icons.trending_up,
                             AppTheme.statusWarning,
                           ),
@@ -936,15 +937,14 @@ class _EMICalculatorScreenState extends State<EMICalculatorScreen> {
   }
 
   String _formatNumber(double number) {
-    if (number >= 10000000) {
-      return '${(number / 10000000).toStringAsFixed(2)} Cr';
-    } else if (number >= 100000) {
-      return '${(number / 100000).toStringAsFixed(2)} L';
+    if (number >= 1000000000) {
+      return '${(number / 1000000000).toStringAsFixed(2)}B';
+    } else if (number >= 1000000) {
+      return '${(number / 1000000).toStringAsFixed(2)}M';
+    } else if (number >= 1000) {
+      return '${(number / 1000).toStringAsFixed(1)}K';
     } else {
-      return number.toStringAsFixed(0).replaceAllMapped(
-        RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
-        (Match m) => '${m[1]},',
-      );
+      return number.toStringAsFixed(0);
     }
   }
 

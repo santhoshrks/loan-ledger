@@ -12,7 +12,6 @@ import 'localization/app_localizations.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Set system UI overlay style
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
@@ -22,19 +21,16 @@ Future<void> main() async {
     ),
   );
 
-  // Set preferred orientations
   await SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
   ]);
 
-  // Initialize services with error handling
   LoanStorageService? storageService;
   NotificationService? notificationService;
-  LanguageProvider languageProvider = LanguageProvider();
+  final languageProvider = LanguageProvider();
 
   try {
-    // Initialize Hive for local storage
     storageService = LoanStorageService();
     await storageService.init();
     debugPrint('✅ Storage service initialized');
@@ -43,7 +39,6 @@ Future<void> main() async {
   }
 
   try {
-    // Initialize notification service
     notificationService = NotificationService();
     await notificationService.init();
     debugPrint('✅ Notification service initialized');
@@ -52,7 +47,6 @@ Future<void> main() async {
   }
 
   try {
-    // Initialize language provider
     await languageProvider.init();
     debugPrint('✅ Language provider initialized');
   } catch (e) {
@@ -60,8 +54,10 @@ Future<void> main() async {
   }
 
   runApp(
-    ChangeNotifierProvider<LanguageProvider>.value(
-      value: languageProvider,
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider<LanguageProvider>.value(value: languageProvider),
+      ],
       child: EmiReminderApp(
         storageService: storageService,
         notificationService: notificationService,
@@ -88,9 +84,8 @@ class EmiReminderApp extends StatelessWidget {
           debugShowCheckedModeBanner: false,
           title: 'EMI Reminder & Loan Tracker',
           theme: AppTheme.lightTheme,
-          themeMode: ThemeMode.light,
           locale: languageProvider.currentLocale,
-          localizationsDelegates: [
+          localizationsDelegates: const [
             AppLocalizations.delegate,
             GlobalMaterialLocalizations.delegate,
             GlobalWidgetsLocalizations.delegate,
@@ -98,9 +93,18 @@ class EmiReminderApp extends StatelessWidget {
           ],
           supportedLocales: const [
             Locale('en'),
+            Locale('hi'),
             Locale('ta'),
             Locale('te'),
-            Locale('hi'),
+            Locale('kn'),
+            Locale('ml'),
+            Locale('mr'),
+            Locale('bn'),
+            Locale('gu'),
+            Locale('id'),
+            Locale('fil'),
+            Locale('ur'),  // Urdu — Pakistan
+            Locale('es'),  // Spanish — Mexico, Colombia, Argentina, etc.
           ],
           home: HomeScreen(
             storageService: storageService,
@@ -111,4 +115,3 @@ class EmiReminderApp extends StatelessWidget {
     );
   }
 }
-

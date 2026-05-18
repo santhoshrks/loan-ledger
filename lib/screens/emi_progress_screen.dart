@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../models/loan.dart';
 import '../services/loan_storage_service.dart';
@@ -605,14 +604,8 @@ class _EMIProgressScreenState extends State<EMIProgressScreen> {
     debugPrint('loan.startDate = ${loan.startDate}');
     debugPrint('loan.emisPaidCount = ${loan.emisPaidCount}');
 
-    // Use the stored emisPaidCount as the base (manually entered by user)
+    // emisPaidCount is always kept in sync: incremented on markPaid, decremented on markUnpaid
     int emisPaid = loan.emisPaidCount;
-
-    // If current month's EMI is marked as paid, add 1
-    if (loan.isPaid) {
-      emisPaid = emisPaid + 1;
-      debugPrint('Added 1 for isPaid, now emisPaid = $emisPaid');
-    }
 
     // Get tenure (default to 60 if not set)
     final tenure = loan.tenureMonths ?? 60;
@@ -680,14 +673,14 @@ class _EMIProgressScreenState extends State<EMIProgressScreen> {
   }
 
   String _formatCurrency(double amount) {
-    if (amount >= 10000000) {
-      return '₹${(amount / 10000000).toStringAsFixed(2)} Cr';
-    } else if (amount >= 100000) {
-      return '₹${(amount / 100000).toStringAsFixed(2)} L';
+    if (amount >= 1000000000) {
+      return '${(amount / 1000000000).toStringAsFixed(2)}B';
+    } else if (amount >= 1000000) {
+      return '${(amount / 1000000).toStringAsFixed(2)}M';
     } else if (amount >= 1000) {
-      return '₹${(amount / 1000).toStringAsFixed(1)}K';
+      return '${(amount / 1000).toStringAsFixed(1)}K';
     }
-    return '₹${amount.toStringAsFixed(0)}';
+    return amount.toStringAsFixed(0);
   }
 
   // Format a map of currency->amount into a compact readable string
@@ -697,10 +690,10 @@ class _EMIProgressScreenState extends State<EMIProgressScreen> {
     map.forEach((currency, amount) {
       final symbol = CurrencyHelper.getSymbol(currency);
       String amtStr;
-      if (amount >= 10000000) {
-        amtStr = '${(amount / 10000000).toStringAsFixed(2)} Cr';
-      } else if (amount >= 100000) {
-        amtStr = '${(amount / 100000).toStringAsFixed(2)} L';
+      if (amount >= 1000000000) {
+        amtStr = '${(amount / 1000000000).toStringAsFixed(2)}B';
+      } else if (amount >= 1000000) {
+        amtStr = '${(amount / 1000000).toStringAsFixed(2)}M';
       } else if (amount >= 1000) {
         amtStr = '${(amount / 1000).toStringAsFixed(1)}K';
       } else {

@@ -325,48 +325,51 @@ class AppTheme {
       useMaterial3: true,
       brightness: Brightness.dark,
       colorScheme: ColorScheme.dark(
-        primary: primaryLight,
-        secondary: secondaryLight,
-        tertiary: accentPurple,
+        primary: primaryColor,
+        secondary: secondaryColor,
         surface: bgDarkCard,
-        error: statusError,
         onPrimary: Colors.white,
         onSecondary: Colors.white,
-        onSurface: Colors.white,
       ),
       scaffoldBackgroundColor: bgDark,
-      appBarTheme: const AppBarTheme(
-        backgroundColor: Colors.transparent,
+      appBarTheme: AppBarTheme(
+        backgroundColor: bgDarkCard,
         foregroundColor: Colors.white,
         elevation: 0,
-        centerTitle: false,
-        titleTextStyle: TextStyle(
-          color: Colors.white,
-          fontSize: 24,
-          fontWeight: FontWeight.bold,
-          letterSpacing: -0.5,
-        ),
+        titleTextStyle: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
       ),
+      cardColor: bgDarkCard,
       cardTheme: CardThemeData(
         elevation: 0,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         color: bgDarkCard,
       ),
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: const Color(0xFF334155),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+        labelStyle: const TextStyle(color: Color(0xFF94A3B8)),
+      ),
       textTheme: const TextTheme(
-        displayLarge: TextStyle(fontSize: 36, fontWeight: FontWeight.bold, color: Colors.white),
-        displayMedium: TextStyle(fontSize: 30, fontWeight: FontWeight.bold, color: Colors.white),
-        displaySmall: TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: Colors.white),
-        headlineMedium: TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: Colors.white),
-        headlineSmall: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: Colors.white),
-        titleLarge: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.white),
-        titleMedium: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.white70),
-        titleSmall: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: Colors.white54),
-        bodyLarge: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: Colors.white),
-        bodyMedium: TextStyle(fontSize: 14, fontWeight: FontWeight.w400, color: Colors.white70),
-        bodySmall: TextStyle(fontSize: 12, fontWeight: FontWeight.w400, color: Colors.white54),
+        bodyLarge: TextStyle(color: Colors.white),
+        bodyMedium: TextStyle(color: Color(0xFFCBD5E1)),
+        bodySmall: TextStyle(color: Color(0xFF94A3B8)),
+        titleLarge: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        titleMedium: TextStyle(color: Color(0xFFCBD5E1)),
+      ),
+      dividerColor: const Color(0xFF334155),
+      iconTheme: const IconThemeData(color: Color(0xFF94A3B8)),
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: primaryColor,
+          foregroundColor: Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        ),
       ),
     );
   }
+
+  // Dark mode bg helpers
+  static const Color darkBgCard = bgDarkCard;
+  static const Color darkBgSurface = Color(0xFF334155);
 }

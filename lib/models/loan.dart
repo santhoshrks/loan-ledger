@@ -1,4 +1,5 @@
 import 'package:hive/hive.dart';
+import 'package:intl/intl.dart';
 
 part 'loan.g.dart';
 
@@ -40,6 +41,18 @@ class Loan extends HiveObject {
   @HiveField(11)
   late int emisPaidCount; // Number of EMIs already paid (for loans added with past start date)
 
+  @HiveField(12)
+  String? bankName; // Bank or lender name (Chase, HSBC, HDFC, etc.)
+
+  @HiveField(13)
+  String? loanTypeName; // Loan type (Home Loan, Car Loan, Gold Loan, etc.)
+
+  @HiveField(14)
+  List<double>? rateHistory; // Historical interest rates for floating rate tracking
+
+  @HiveField(15)
+  List<String>? rateHistoryDates; // Dates of rate changes (ISO string)
+
   Loan({
     required this.id,
     required this.name,
@@ -51,8 +64,12 @@ class Loan extends HiveObject {
     this.interestRate,
     this.tenureMonths,
     this.isPaid = false,
-    this.currencyCode = 'INR', // Default to INR for backward compatibility
-    this.emisPaidCount = 0, // Default to 0 EMIs paid
+    this.currencyCode = 'INR',
+    this.emisPaidCount = 0,
+    this.bankName,
+    this.loanTypeName,
+    this.rateHistory,
+    this.rateHistoryDates,
   });
 
   /// Get currency symbol based on currency code
@@ -197,7 +214,18 @@ class Loan extends HiveObject {
 /// Helper class for currency operations
 class CurrencyHelper {
   static const Map<String, String> _currencySymbols = {
+    // Primary markets
     'INR': '₹',    // Indian Rupee
+    'PKR': '₨',    // Pakistani Rupee (distinct symbol)
+    'PHP': '₱',    // Philippine Peso
+    'BDT': '৳',    // Bangladeshi Taka
+    // Spanish-speaking markets
+    'MXN': 'MX\$', // Mexican Peso
+    'COP': 'COL\$',// Colombian Peso
+    'ARS': 'AR\$', // Argentine Peso
+    'PEN': 'S/',   // Peruvian Sol
+    'CLP': 'CL\$', // Chilean Peso
+    // Global
     'USD': '\$',   // US Dollar
     'EUR': '€',    // Euro
     'GBP': '£',    // British Pound
@@ -209,18 +237,14 @@ class CurrencyHelper {
     'MYR': 'RM',   // Malaysian Ringgit
     'THB': '฿',    // Thai Baht
     'IDR': 'Rp',   // Indonesian Rupiah
-    'PHP': '₱',    // Philippine Peso
     'VND': '₫',    // Vietnamese Dong
     'KRW': '₩',    // Korean Won
-    'BDT': '৳',    // Bangladeshi Taka
-    'PKR': 'Rs',   // Pakistani Rupee
     'LKR': 'Rs',   // Sri Lankan Rupee
     'NPR': 'रू',   // Nepalese Rupee
     'AED': 'د.إ',  // UAE Dirham
     'SAR': '﷼',   // Saudi Riyal
     'ZAR': 'R',    // South African Rand
     'BRL': 'R\$',  // Brazilian Real
-    'MXN': '\$',   // Mexican Peso
     'RUB': '₽',    // Russian Ruble
     'TRY': '₺',    // Turkish Lira
     'CHF': 'Fr',   // Swiss Franc
@@ -233,39 +257,43 @@ class CurrencyHelper {
   };
 
   static const Map<String, String> _currencyNames = {
-    'INR': 'Indian Rupee',
-    'USD': 'US Dollar',
-    'EUR': 'Euro',
-    'GBP': 'British Pound',
-    'JPY': 'Japanese Yen',
-    'CNY': 'Chinese Yuan',
-    'AUD': 'Australian Dollar',
-    'CAD': 'Canadian Dollar',
-    'SGD': 'Singapore Dollar',
-    'MYR': 'Malaysian Ringgit',
-    'THB': 'Thai Baht',
-    'IDR': 'Indonesian Rupiah',
-    'PHP': 'Philippine Peso',
-    'VND': 'Vietnamese Dong',
-    'KRW': 'Korean Won',
-    'BDT': 'Bangladeshi Taka',
-    'PKR': 'Pakistani Rupee',
-    'LKR': 'Sri Lankan Rupee',
-    'NPR': 'Nepalese Rupee',
-    'AED': 'UAE Dirham',
-    'SAR': 'Saudi Riyal',
-    'ZAR': 'South African Rand',
-    'BRL': 'Brazilian Real',
-    'MXN': 'Mexican Peso',
-    'RUB': 'Russian Ruble',
-    'TRY': 'Turkish Lira',
-    'CHF': 'Swiss Franc',
-    'SEK': 'Swedish Krona',
-    'NOK': 'Norwegian Krone',
-    'DKK': 'Danish Krone',
-    'NZD': 'New Zealand Dollar',
-    'HKD': 'Hong Kong Dollar',
-    'TWD': 'Taiwan Dollar',
+    'INR': 'Indian Rupee (₹)',
+    'PKR': 'Pakistani Rupee (₨)',
+    'PHP': 'Philippine Peso (₱)',
+    'BDT': 'Bangladeshi Taka (৳)',
+    'MXN': 'Mexican Peso (MX\$)',
+    'COP': 'Colombian Peso (COL\$)',
+    'ARS': 'Argentine Peso (AR\$)',
+    'PEN': 'Peruvian Sol (S/)',
+    'CLP': 'Chilean Peso (CL\$)',
+    'USD': 'US Dollar (\$)',
+    'EUR': 'Euro (€)',
+    'GBP': 'British Pound (£)',
+    'JPY': 'Japanese Yen (¥)',
+    'CNY': 'Chinese Yuan (¥)',
+    'AUD': 'Australian Dollar (A\$)',
+    'CAD': 'Canadian Dollar (C\$)',
+    'SGD': 'Singapore Dollar (S\$)',
+    'MYR': 'Malaysian Ringgit (RM)',
+    'THB': 'Thai Baht (฿)',
+    'IDR': 'Indonesian Rupiah (Rp)',
+    'VND': 'Vietnamese Dong (₫)',
+    'KRW': 'Korean Won (₩)',
+    'LKR': 'Sri Lankan Rupee (Rs)',
+    'NPR': 'Nepalese Rupee (रू)',
+    'AED': 'UAE Dirham (د.إ)',
+    'SAR': 'Saudi Riyal (﷼)',
+    'ZAR': 'South African Rand (R)',
+    'BRL': 'Brazilian Real (R\$)',
+    'RUB': 'Russian Ruble (₽)',
+    'TRY': 'Turkish Lira (₺)',
+    'CHF': 'Swiss Franc (Fr)',
+    'SEK': 'Swedish Krona (kr)',
+    'NOK': 'Norwegian Krone (kr)',
+    'DKK': 'Danish Krone (kr)',
+    'NZD': 'New Zealand Dollar (NZ\$)',
+    'HKD': 'Hong Kong Dollar (HK\$)',
+    'TWD': 'Taiwan Dollar (NT\$)',
   };
 
   /// Get currency symbol from code
@@ -283,8 +311,58 @@ class CurrencyHelper {
 
   /// Get currency code from device locale
   static String getDefaultCurrency() {
-    // This can be enhanced to detect from device locale
-    return 'INR';
+    try {
+      final locale = Intl.getCurrentLocale();
+      final localeLower = locale.toLowerCase();
+
+      // India (primary market) — INR
+      if (localeLower.startsWith('hi') || localeLower.startsWith('ta') ||
+          localeLower.startsWith('te') || localeLower.startsWith('kn') ||
+          localeLower.startsWith('ml') || localeLower.startsWith('mr') ||
+          localeLower.startsWith('gu') || localeLower.startsWith('pa') ||
+          localeLower.contains('en_in') || localeLower == 'en_in') return 'INR';
+
+      // Pakistan — PKR
+      if (localeLower.startsWith('ur') || localeLower.contains('en_pk') ||
+          localeLower.contains('ur_pk')) return 'PKR';
+
+      // Philippines — PHP
+      if (localeLower.startsWith('fil') || localeLower.startsWith('tl') ||
+          localeLower.contains('en_ph')) return 'PHP';
+
+      // Bangladesh — BDT
+      if (localeLower.startsWith('bn') || localeLower.contains('en_bd')) return 'BDT';
+
+      // Spanish-speaking countries
+      if (localeLower.contains('es_mx')) return 'MXN'; // Mexico
+      if (localeLower.contains('es_co')) return 'COP'; // Colombia
+      if (localeLower.contains('es_ar')) return 'ARS'; // Argentina
+      if (localeLower.contains('es_pe')) return 'PEN'; // Peru
+      if (localeLower.contains('es_cl')) return 'CLP'; // Chile
+      if (localeLower.contains('es_es')) return 'EUR'; // Spain
+      if (localeLower.startsWith('es')) return 'USD';  // Other Spanish (many use USD)
+
+      // Other regions
+      if (localeLower.contains('en_us') || localeLower.startsWith('en_us')) return 'USD';
+      if (localeLower.contains('en_gb')) return 'GBP';
+      if (localeLower.startsWith('de') || localeLower.startsWith('fr') ||
+          localeLower.startsWith('it')) return 'EUR';
+      if (localeLower.startsWith('ja')) return 'JPY';
+      if (localeLower.startsWith('zh')) return 'CNY';
+      if (localeLower.contains('en_au')) return 'AUD';
+      if (localeLower.contains('en_ca')) return 'CAD';
+      if (localeLower.contains('en_sg') || localeLower.contains('zh_sg')) return 'SGD';
+      if (localeLower.startsWith('ms') || localeLower.contains('en_my')) return 'MYR';
+      if (localeLower.startsWith('id')) return 'IDR';
+      if (localeLower.startsWith('th')) return 'THB';
+      if (localeLower.startsWith('ko')) return 'KRW';
+      if (localeLower.contains('ar_ae') || localeLower.contains('en_ae')) return 'AED';
+      if (localeLower.contains('ar_sa')) return 'SAR';
+      if (localeLower.contains('pt_br')) return 'BRL';
+      if (localeLower.startsWith('tr')) return 'TRY';
+      if (localeLower.startsWith('ru')) return 'RUB';
+    } catch (_) {}
+    return 'INR'; // Default to INR (primary market)
   }
 }
 

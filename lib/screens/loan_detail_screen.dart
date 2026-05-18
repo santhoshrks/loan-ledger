@@ -1,20 +1,27 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../models/loan.dart';
+import '../services/loan_storage_service.dart';
 import '../utils/emi_calculator.dart';
 import '../localization/app_localizations.dart';
+import '../theme/app_theme.dart';
+import 'amortization_screen.dart';
+import 'prepayment_calculator_screen.dart';
+import 'floating_rate_screen.dart';
 
 class LoanDetailScreen extends StatelessWidget {
   final Loan loan;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
+  final LoanStorageService? storageService;
 
   const LoanDetailScreen({
-    Key? key,
+    super.key,
     required this.loan,
     required this.onEdit,
     required this.onDelete,
-  }) : super(key: key);
+    this.storageService,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -67,7 +74,7 @@ class LoanDetailScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 12),
                     Text(
-                      '₹${loan.emiAmount.toStringAsFixed(2)}',
+                      '${loan.currencySymbol}${loan.emiAmount.toStringAsFixed(2)}',
                       style: const TextStyle(
                         fontSize: 28,
                         fontWeight: FontWeight.bold,
@@ -133,7 +140,7 @@ class LoanDetailScreen extends StatelessWidget {
                   _buildDetailRow(
                     icon: Icons.money,
                     label: AppLocalizations.of(context).loanAmount_label,
-                    value: '₹${loan.loanAmount!.toStringAsFixed(2)}',
+                    value: '${loan.currencySymbol}${loan.loanAmount!.toStringAsFixed(2)}',
                   ),
                 if (loan.interestRate != null)
                   _buildDetailRow(
@@ -158,6 +165,11 @@ class LoanDetailScreen extends StatelessWidget {
               _buildCalculatorSection(),
             const SizedBox(height: 20),
 
+            // Action Buttons — Amortization & Prepayment
+            if (loan.loanAmount != null && loan.interestRate != null && loan.tenureMonths != null)
+              _buildActionButtons(context),
+            const SizedBox(height: 20),
+
             // Notes Section
             if (loan.notes != null && loan.notes!.isNotEmpty)
               _buildSection(
@@ -172,6 +184,66 @@ class LoanDetailScreen extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildActionButtons(BuildContext context) {
+    return Column(
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: () => Navigator.push(context, MaterialPageRoute(
+                    builder: (_) => AmortizationScreen(loan: loan))),
+                icon: const Icon(Icons.table_chart_rounded, size: 18),
+                label: const Text('Amortization', style: TextStyle(fontSize: 13)),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppTheme.primaryColor,
+                  side: const BorderSide(color: AppTheme.primaryColor),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: () => Navigator.push(context, MaterialPageRoute(
+                    builder: (_) => PrepaymentCalculatorScreen(loan: loan))),
+                icon: const Icon(Icons.savings_rounded, size: 18),
+                label: const Text('Prepayment', style: TextStyle(fontSize: 13)),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppTheme.secondaryColor,
+                  side: const BorderSide(color: AppTheme.secondaryColor),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+              ),
+            ),
+          ],
+        ),
+        if (storageService != null && loan.interestRate != null) ...[
+          const SizedBox(height: 10),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: () => Navigator.push(context, MaterialPageRoute(
+                  builder: (_) => FloatingRateScreen(
+                      loan: loan, storageService: storageService!))),
+              icon: const Icon(Icons.trending_up_rounded, size: 18),
+              label: const Text('Floating Rate Tracker',
+                  style: TextStyle(fontSize: 13)),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppTheme.accentOrange,
+                side: const BorderSide(color: AppTheme.accentOrange),
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+            ),
+          ),
+        ],
+      ],
     );
   }
 
@@ -256,19 +328,19 @@ class LoanDetailScreen extends StatelessWidget {
         _buildDetailRow(
           icon: Icons.calculate,
           label: 'Calculated EMI',
-          value: '₹${breakdown['emi'].toStringAsFixed(2)}',
+          value: '${loan.currencySymbol}${breakdown['emi'].toStringAsFixed(2)}',
           valueColor: Colors.blue,
         ),
         _buildDetailRow(
           icon: Icons.trending_up,
           label: 'Total Interest',
-          value: '₹${totalInterest.toStringAsFixed(2)}',
+          value: '${loan.currencySymbol}${totalInterest.toStringAsFixed(2)}',
           valueColor: Colors.orange,
         ),
         _buildDetailRow(
           icon: Icons.money,
           label: 'Total Amount',
-          value: '₹${totalAmount.toStringAsFixed(2)}',
+          value: '${loan.currencySymbol}${totalAmount.toStringAsFixed(2)}',
           valueColor: Colors.red,
         ),
       ],

@@ -26,16 +26,20 @@ class LoanAdapter extends TypeAdapter<Loan> {
       loanAmount: fields[6] as double?,
       interestRate: fields[7] as double?,
       tenureMonths: fields[8] as int?,
-      isPaid: fields[9] as bool? ?? false,
-      currencyCode: fields[10] as String? ?? 'INR',
-      emisPaidCount: fields[11] as int? ?? 0,
+      isPaid: fields[9] as bool,
+      currencyCode: fields[10] as String,
+      emisPaidCount: fields[11] as int,
+      bankName: fields[12] as String?,
+      loanTypeName: fields[13] as String?,
+      rateHistory: (fields[14] as List?)?.cast<double>(),
+      rateHistoryDates: (fields[15] as List?)?.cast<String>(),
     );
   }
 
   @override
   void write(BinaryWriter writer, Loan obj) {
     writer
-      ..writeByte(12)
+      ..writeByte(16)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -59,7 +63,15 @@ class LoanAdapter extends TypeAdapter<Loan> {
       ..writeByte(10)
       ..write(obj.currencyCode)
       ..writeByte(11)
-      ..write(obj.emisPaidCount);
+      ..write(obj.emisPaidCount)
+      ..writeByte(12)
+      ..write(obj.bankName)
+      ..writeByte(13)
+      ..write(obj.loanTypeName)
+      ..writeByte(14)
+      ..write(obj.rateHistory)
+      ..writeByte(15)
+      ..write(obj.rateHistoryDates);
   }
 
   @override

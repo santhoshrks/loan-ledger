@@ -18,6 +18,15 @@ class AppLocalizations {
       case 'ta': return 'EMI நினைவூட்டல்';
       case 'te': return 'EMI రిమైండర్';
       case 'hi': return 'EMI रिमाइंडर';
+      case 'kn': return 'EMI ಜ್ಞಾಪನೆ';
+      case 'ml': return 'EMI ഓർമ്മപ്പെടുത്തൽ';
+      case 'mr': return 'EMI स्मरणपत्र';
+      case 'bn': return 'EMI রিমাইন্ডার';
+      case 'gu': return 'EMI રીમાઇન્ડર';
+      case 'id': return 'Pengingat EMI';
+      case 'fil': return 'EMI Paalala';
+      case 'ur': return 'EMI Yad Dahani';
+      case 'es': return 'Recordatorio EMI';
       default: return 'EMI Reminder';
     }
   }
@@ -45,6 +54,15 @@ class AppLocalizations {
       case 'ta': return 'கடன் சேர்க்க';
       case 'te': return 'రుణాన్ని జోడించండి';
       case 'hi': return 'ऋण जोड़ें';
+      case 'kn': return 'ಸಾಲ ಸೇರಿಸಿ';
+      case 'ml': return 'വായ്പ ചേർക്കുക';
+      case 'mr': return 'कर्ज जोडा';
+      case 'bn': return 'ঋণ যোগ করুন';
+      case 'gu': return 'લોન ઉમેરો';
+      case 'id': return 'Tambah Pinjaman';
+      case 'fil': return 'Magdagdag ng Pautang';
+      case 'ur': return 'Qarz Shamil Karein';
+      case 'es': return 'Agregar Prestamo';
       default: return 'Add Loan';
     }
   }
@@ -1887,30 +1905,155 @@ class AppLocalizations {
             : locale.languageCode == 'hi' ? 'व्यक्तिगत ऋण'
             : 'Personal Loan';
       case 'Education Loan':
-        return locale.languageCode == 'ta' ? 'கல்விக் கடன்'
-            : locale.languageCode == 'te' ? 'విద్యా రుణం'
-            : locale.languageCode == 'hi' ? 'शिक्षा ऋण'
-            : 'Education Loan';
+      case 'Home Loan':
+        switch (locale.languageCode) {
+          case 'ta': return 'வீட்டுக் கடன்';
+          case 'te': return 'గృహ రుణం';
+          case 'hi': return 'गृह ऋण';
+          case 'kn': return 'ಮನೆ ಸಾಲ';
+          case 'ml': return 'ഭവന വായ്പ';
+          case 'mr': return 'गृहकर्ज';
+          case 'bn': return 'হোম লোন';
+          case 'gu': return 'હોમ લોન';
+          case 'id': return 'KPR';
+          case 'fil': return 'Housing Loan';
+          default: return 'Home Loan';
+        }
+      case 'Car Loan':
+        switch (locale.languageCode) {
+          case 'ta': return 'வாகனக் கடன்';
+          case 'te': return 'వాహన రుణం';
+          case 'hi': return 'कार ऋण';
+          case 'kn': return 'ಕಾರು ಸಾಲ';
+          case 'ml': return 'കാർ വായ്പ';
+          case 'mr': return 'कार कर्ज';
+          case 'bn': return 'গাড়ি ঋণ';
+          case 'gu': return 'કાર લોન';
+          case 'id': return 'Kredit Mobil';
+          case 'fil': return 'Car Loan';
+          default: return 'Car Loan';
+        }
+      case 'Two-Wheeler Loan':
+        switch (locale.languageCode) {
+          case 'ta': return 'இரு சக்கர வாகன கடன்';
+          case 'hi': return 'दोपहिया वाहन ऋण';
+          case 'kn': return 'ದ್ವಿಚಕ್ರ ವಾಹನ ಸಾಲ';
+          case 'ml': return 'ടു-വീലർ വായ്പ';
+          case 'mr': return 'दुचाकी कर्ज';
+          default: return 'Two-Wheeler Loan';
+        }
+      case 'Personal Loan':
+        switch (locale.languageCode) {
+          case 'ta': return 'தனிநபர் கடன்';
+          case 'te': return 'వ్యక్తిగత రుణం';
+          case 'hi': return 'व्यक्तिगत ऋण';
+          case 'kn': return 'ವ್ಯಕ್ತಿಗತ ಸಾಲ';
+          case 'ml': return 'വ്യക്തിഗത വായ്പ';
+          case 'mr': return 'वैयक्तिक कर्ज';
+          case 'bn': return 'ব্যক্তিগত ঋণ';
+          case 'gu': return 'વ્યક્તિગત લોન';
+          case 'id': return 'Pinjaman Pribadi';
+          case 'fil': return 'Personal Loan';
+          default: return 'Personal Loan';
+        }
+      case 'Education Loan':
+        switch (locale.languageCode) {
+          case 'ta': return 'கல்விக் கடன்';
+          case 'te': return 'విద్యా రుణం';
+          case 'hi': return 'शिक्षा ऋण';
+          case 'kn': return 'ಶಿಕ್ಷಣ ಸಾಲ';
+          case 'ml': return 'വിദ്യാഭ്യാസ വായ്പ';
+          case 'mr': return 'शिक्षण कर्ज';
+          case 'bn': return 'শিক্ষা ঋণ';
+          case 'gu': return 'શિક્ષણ લોન';
+          case 'id': return 'Pinjaman Pendidikan';
+          case 'fil': return 'Education Loan';
+          default: return 'Education Loan';
+        }
       case 'Business Loan':
-        return locale.languageCode == 'ta' ? 'தொழில் கடன்'
-            : locale.languageCode == 'te' ? 'వ్యాపార రుణం'
-            : locale.languageCode == 'hi' ? 'व्यापार ऋण'
-            : 'Business Loan';
+        switch (locale.languageCode) {
+          case 'ta': return 'தொழில் கடன்';
+          case 'te': return 'వ్యాపార రుణం';
+          case 'hi': return 'व्यापार ऋण';
+          case 'kn': return 'ವ್ಯಾಪಾರ ಸಾಲ';
+          case 'ml': return 'ബിസിനസ് വായ്പ';
+          case 'mr': return 'व्यवसाय कर्ज';
+          case 'bn': return 'ব্যবসায়িক ঋণ';
+          case 'gu': return 'વ્યવસાય લોન';
+          case 'id': return 'Kredit Usaha';
+          case 'fil': return 'Business Loan';
+          default: return 'Business Loan';
+        }
       case 'Gold Loan':
-        return locale.languageCode == 'ta' ? 'நகைக்கடன்'
-            : locale.languageCode == 'te' ? 'బంగారు రుణం'
-            : locale.languageCode == 'hi' ? 'स्वर्ण ऋण'
-            : 'Gold Loan';
+        switch (locale.languageCode) {
+          case 'ta': return 'நகைக்கடன்';
+          case 'te': return 'బంగారు రుణం';
+          case 'hi': return 'स्वर्ण ऋण';
+          case 'kn': return 'ಚಿನ್ನದ ಸಾಲ';
+          case 'ml': return 'സ്വർണ്ണ വായ്പ';
+          case 'mr': return 'सोने कर्ज';
+          case 'bn': return 'স্বর্ণ ঋণ';
+          case 'gu': return 'ગોલ્ડ લોન';
+          default: return 'Gold Loan';
+        }
+      case 'Chit Fund':
+        switch (locale.languageCode) {
+          case 'ta': return 'சீட்டு நிதி';
+          case 'te': return 'చిట్టీ ఫండ్';
+          case 'hi': return 'चिट फंड';
+          case 'kn': return 'ಚಿಟ್ ಫಂಡ್';
+          case 'ml': return 'ചിട്ടി ഫണ്ട്';
+          case 'mr': return 'चिट फंड';
+          default: return 'Chit Fund';
+        }
+      case 'Agricultural Loan':
+        switch (locale.languageCode) {
+          case 'ta': return 'வேளாண் கடன்';
+          case 'te': return 'వ్యవసాయ రుణం';
+          case 'hi': return 'कृषि ऋण';
+          case 'kn': return 'ಕೃಷಿ ಸಾಲ';
+          case 'ml': return 'കൃഷി വായ്പ';
+          case 'mr': return 'कृषी कर्ज';
+          default: return 'Agricultural Loan';
+        }
+      case 'Microfinance':
+        switch (locale.languageCode) {
+          case 'ta': return 'நுண் நிதி';
+          case 'te': return 'మైక్రోఫైనాన్స్';
+          case 'hi': return 'माइक्रोफाइनेंस';
+          case 'kn': return 'ಮೈಕ್ರೋಫೈನಾನ್ಸ್';
+          case 'id': return 'Keuangan Mikro';
+          case 'fil': return 'Microfinance';
+          default: return 'Microfinance';
+        }
       case 'Credit Card':
-        return locale.languageCode == 'ta' ? 'கிரெடிட் கார்டு'
-            : locale.languageCode == 'te' ? 'క్రెడిట్ కార్డ్'
-            : locale.languageCode == 'hi' ? 'क्रेडिट कार्ड'
-            : 'Credit Card';
+        switch (locale.languageCode) {
+          case 'ta': return 'கிரெடிட் கார்டு';
+          case 'te': return 'క్రెడిట్ కార్డ్';
+          case 'hi': return 'क्रेडिट कार्ड';
+          case 'kn': return 'ಕ್ರೆಡಿಟ್ ಕಾರ್ಡ್';
+          case 'ml': return 'ക്രെഡിറ്റ് കാർഡ്';
+          case 'mr': return 'क्रेडिट कार्ड';
+          case 'bn': return 'ক্রেডিট কার্ড';
+          case 'gu': return 'ક્રેડિટ કાર્ડ';
+          case 'id': return 'Kartu Kredit';
+          case 'fil': return 'Credit Card';
+          default: return 'Credit Card';
+        }
       case 'Other':
-        return locale.languageCode == 'ta' ? 'இதர'
-            : locale.languageCode == 'te' ? 'ఇతర'
-            : locale.languageCode == 'hi' ? 'अन्य'
-            : 'Other';
+        switch (locale.languageCode) {
+          case 'ta': return 'இதர';
+          case 'te': return 'ఇతర';
+          case 'hi': return 'अन्य';
+          case 'kn': return 'ಇತರ';
+          case 'ml': return 'മറ്റുള്ളവ';
+          case 'mr': return 'इतर';
+          case 'bn': return 'অন্যান্য';
+          case 'gu': return 'અન્ય';
+          case 'id': return 'Lainnya';
+          case 'fil': return 'Iba pa';
+          default: return 'Other';
+        }
       default:
         return englishName;
     }
@@ -1923,7 +2066,8 @@ class _AppLocalizationsDelegate
 
   @override
   bool isSupported(Locale locale) {
-    return ['en', 'ta', 'te', 'hi'].contains(locale.languageCode);
+    return ['en', 'ta', 'te', 'hi', 'kn', 'ml', 'mr', 'bn', 'gu', 'id', 'fil', 'ur', 'es']
+        .contains(locale.languageCode);
   }
 
   @override

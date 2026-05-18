@@ -23,14 +23,17 @@ class LanguageProvider extends ChangeNotifier {
 
   String getLanguageName(String code) {
     switch (code) {
-      case 'ta':
-        return 'தமிழ் (Tamil)';
-      case 'te':
-        return 'తెలుగు (Telugu)';
-      case 'hi':
-        return 'हिन्दी (Hindi)';
-      default:
-        return 'English';
+      case 'ta': return 'தமிழ் (Tamil)';
+      case 'te': return 'తెలుగు (Telugu)';
+      case 'hi': return 'हिन्दी (Hindi)';
+      case 'kn': return 'ಕನ್ನಡ (Kannada)';
+      case 'ml': return 'മലയാളം (Malayalam)';
+      case 'mr': return 'मराठी (Marathi)';
+      case 'bn': return 'বাংলা (Bengali)';
+      case 'gu': return 'ગુજરાતી (Gujarati)';
+      case 'id': return 'Bahasa Indonesia';
+      case 'fil': return 'Filipino (Tagalog)';
+      default: return 'English';
     }
   }
 }

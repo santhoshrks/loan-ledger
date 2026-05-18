@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:intl/intl.dart';
@@ -13,11 +12,27 @@ import '../services/backup_reminder_service.dart';
 import '../widgets/loan_card.dart';
 import '../theme/app_theme.dart';
 import '../localization/app_localizations.dart';
+import '../utils/indian_number_format.dart';
 import 'add_loan_screen.dart';
 import 'calendar_screen.dart';
 import 'emi_calculator_screen.dart';
 import 'emi_progress_screen.dart';
 import 'settings_screen.dart';
+import 'debt_dashboard_screen.dart';
+import 'amortization_screen.dart';
+import 'prepayment_calculator_screen.dart';
+import 'tax_benefit_screen.dart';
+import 'floating_rate_screen.dart';
+import 'balance_transfer_screen.dart';
+import 'emi_vs_rent_screen.dart';
+import 'financial_health_screen.dart';
+import 'consolidation_planner_screen.dart';
+import 'yearly_summary_screen.dart';
+import 'ai_advisor_screen.dart';
+import 'savings_goal_screen.dart';
+import 'p2p_loan_screen.dart';
+import 'expense_tracker_screen.dart';
+
 
 class HomeScreen extends StatefulWidget {
   final LoanStorageService? storageService;
@@ -41,10 +56,21 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   bool _isInitialized = false;
   String? _initError;
 
+  // Loan data
+  List<Loan> _loans = [];
+
   // Filter & Sort options
   String _sortBy = 'dueDate'; // dueDate, name, amount
   bool _showPaidOnly = false;
   bool _showUnpaidOnly = false;
+
+  void _onLoansChanged() {
+    if (mounted) {
+      setState(() {
+        _loans = Hive.box<Loan>('loans').values.toList();
+      });
+    }
+  }
 
   @override
   void initState() {
@@ -76,6 +102,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       _backupService = BackupService(_storageService);
 
       if (mounted) {
+        // Load initial loans and start listening for changes
+        final box = Hive.box<Loan>('loans');
+        _loans = box.values.toList();
+        box.listenable().addListener(_onLoansChanged);
+
         setState(() {
           _isInitialized = true;
         });
@@ -95,59 +126,54 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   @override
   void dispose() {
+    if (_isInitialized) {
+      Hive.box<Loan>('loans').listenable().removeListener(_onLoansChanged);
+    }
     _fabAnimationController.dispose();
     super.dispose();
   }
 
-  @override
-  Widget build(BuildContext context) {
+  Widget _buildBody() {
     if (_initError != null) {
-      return _buildErrorScreen();
+      return _buildErrorBody();
     }
-
     if (!_isInitialized) {
-      return _buildLoadingScreen();
+      return _buildLoadingBody();
     }
-
-    return Scaffold(
-      backgroundColor: AppTheme.bgLight,
-      body: SafeArea(
-        child: CustomScrollView(
-          physics: const BouncingScrollPhysics(),
-          slivers: [
-            // Modern App Bar
-            SliverToBoxAdapter(
-              child: _buildHeader(),
-            ),
-            // Dashboard Summary
-            SliverToBoxAdapter(
-              child: _buildDashboard(),
-            ),
-            // Loans List Header
-            SliverToBoxAdapter(
-              child: _buildLoansHeader(),
-            ),
-            // Loans List
-            _buildLoansList(),
-          ],
-        ),
-      ),
-      floatingActionButton: ScaleTransition(
-        scale: _fabAnimationController,
-        child: FloatingActionButton.extended(
-          onPressed: () => _navigateToAddLoan(context),
-          icon: const Icon(Icons.add_rounded),
-          label: Text(AppLocalizations.of(context).addLoan),
-          elevation: 4,
-        ),
+    return SafeArea(
+      child: CustomScrollView(
+        physics: const BouncingScrollPhysics(),
+        slivers: [
+          SliverToBoxAdapter(child: _buildHeader()),
+          SliverToBoxAdapter(child: _buildDashboard(_loans)),
+          SliverToBoxAdapter(child: _buildLoansHeader()),
+          ..._buildLoansList(_loans),
+        ],
       ),
     );
   }
 
-  Widget _buildLoadingScreen() {
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppTheme.bgLight,
-      body: Center(
+      body: _buildBody(),
+      floatingActionButton: (_isInitialized && _initError == null)
+          ? ScaleTransition(
+              scale: _fabAnimationController,
+              child: FloatingActionButton.extended(
+                onPressed: () => _navigateToAddLoan(context),
+                icon: const Icon(Icons.add_rounded),
+                label: Text(AppLocalizations.of(context).addLoan),
+                elevation: 4,
+              ),
+            )
+          : null,
+    );
+  }
+
+  Widget _buildLoadingBody() {
+    return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -192,15 +218,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             ),
           ],
         ),
-      ),
-    );
+      );
   }
 
-  Widget _buildErrorScreen() {
-    return Scaffold(
-      backgroundColor: AppTheme.bgLight,
-      body: Center(
-        child: Padding(
+  Widget _buildErrorBody() {
+    return Center(
+      child: Padding(
           padding: const EdgeInsets.all(32),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -250,8 +273,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             ],
           ),
         ),
-      ),
-    );
+      );
   }
 
   Widget _buildHeader() {
@@ -276,32 +298,53 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               onSelected: (value) {
                 switch (value) {
                   case 'calendar':
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => CalendarScreen(
-                          storageService: _storageService,
-                        ),
-                      ),
-                    );
+                    Navigator.push(context, MaterialPageRoute(
+                        builder: (context) => CalendarScreen(storageService: _storageService)));
                     break;
                   case 'calculator':
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const EMICalculatorScreen(),
-                      ),
-                    );
+                    Navigator.push(context, MaterialPageRoute(
+                        builder: (context) => const EMICalculatorScreen()));
                     break;
                   case 'progress':
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => EMIProgressScreen(
-                          storageService: _storageService,
-                        ),
-                      ),
-                    );
+                    Navigator.push(context, MaterialPageRoute(
+                        builder: (context) => EMIProgressScreen(storageService: _storageService)));
+                    break;
+                  case 'debt_dashboard':
+                    Navigator.push(context, MaterialPageRoute(
+                        builder: (context) => DebtDashboardScreen(loans: _storageService.getAllLoans())));
+                    break;
+                  case 'prepayment':
+                    Navigator.push(context, MaterialPageRoute(builder: (context) => const PrepaymentCalculatorScreen()));
+                    break;
+                  case 'tax_benefit':
+                    Navigator.push(context, MaterialPageRoute(builder: (context) => TaxBenefitScreen(loans: _storageService.getAllLoans())));
+                    break;
+                  case 'balance_transfer':
+                    Navigator.push(context, MaterialPageRoute(builder: (context) => const BalanceTransferScreen()));
+                    break;
+                  case 'emi_vs_rent':
+                    Navigator.push(context, MaterialPageRoute(builder: (context) => const EmiVsRentScreen()));
+                    break;
+                  case 'health_score':
+                    Navigator.push(context, MaterialPageRoute(builder: (context) => FinancialHealthScreen(loans: _storageService.getAllLoans())));
+                    break;
+                  case 'consolidation':
+                    Navigator.push(context, MaterialPageRoute(builder: (context) => ConsolidationPlannerScreen(loans: _storageService.getAllLoans())));
+                    break;
+                  case 'yearly_summary':
+                    Navigator.push(context, MaterialPageRoute(builder: (context) => YearlySummaryScreen(loans: _storageService.getAllLoans())));
+                    break;
+                  case 'ai_advisor':
+                    Navigator.push(context, MaterialPageRoute(builder: (context) => AiAdvisorScreen(loans: _storageService.getAllLoans())));
+                    break;
+                  case 'savings_goals':
+                    Navigator.push(context, MaterialPageRoute(builder: (context) => SavingsGoalScreen(loans: _storageService.getAllLoans())));
+                    break;
+                  case 'p2p_loans':
+                    Navigator.push(context, MaterialPageRoute(builder: (context) => const P2PLoanScreen()));
+                    break;
+                  case 'expense_tracker':
+                    Navigator.push(context, MaterialPageRoute(builder: (context) => const ExpenseTrackerScreen()));
                     break;
                   case 'settings':
                     _showSettingsMenu();
@@ -314,70 +357,41 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     break;
                 }
               },
-              itemBuilder: (context) => [
-                PopupMenuItem(
-                  value: 'calendar',
-                  child: Row(
-                    children: [
-                      Icon(Icons.calendar_month_rounded, color: AppTheme.primaryColor),
-                      const SizedBox(width: 12),
-                      Text(AppLocalizations.of(context).calendar),
-                    ],
-                  ),
-                ),
-                PopupMenuItem(
-                  value: 'calculator',
-                  child: Row(
-                    children: [
-                      Icon(Icons.calculate_rounded, color: AppTheme.primaryColor),
-                      const SizedBox(width: 12),
-                      Text(AppLocalizations.of(context).emiCalculator),
-                    ],
-                  ),
-                ),
-                PopupMenuItem(
-                  value: 'progress',
-                  child: Row(
-                    children: [
-                      Icon(Icons.trending_up_rounded, color: AppTheme.primaryColor),
-                      const SizedBox(width: 12),
-                      Text(AppLocalizations.of(context).progress),
-                    ],
-                  ),
-                ),
-                const PopupMenuDivider(),
-                PopupMenuItem(
-                  value: 'backup',
-                  child: Row(
-                    children: [
-                      Icon(Icons.backup_rounded, color: AppTheme.statusSuccess),
-                      const SizedBox(width: 12),
-                      Text(AppLocalizations.of(context).backup),
-                    ],
-                  ),
-                ),
-                PopupMenuItem(
-                  value: 'restore',
-                  child: Row(
-                    children: [
-                      Icon(Icons.restore_rounded, color: AppTheme.statusInfo),
-                      const SizedBox(width: 12),
-                      Text(AppLocalizations.of(context).restore),
-                    ],
-                  ),
-                ),
-                const PopupMenuDivider(),
-                PopupMenuItem(
-                  value: 'settings',
-                  child: Row(
-                    children: [
-                      Icon(Icons.settings_rounded, color: AppTheme.textMedium),
-                      const SizedBox(width: 12),
-                      Text(AppLocalizations.of(context).settings),
-                    ],
-                  ),
-                ),
-              ],
+              itemBuilder: (context) {
+                return [
+                  // --- Tools ---
+                  PopupMenuItem(value: 'calendar', child: _menuItem(Icons.calendar_month_rounded, AppLocalizations.of(context).calendar, AppTheme.primaryColor)),
+                  PopupMenuItem(value: 'calculator', child: _menuItem(Icons.calculate_rounded, AppLocalizations.of(context).emiCalculator, AppTheme.primaryColor)),
+                  PopupMenuItem(value: 'progress', child: _menuItem(Icons.trending_up_rounded, AppLocalizations.of(context).progress, AppTheme.primaryColor)),
+                  const PopupMenuDivider(),
+                  // --- Dashboard & Analytics ---
+                  const PopupMenuItem(enabled: false, height: 24, child: Text('  ANALYTICS', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey))),
+                  PopupMenuItem(value: 'debt_dashboard', child: _menuItem(Icons.dashboard_rounded, 'Debt Dashboard', AppTheme.accentBlue)),
+                  PopupMenuItem(value: 'health_score', child: _menuItem(Icons.health_and_safety_rounded, 'Financial Health Score', AppTheme.statusSuccess)),
+                  PopupMenuItem(value: 'yearly_summary', child: _menuItem(Icons.bar_chart_rounded, 'Yearly Summary', AppTheme.secondaryColor)),
+                  PopupMenuItem(value: 'ai_advisor', child: _menuItem(Icons.psychology_rounded, 'AI EMI Advisor', AppTheme.accentPurple)),
+                  const PopupMenuDivider(),
+                  // --- Calculators ---
+                  const PopupMenuItem(enabled: false, height: 24, child: Text('  CALCULATORS', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey))),
+                  PopupMenuItem(value: 'prepayment', child: _menuItem(Icons.payments_rounded, 'Prepayment Calculator', AppTheme.secondaryColor)),
+                  PopupMenuItem(value: 'balance_transfer', child: _menuItem(Icons.compare_arrows_rounded, 'Balance Transfer', AppTheme.accentOrange)),
+                  PopupMenuItem(value: 'emi_vs_rent', child: _menuItem(Icons.home_work_rounded, 'EMI vs Rent', AppTheme.accentBlue)),
+                  PopupMenuItem(value: 'consolidation', child: _menuItem(Icons.account_balance_rounded, 'Debt Payoff Planner', AppTheme.primaryColor)),
+                  PopupMenuItem(value: 'tax_benefit', child: _menuItem(Icons.receipt_long_rounded, 'Loan Interest & Tax Summary', AppTheme.accentPurple)),
+                  const PopupMenuDivider(),
+                  // --- Trackers ---
+                  const PopupMenuItem(enabled: false, height: 24, child: Text('  TRACKERS', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey))),
+                  PopupMenuItem(value: 'expense_tracker', child: _menuItem(Icons.account_balance_wallet_rounded, '💰 Daily Expense Tracker', AppTheme.accentOrange)),
+                  PopupMenuItem(value: 'savings_goals', child: _menuItem(Icons.savings_rounded, 'Savings Goals', AppTheme.statusSuccess)),
+                  PopupMenuItem(value: 'p2p_loans', child: _menuItem(Icons.people_rounded, 'P2P Loans (Lend/Borrow)', AppTheme.accentOrange)),
+                  const PopupMenuDivider(),
+                  // --- Data ---
+                  PopupMenuItem(value: 'backup', child: _menuItem(Icons.backup_rounded, AppLocalizations.of(context).backup, AppTheme.statusSuccess)),
+                  PopupMenuItem(value: 'restore', child: _menuItem(Icons.restore_rounded, AppLocalizations.of(context).restore, AppTheme.statusInfo)),
+                  const PopupMenuDivider(),
+                  PopupMenuItem(value: 'settings', child: _menuItem(Icons.settings_rounded, AppLocalizations.of(context).settings, AppTheme.textMedium)),
+                ];
+              },
             ),
           ),
           const SizedBox(width: 16),
@@ -468,12 +482,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     return 'Good Evening 🌙';
   }
 
-  Widget _buildDashboard() {
-    return ValueListenableBuilder(
-      valueListenable: Hive.box<Loan>('loans').listenable(),
-      builder: (context, Box<Loan> box, _) {
-        final loans = box.values.toList();
-
+  Widget _buildDashboard(List<Loan> loans) {
         final totalEmi = loans.fold<double>(0, (sum, loan) => sum + loan.emiAmount);
         final dueSoon = loans.where((l) => !l.isPaid && l.daysUntilDue() <= 3).length;
         final paidThisMonth = loans.where((l) => l.isPaid).length;
@@ -521,7 +530,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   ),
                   const SizedBox(height: 20),
                   Text(
-                    '₹${NumberFormat('#,##,###').format(totalEmi)}',
+                    IndianNumberFormat.formatCompact(totalEmi),
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 36,
@@ -566,8 +575,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             ),
           ),
         );
-      },
-    );
   }
 
   Widget _buildStatCard({
@@ -909,42 +916,38 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
   }
 
-  Widget _buildLoansList() {
-    return ValueListenableBuilder(
-      valueListenable: Hive.box<Loan>('loans').listenable(),
-      builder: (context, Box<Loan> box, _) {
-        var loans = box.values.toList();
-
+  List<Widget> _buildLoansList(List<Loan> loans) {
         if (loans.isEmpty) {
-          return SliverFillRemaining(
+          return [SliverFillRemaining(
             hasScrollBody: false,
             child: _buildEmptyState(),
-          );
+          )];
         }
 
         // Apply filters
+        var filtered = loans.toList();
         if (_showPaidOnly) {
-          loans = loans.where((loan) => loan.isPaid).toList();
+          filtered = filtered.where((loan) => loan.isPaid).toList();
         } else if (_showUnpaidOnly) {
-          loans = loans.where((loan) => !loan.isPaid).toList();
+          filtered = filtered.where((loan) => !loan.isPaid).toList();
         }
 
         // Apply sorting
         switch (_sortBy) {
           case 'dueDate':
-            loans.sort((a, b) => a.daysUntilDue().compareTo(b.daysUntilDue()));
+            filtered.sort((a, b) => a.daysUntilDue().compareTo(b.daysUntilDue()));
             break;
           case 'name':
-            loans.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+            filtered.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
             break;
           case 'amount':
-            loans.sort((a, b) => b.emiAmount.compareTo(a.emiAmount)); // Highest first
+            filtered.sort((a, b) => b.emiAmount.compareTo(a.emiAmount));
             break;
         }
 
         // Show message if filters result in no loans
-        if (loans.isEmpty) {
-          return SliverFillRemaining(
+        if (filtered.isEmpty) {
+          return [SliverFillRemaining(
             hasScrollBody: false,
             child: Center(
               child: Column(
@@ -976,15 +979,15 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 ],
               ),
             ),
-          );
+          )];
         }
 
-        return SliverPadding(
+        return [SliverPadding(
           padding: const EdgeInsets.only(bottom: 100),
           sliver: SliverList(
             delegate: SliverChildBuilderDelegate(
               (context, index) {
-                final loan = loans[index];
+                final loan = filtered[index];
                 return Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
                   child: LoanCard(
@@ -996,12 +999,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   ),
                 );
               },
-              childCount: loans.length,
+              childCount: filtered.length,
             ),
           ),
-        );
-      },
-    );
+        )];
   }
 
   Widget _buildEmptyState() {
@@ -1085,7 +1086,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       ),
     );
 
-    if (result != null && mounted) {
+    if (result != null && context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Row(
@@ -1167,6 +1168,42 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 _editLoan(context, loan);
               },
             ),
+            if (loan.loanAmount != null && loan.interestRate != null && loan.tenureMonths != null) ...[
+              _buildActionTile(
+                icon: Icons.table_chart_rounded,
+                title: 'Amortization Schedule',
+                subtitle: 'Month-by-month principal vs interest',
+                color: AppTheme.primaryColor,
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.push(context, MaterialPageRoute(
+                      builder: (_) => AmortizationScreen(loan: loan)));
+                },
+              ),
+              _buildActionTile(
+                icon: Icons.savings_rounded,
+                title: 'Prepayment Calculator',
+                subtitle: 'See how much interest you save',
+                color: AppTheme.secondaryColor,
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.push(context, MaterialPageRoute(
+                      builder: (_) => PrepaymentCalculatorScreen(loan: loan)));
+                },
+              ),
+              _buildActionTile(
+                icon: Icons.trending_up_rounded,
+                title: 'Floating Rate Tracker',
+                subtitle: 'Track variable / floating rate changes',
+                color: AppTheme.accentOrange,
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.push(context, MaterialPageRoute(
+                      builder: (_) => FloatingRateScreen(
+                          loan: loan, storageService: _storageService)));
+                },
+              ),
+            ],
             if (!loan.isPaid)
               _buildActionTile(
                 icon: Icons.check_circle_rounded,
@@ -1210,6 +1247,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         ),
       ),
     );
+  }
+
+  Widget _menuItem(IconData icon, String label, Color color) {
+    return Row(children: [
+      Icon(icon, color: color, size: 20),
+      const SizedBox(width: 12),
+      Text(label, style: const TextStyle(fontSize: 14)),
+    ]);
   }
 
   Widget _buildActionTile({
@@ -1270,15 +1315,21 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   Future<void> _markLoanPaid(Loan loan) async {
     debugPrint('=== MARKING LOAN AS PAID ===');
     debugPrint('Loan: ${loan.name}');
-    debugPrint('Before: isPaid = ${loan.isPaid}');
+    debugPrint('Before: isPaid = ${loan.isPaid}, emisPaidCount = ${loan.emisPaidCount}');
 
-    // Mark as paid and save directly (Loan extends HiveObject)
+    // Mark as paid AND increment the paid count
     loan.isPaid = true;
-    debugPrint('After setting: isPaid = ${loan.isPaid}');
+    loan.emisPaidCount = loan.emisPaidCount + 1;
+
+    // Clamp to tenure if known
+    if (loan.tenureMonths != null && loan.emisPaidCount > loan.tenureMonths!) {
+      loan.emisPaidCount = loan.tenureMonths!;
+    }
+
+    debugPrint('After setting: isPaid = ${loan.isPaid}, emisPaidCount = ${loan.emisPaidCount}');
 
     await loan.save();
-    debugPrint('After save: isPaid = ${loan.isPaid}');
-    debugPrint('loan.isInBox = ${loan.isInBox}');
+    debugPrint('After save: isPaid = ${loan.isPaid}, emisPaidCount = ${loan.emisPaidCount}');
 
     // Cancel current month's notifications
     await _notificationService.cancelLoanReminders(
@@ -1311,6 +1362,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   Future<void> _markLoanUnpaid(Loan loan) async {
+    // Revert: decrement emisPaidCount only if it was incremented (isPaid was true)
+    if (loan.isPaid && loan.emisPaidCount > 0) {
+      loan.emisPaidCount = loan.emisPaidCount - 1;
+    }
     loan.isPaid = false;
     await loan.save();
     await _notificationService.scheduleLoadReminders(loan);

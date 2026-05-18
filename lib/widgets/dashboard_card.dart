@@ -6,9 +6,9 @@ class DashboardCard extends StatelessWidget {
   final List<Loan> loans;
 
   const DashboardCard({
-    Key? key,
+    super.key,
     required this.loans,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -271,18 +271,17 @@ class DashboardCard extends StatelessWidget {
       }
     }
 
-    // Helper to format a currency->amount map into a single string like "₹1.2K • $200"
+    // Helper to format a currency->amount map into a single string like "$1.2K • €200"
     String formatCurrencyMap(Map<String, double> map) {
       if (map.isEmpty) return '—';
       final parts = <String>[];
       map.forEach((currency, amount) {
         final symbol = CurrencyHelper.getSymbol(currency);
-        // Use compact formatting similar to _formatCurrency in progress screen
         String amtStr;
-        if (amount >= 10000000) {
-          amtStr = '${(amount / 10000000).toStringAsFixed(2)} Cr';
-        } else if (amount >= 100000) {
-          amtStr = '${(amount / 100000).toStringAsFixed(2)} L';
+        if (amount >= 1000000000) {
+          amtStr = '${(amount / 1000000000).toStringAsFixed(2)}B';
+        } else if (amount >= 1000000) {
+          amtStr = '${(amount / 1000000).toStringAsFixed(2)}M';
         } else if (amount >= 1000) {
           amtStr = '${(amount / 1000).toStringAsFixed(1)}K';
         } else {

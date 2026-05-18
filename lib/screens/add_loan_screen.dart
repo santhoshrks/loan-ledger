@@ -14,11 +14,11 @@ class AddLoanScreen extends StatefulWidget {
   final Loan? existingLoan;
 
   const AddLoanScreen({
-    Key? key,
+    super.key,
     required this.storageService,
     required this.notificationService,
     this.existingLoan,
-  }) : super(key: key);
+  });
 
   @override
   State<AddLoanScreen> createState() => _AddLoanScreenState();
@@ -33,27 +33,49 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
   late TextEditingController _interestRateController;
   late TextEditingController _tenureController;
   late TextEditingController _emisPaidController;
+  late TextEditingController _bankNameController;
 
   DateTime? _selectedStartDate;
   bool _isLoading = false;
   final _formKey = GlobalKey<FormState>();
   String _selectedLoanType = 'Other';
-  String _selectedCurrency = 'INR'; // Default currency
+  String _selectedCurrency = 'INR'; // Default currency (overridden from locale on init)
 
   final List<Map<String, dynamic>> _loanTypes = [
     {'name': 'Home Loan', 'icon': Icons.home_rounded},
     {'name': 'Car Loan', 'icon': Icons.directions_car_rounded},
+    {'name': 'Two-Wheeler Loan', 'icon': Icons.two_wheeler_rounded},
     {'name': 'Personal Loan', 'icon': Icons.person_rounded},
     {'name': 'Education Loan', 'icon': Icons.school_rounded},
     {'name': 'Business Loan', 'icon': Icons.business_center_rounded},
     {'name': 'Gold Loan', 'icon': Icons.diamond_rounded},
+    {'name': 'Chit Fund', 'icon': Icons.groups_rounded},
+    {'name': 'Agricultural Loan', 'icon': Icons.agriculture_rounded},
+    {'name': 'Microfinance', 'icon': Icons.handshake_rounded},
     {'name': 'Credit Card', 'icon': Icons.credit_card_rounded},
     {'name': 'Other', 'icon': Icons.account_balance_rounded},
+  ];
+
+  // Popular global banks & lenders
+  static const List<String> popularBanks = [
+    // Global / International
+    'HSBC', 'Citibank', 'Standard Chartered', 'Barclays', 'Deutsche Bank',
+    // USA
+    'Chase', 'Bank of America', 'Wells Fargo', 'Goldman Sachs',
+    // UK / Europe
+    'Lloyds Bank', 'NatWest', 'Santander', 'BNP Paribas',
+    // India
+    'SBI', 'HDFC Bank', 'ICICI Bank', 'Axis Bank', 'Kotak Mahindra', 'Bajaj Finance',
+    // Southeast Asia
+    'Maybank', 'CIMB', 'DBS', 'BRI', 'BCA', 'BDO', 'BPI',
+    // Others
+    'Other',
   ];
 
   @override
   void initState() {
     super.initState();
+    _selectedCurrency = CurrencyHelper.getDefaultCurrency();
     _initializeControllers();
     if (widget.existingLoan != null) {
       _populateForm(widget.existingLoan!);
@@ -71,6 +93,7 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
     _interestRateController = TextEditingController();
     _tenureController = TextEditingController();
     _emisPaidController = TextEditingController(text: '0');
+    _bankNameController = TextEditingController();
   }
 
   void _populateForm(Loan loan) {
@@ -82,15 +105,21 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
     _interestRateController.text = loan.interestRate?.toString() ?? '';
     _tenureController.text = loan.tenureMonths?.toString() ?? '';
     _emisPaidController.text = loan.emisPaidCount.toString();
+    _bankNameController.text = loan.bankName ?? '';
     _selectedStartDate = loan.startDate;
     _selectedCurrency = loan.currencyCode;
 
-    // Try to determine loan type from name
-    final name = loan.name.toLowerCase();
-    for (var type in _loanTypes) {
-      if (name.contains(type['name'].toString().toLowerCase().split(' ')[0])) {
-        _selectedLoanType = type['name'];
-        break;
+    // Set loan type from persisted value
+    if (loan.loanTypeName != null) {
+      _selectedLoanType = loan.loanTypeName!;
+    } else {
+      // Try to determine loan type from name (legacy)
+      final name = loan.name.toLowerCase();
+      for (var type in _loanTypes) {
+        if (name.contains(type['name'].toString().toLowerCase().split(' ')[0])) {
+          _selectedLoanType = type['name'];
+          break;
+        }
       }
     }
   }
@@ -179,7 +208,7 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
                     _buildTextField(
                       controller: _nameController,
                       label: AppLocalizations.of(context).loanName,
-                      hint: 'e.g., HDFC Home Loan',
+                      hint: 'e.g., HSBC Home Loan',
                       icon: Icons.label_rounded,
                       validator: (value) {
                         if (value?.isEmpty ?? true) {
@@ -320,6 +349,9 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
                       ],
                     ),
                     const SizedBox(height: 16),
+                    // Bank / NBFC Name
+                    _buildBankNameField(),
+                    const SizedBox(height: 16),
                     _buildTextField(
                       controller: _notesController,
                       label: AppLocalizations.of(context).notes,
@@ -422,7 +454,16 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
   }
 
   Widget _buildCurrencySelector() {
-    final currencies = ['INR', 'USD', 'EUR', 'GBP', 'AED', 'SGD', 'AUD', 'CAD', 'MYR', 'THB'];
+    final currencies = [
+      // Primary markets
+      'INR', 'PKR', 'PHP', 'BDT',
+      // Spanish-speaking markets
+      'MXN', 'COP', 'ARS', 'PEN', 'CLP',
+      // Other major currencies
+      'USD', 'EUR', 'GBP', 'AED', 'SAR', 'SGD', 'AUD', 'CAD',
+      'MYR', 'IDR', 'THB', 'JPY', 'CNY', 'KRW',
+      'BRL', 'ZAR', 'TRY', 'RUB', 'CHF', 'HKD', 'NZD',
+    ];
 
     return Expanded(
       flex: 1,
@@ -880,6 +921,8 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
         emisPaidCount: _emisPaidController.text.isEmpty
             ? 0
             : int.tryParse(_emisPaidController.text) ?? 0,
+        bankName: _bankNameController.text.isEmpty ? null : _bankNameController.text.trim(),
+        loanTypeName: _selectedLoanType,
       );
 
       if (widget.existingLoan != null) {
@@ -947,6 +990,55 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
     _interestRateController.dispose();
     _tenureController.dispose();
     _emisPaidController.dispose();
+    _bankNameController.dispose();
     super.dispose();
+  }
+
+  Widget _buildBankNameField() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildTextField(
+          controller: _bankNameController,
+          label: 'Bank / NBFC Name',
+          hint: 'e.g., HSBC, Chase, Barclays, HDFC Bank',
+          icon: Icons.account_balance_rounded,
+        ),
+        const SizedBox(height: 8),
+        // Quick select chips
+        Wrap(
+          spacing: 8,
+          runSpacing: 6,
+          children: popularBanks.take(8).map((bank) {
+            final isSelected = _bankNameController.text == bank;
+            return GestureDetector(
+              onTap: () {
+                setState(() {
+                  _bankNameController.text = bank == 'Other' ? '' : bank;
+                });
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: isSelected ? AppTheme.primaryColor : AppTheme.bgLight,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: isSelected ? AppTheme.primaryColor : AppTheme.textLight,
+                  ),
+                ),
+                child: Text(
+                  bank,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: isSelected ? Colors.white : AppTheme.textMedium,
+                  ),
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+      ],
+    );
   }
 }
