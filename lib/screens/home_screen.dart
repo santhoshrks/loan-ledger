@@ -3,6 +3,8 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:intl/intl.dart';
 import 'package:app_settings/app_settings.dart';
 import 'package:provider/provider.dart';
+import 'package:in_app_review/in_app_review.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/loan.dart';
 import '../services/loan_storage_service.dart';
 import '../services/notification_service.dart';
@@ -10,6 +12,12 @@ import '../services/language_provider.dart';
 import '../services/backup_service.dart';
 import '../services/backup_reminder_service.dart';
 import '../widgets/loan_card.dart';
+import '../widgets/empty_loans_state.dart';
+import '../widgets/loan_completion_celebration.dart';
+import '../widgets/skeleton_loading.dart';
+import '../services/pdf_export_service.dart';
+import '../services/haptic_service.dart';
+import '../services/share_service.dart';
 import '../theme/app_theme.dart';
 import '../localization/app_localizations.dart';
 import '../utils/indian_number_format.dart';
@@ -112,6 +120,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         });
         _fabAnimationController.forward();
 
+        // Schedule monthly summary notification
+        if (_loans.isNotEmpty) {
+          _notificationService.scheduleMonthSummaryNotification(_loans);
+        }
+
         // Check if backup reminder should be shown
         _checkBackupReminder();
       }
@@ -140,29 +153,33 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     if (!_isInitialized) {
       return _buildLoadingBody();
     }
-    return SafeArea(
-      child: CustomScrollView(
+    return CustomScrollView(
         physics: const BouncingScrollPhysics(),
         slivers: [
           SliverToBoxAdapter(child: _buildHeader()),
+          SliverToBoxAdapter(child: const SizedBox(height: 16)),
           SliverToBoxAdapter(child: _buildDashboard(_loans)),
+          SliverToBoxAdapter(child: _buildQuickActions()),
           SliverToBoxAdapter(child: _buildLoansHeader()),
           ..._buildLoansList(_loans),
+          const SliverToBoxAdapter(child: SizedBox(height: 100)),
         ],
-      ),
-    );
+      );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.bgLight,
+      backgroundColor: const Color(0xFFF4F6FA),
       body: _buildBody(),
       floatingActionButton: (_isInitialized && _initError == null)
           ? ScaleTransition(
               scale: _fabAnimationController,
               child: FloatingActionButton.extended(
-                onPressed: () => _navigateToAddLoan(context),
+                onPressed: () {
+                  HapticService.medium();
+                  _navigateToAddLoan(context);
+                },
                 icon: const Icon(Icons.add_rounded),
                 label: Text(AppLocalizations.of(context).addLoan),
                 elevation: 4,
@@ -173,52 +190,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   Widget _buildLoadingBody() {
-    return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                gradient: AppTheme.primaryGradient,
-                shape: BoxShape.circle,
-                boxShadow: AppTheme.elevatedShadow,
-              ),
-              child: const Icon(
-                Icons.account_balance_wallet_rounded,
-                size: 48,
-                color: Colors.white,
-              ),
-            ),
-            const SizedBox(height: 32),
-            Text(
-              AppLocalizations.of(context).appName,
-              style: const TextStyle(
-                fontSize: 28,
-                fontWeight: FontWeight.bold,
-                color: AppTheme.textDark,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              AppLocalizations.of(context).loadingYourLoans,
-              style: TextStyle(
-                fontSize: 14,
-                color: AppTheme.textMedium,
-              ),
-            ),
-            const SizedBox(height: 24),
-            SizedBox(
-              width: 40,
-              height: 40,
-              child: CircularProgressIndicator(
-                strokeWidth: 3,
-                color: AppTheme.primaryColor,
-              ),
-            ),
-          ],
-        ),
-      );
+    return const SkeletonHomeScreen();
   }
 
   Widget _buildErrorBody() {
@@ -277,176 +249,73 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   Widget _buildHeader() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            AppTheme.primaryColor,
+            AppTheme.primaryColor.withBlue(220),
+          ],
+        ),
+      ),
+      padding: const EdgeInsets.fromLTRB(20, 52, 20, 20),
       child: Row(
         children: [
           // Left side - Menu button
           Container(
             decoration: BoxDecoration(
-              color: AppTheme.bgCard,
-              borderRadius: BorderRadius.circular(14),
-              boxShadow: AppTheme.softShadow,
+              color: Colors.white.withValues(alpha: 0.18),
+              borderRadius: BorderRadius.circular(12),
             ),
-            child: PopupMenuButton<String>(
-              icon: const Icon(Icons.menu_rounded, color: AppTheme.textDark, size: 22),
+            child: IconButton(
+              icon: const Icon(Icons.menu_rounded, color: Colors.white, size: 22),
               padding: const EdgeInsets.all(10),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-              offset: const Offset(0, 50),
-              onSelected: (value) {
-                switch (value) {
-                  case 'calendar':
-                    Navigator.push(context, MaterialPageRoute(
-                        builder: (context) => CalendarScreen(storageService: _storageService)));
-                    break;
-                  case 'calculator':
-                    Navigator.push(context, MaterialPageRoute(
-                        builder: (context) => const EMICalculatorScreen()));
-                    break;
-                  case 'progress':
-                    Navigator.push(context, MaterialPageRoute(
-                        builder: (context) => EMIProgressScreen(storageService: _storageService)));
-                    break;
-                  case 'debt_dashboard':
-                    Navigator.push(context, MaterialPageRoute(
-                        builder: (context) => DebtDashboardScreen(loans: _storageService.getAllLoans())));
-                    break;
-                  case 'prepayment':
-                    Navigator.push(context, MaterialPageRoute(builder: (context) => const PrepaymentCalculatorScreen()));
-                    break;
-                  case 'tax_benefit':
-                    Navigator.push(context, MaterialPageRoute(builder: (context) => TaxBenefitScreen(loans: _storageService.getAllLoans())));
-                    break;
-                  case 'balance_transfer':
-                    Navigator.push(context, MaterialPageRoute(builder: (context) => const BalanceTransferScreen()));
-                    break;
-                  case 'emi_vs_rent':
-                    Navigator.push(context, MaterialPageRoute(builder: (context) => const EmiVsRentScreen()));
-                    break;
-                  case 'health_score':
-                    Navigator.push(context, MaterialPageRoute(builder: (context) => FinancialHealthScreen(loans: _storageService.getAllLoans())));
-                    break;
-                  case 'consolidation':
-                    Navigator.push(context, MaterialPageRoute(builder: (context) => ConsolidationPlannerScreen(loans: _storageService.getAllLoans())));
-                    break;
-                  case 'yearly_summary':
-                    Navigator.push(context, MaterialPageRoute(builder: (context) => YearlySummaryScreen(loans: _storageService.getAllLoans())));
-                    break;
-                  case 'ai_advisor':
-                    Navigator.push(context, MaterialPageRoute(builder: (context) => AiAdvisorScreen(loans: _storageService.getAllLoans())));
-                    break;
-                  case 'savings_goals':
-                    Navigator.push(context, MaterialPageRoute(builder: (context) => SavingsGoalScreen(loans: _storageService.getAllLoans())));
-                    break;
-                  case 'p2p_loans':
-                    Navigator.push(context, MaterialPageRoute(builder: (context) => const P2PLoanScreen()));
-                    break;
-                  case 'expense_tracker':
-                    Navigator.push(context, MaterialPageRoute(builder: (context) => const ExpenseTrackerScreen()));
-                    break;
-                  case 'settings':
-                    _showSettingsMenu();
-                    break;
-                  case 'backup':
-                    _exportBackup();
-                    break;
-                  case 'restore':
-                    _importBackup();
-                    break;
-                }
-              },
-              itemBuilder: (context) {
-                return [
-                  // --- Tools ---
-                  PopupMenuItem(value: 'calendar', child: _menuItem(Icons.calendar_month_rounded, AppLocalizations.of(context).calendar, AppTheme.primaryColor)),
-                  PopupMenuItem(value: 'calculator', child: _menuItem(Icons.calculate_rounded, AppLocalizations.of(context).emiCalculator, AppTheme.primaryColor)),
-                  PopupMenuItem(value: 'progress', child: _menuItem(Icons.trending_up_rounded, AppLocalizations.of(context).progress, AppTheme.primaryColor)),
-                  const PopupMenuDivider(),
-                  // --- Dashboard & Analytics ---
-                  const PopupMenuItem(enabled: false, height: 24, child: Text('  ANALYTICS', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey))),
-                  PopupMenuItem(value: 'debt_dashboard', child: _menuItem(Icons.dashboard_rounded, 'Debt Dashboard', AppTheme.accentBlue)),
-                  PopupMenuItem(value: 'health_score', child: _menuItem(Icons.health_and_safety_rounded, 'Financial Health Score', AppTheme.statusSuccess)),
-                  PopupMenuItem(value: 'yearly_summary', child: _menuItem(Icons.bar_chart_rounded, 'Yearly Summary', AppTheme.secondaryColor)),
-                  PopupMenuItem(value: 'ai_advisor', child: _menuItem(Icons.psychology_rounded, 'AI EMI Advisor', AppTheme.accentPurple)),
-                  const PopupMenuDivider(),
-                  // --- Calculators ---
-                  const PopupMenuItem(enabled: false, height: 24, child: Text('  CALCULATORS', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey))),
-                  PopupMenuItem(value: 'prepayment', child: _menuItem(Icons.payments_rounded, 'Prepayment Calculator', AppTheme.secondaryColor)),
-                  PopupMenuItem(value: 'balance_transfer', child: _menuItem(Icons.compare_arrows_rounded, 'Balance Transfer', AppTheme.accentOrange)),
-                  PopupMenuItem(value: 'emi_vs_rent', child: _menuItem(Icons.home_work_rounded, 'EMI vs Rent', AppTheme.accentBlue)),
-                  PopupMenuItem(value: 'consolidation', child: _menuItem(Icons.account_balance_rounded, 'Debt Payoff Planner', AppTheme.primaryColor)),
-                  PopupMenuItem(value: 'tax_benefit', child: _menuItem(Icons.receipt_long_rounded, 'Loan Interest & Tax Summary', AppTheme.accentPurple)),
-                  const PopupMenuDivider(),
-                  // --- Trackers ---
-                  const PopupMenuItem(enabled: false, height: 24, child: Text('  TRACKERS', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey))),
-                  PopupMenuItem(value: 'expense_tracker', child: _menuItem(Icons.account_balance_wallet_rounded, '💰 Daily Expense Tracker', AppTheme.accentOrange)),
-                  PopupMenuItem(value: 'savings_goals', child: _menuItem(Icons.savings_rounded, 'Savings Goals', AppTheme.statusSuccess)),
-                  PopupMenuItem(value: 'p2p_loans', child: _menuItem(Icons.people_rounded, 'P2P Loans (Lend/Borrow)', AppTheme.accentOrange)),
-                  const PopupMenuDivider(),
-                  // --- Data ---
-                  PopupMenuItem(value: 'backup', child: _menuItem(Icons.backup_rounded, AppLocalizations.of(context).backup, AppTheme.statusSuccess)),
-                  PopupMenuItem(value: 'restore', child: _menuItem(Icons.restore_rounded, AppLocalizations.of(context).restore, AppTheme.statusInfo)),
-                  const PopupMenuDivider(),
-                  PopupMenuItem(value: 'settings', child: _menuItem(Icons.settings_rounded, AppLocalizations.of(context).settings, AppTheme.textMedium)),
-                ];
+              onPressed: () {
+                HapticService.light();
+                _showAppMenu();
               },
             ),
           ),
-          const SizedBox(width: 16),
+          const SizedBox(width: 14),
           // Center - App title and date
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                Text(
+                  _getGreeting(),
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: Colors.white70,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                const Text(
+                  'EMI Reminder',
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                    letterSpacing: -0.5,
+                  ),
+                ),
+                const SizedBox(height: 4),
                 Row(
                   children: [
+                    const Icon(Icons.calendar_today_rounded, size: 11, color: Colors.white60),
+                    const SizedBox(width: 4),
                     Text(
-                      _getGreeting(),
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: AppTheme.textMedium,
+                      DateFormat('EEE, MMM d').format(DateTime.now()),
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: Colors.white60,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
                   ],
-                ),
-                const Text(
-                  'EMI Reminder',
-                  style: TextStyle(
-                    fontSize: 26,
-                    fontWeight: FontWeight.bold,
-                    color: AppTheme.textDark,
-                    letterSpacing: -0.5,
-                  ),
-                ),
-                Container(
-                  margin: const EdgeInsets.only(top: 4),
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: AppTheme.primaryColor.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.calendar_today_rounded,
-                        size: 12,
-                        color: AppTheme.primaryColor,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        DateFormat('EEE, MMM d, yyyy').format(DateTime.now()),
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: AppTheme.primaryColor,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
                 ),
               ],
             ),
@@ -454,15 +323,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           // Right side - Notification button
           Container(
             decoration: BoxDecoration(
-              gradient: AppTheme.primaryGradient,
-              borderRadius: BorderRadius.circular(14),
-              boxShadow: [
-                BoxShadow(
-                  color: AppTheme.primaryColor.withValues(alpha: 0.3),
-                  blurRadius: 8,
-                  offset: const Offset(0, 4),
-                ),
-              ],
+              color: Colors.white.withValues(alpha: 0.18),
+              borderRadius: BorderRadius.circular(12),
             ),
             child: IconButton(
               icon: const Icon(Icons.notifications_rounded, color: Colors.white, size: 22),
@@ -483,101 +345,101 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   Widget _buildDashboard(List<Loan> loans) {
-        final totalEmi = loans.fold<double>(0, (sum, loan) => sum + loan.emiAmount);
-        final dueSoon = loans.where((l) => !l.isPaid && l.daysUntilDue() <= 3).length;
-        final paidThisMonth = loans.where((l) => l.isPaid).length;
+    final totalEmi = loans.fold<double>(0, (sum, loan) => sum + loan.emiAmount);
+    final dueSoon = loans.where((l) => !l.isPaid && l.daysUntilDue() <= 3).length;
+    final paidThisMonth = loans.where((l) => l.isPaid).length;
 
-        return Padding(
-          padding: const EdgeInsets.all(20),
-          child: Container(
-            decoration: BoxDecoration(
-              gradient: AppTheme.primaryGradient,
-              borderRadius: BorderRadius.circular(24),
-              boxShadow: AppTheme.elevatedShadow,
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        AppLocalizations.of(context).monthlyOverview,
-                        style: const TextStyle(
-                          color: Colors.white70,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.2),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Text(
-                          DateFormat('MMMM yyyy').format(DateTime.now()),
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 20),
-                  Text(
-                    IndianNumberFormat.formatCompact(totalEmi),
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 36,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: -1,
-                    ),
-                  ),
-                  Text(
-                    AppLocalizations.of(context).totalMonthlyEmi,
-                    style: const TextStyle(
-                      color: Colors.white70,
-                      fontSize: 14,
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  Row(
-                    children: [
-                      _buildStatCard(
-                        icon: Icons.receipt_long_rounded,
-                        value: '${loans.length}',
-                        label: AppLocalizations.of(context).totalLoans,
-                        color: Colors.white,
-                      ),
-                      const SizedBox(width: 12),
-                      _buildStatCard(
-                        icon: Icons.warning_rounded,
-                        value: '$dueSoon',
-                        label: AppLocalizations.of(context).dueSoon,
-                        color: dueSoon > 0 ? AppTheme.accentOrange : Colors.white,
-                      ),
-                      const SizedBox(width: 12),
-                      _buildStatCard(
-                        icon: Icons.check_circle_rounded,
-                        value: '$paidThisMonth',
-                        label: AppLocalizations.of(context).paid,
-                        color: AppTheme.statusSuccess,
-                      ),
-                    ],
-                  ),
-                ],
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: AppTheme.primaryColor.withValues(alpha: 0.10),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                AppLocalizations.of(context).monthlyOverview,
+                style: TextStyle(
+                  color: AppTheme.textMedium,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.4,
+                ),
               ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryColor.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  DateFormat('MMMM yyyy').format(DateTime.now()),
+                  style: TextStyle(
+                    color: AppTheme.primaryColor,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            IndianNumberFormat.formatCompact(totalEmi),
+            style: const TextStyle(
+              color: Color(0xFF1F2937),
+              fontSize: 32,
+              fontWeight: FontWeight.bold,
+              letterSpacing: -1,
             ),
           ),
-        );
+          Text(
+            AppLocalizations.of(context).totalMonthlyEmi,
+            style: TextStyle(color: AppTheme.textMedium, fontSize: 12),
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              _buildStatPill(
+                icon: Icons.receipt_long_rounded,
+                value: '${loans.length}',
+                label: AppLocalizations.of(context).totalLoans,
+                color: AppTheme.primaryColor,
+              ),
+              const SizedBox(width: 10),
+              _buildStatPill(
+                icon: Icons.warning_amber_rounded,
+                value: '$dueSoon',
+                label: AppLocalizations.of(context).dueSoon,
+                color: dueSoon > 0 ? const Color(0xFFF59E0B) : AppTheme.primaryColor,
+              ),
+              const SizedBox(width: 10),
+              _buildStatPill(
+                icon: Icons.check_circle_rounded,
+                value: '$paidThisMonth',
+                label: AppLocalizations.of(context).paid,
+                color: const Color(0xFF10B981),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
   }
 
-  Widget _buildStatCard({
+  Widget _buildStatPill({
     required IconData icon,
     required String value,
     required String label,
@@ -585,31 +447,31 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }) {
     return Expanded(
       child: Container(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
         decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.15),
-          borderRadius: BorderRadius.circular(16),
+          color: color.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(14),
         ),
-        child: Column(
+        child: Row(
           children: [
-            Icon(icon, color: color, size: 24),
-            const SizedBox(height: 8),
-            Text(
-              value,
-              style: TextStyle(
-                color: color,
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              label,
-              style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.8),
-                fontSize: 11,
-              ),
-              textAlign: TextAlign.center,
+            Icon(icon, color: color, size: 18),
+            const SizedBox(width: 7),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  value,
+                  style: TextStyle(
+                    color: color,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                Text(
+                  label,
+                  style: TextStyle(color: AppTheme.textMedium, fontSize: 9.5),
+                ),
+              ],
             ),
           ],
         ),
@@ -617,24 +479,393 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
   }
 
+  void _showAppMenu() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return DraggableScrollableSheet(
+          initialChildSize: 0.82,
+          minChildSize: 0.5,
+          maxChildSize: 0.95,
+          builder: (_, scrollCtrl) {
+            return Container(
+              decoration: const BoxDecoration(
+                color: Color(0xFFF4F6FA),
+                borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+              ),
+              child: Column(
+                children: [
+                  // Handle bar
+                  Container(
+                    margin: const EdgeInsets.only(top: 12, bottom: 8),
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: Colors.grey[300],
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                  ),
+                  // Header
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
+                    child: Row(
+                      children: [
+                        const Text(
+                          'All Features',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFF111827),
+                            letterSpacing: -0.5,
+                          ),
+                        ),
+                        const Spacer(),
+                        GestureDetector(
+                          onTap: () => Navigator.pop(ctx),
+                          child: Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: BoxDecoration(
+                              color: Colors.grey[200],
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(Icons.close_rounded, size: 18, color: Color(0xFF6B7280)),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Expanded(
+                    child: ListView(
+                      controller: scrollCtrl,
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                      children: [
+                        _menuSection(ctx, 'Tools', [
+                          _MenuItem(Icons.calendar_month_rounded, AppLocalizations.of(context).calendar, const Color(0xFF6366F1),
+                              () => Navigator.push(context, MaterialPageRoute(builder: (_) => CalendarScreen(storageService: _storageService)))),
+                          _MenuItem(Icons.calculate_rounded, AppLocalizations.of(context).emiCalculator, const Color(0xFF0EA5E9),
+                              () => Navigator.push(context, MaterialPageRoute(builder: (_) => const EMICalculatorScreen()))),
+                          _MenuItem(Icons.trending_up_rounded, AppLocalizations.of(context).progress, const Color(0xFF10B981),
+                              () => Navigator.push(context, MaterialPageRoute(builder: (_) => EMIProgressScreen(storageService: _storageService)))),
+                        ]),
+                        const SizedBox(height: 20),
+                        _menuSection(ctx, 'Analytics', [
+                          _MenuItem(Icons.dashboard_rounded, 'Debt Dashboard', const Color(0xFF3B82F6),
+                              () => Navigator.push(context, MaterialPageRoute(builder: (_) => DebtDashboardScreen(loans: _storageService.getAllLoans())))),
+                          _MenuItem(Icons.health_and_safety_rounded, 'Health Score', const Color(0xFF10B981),
+                              () => Navigator.push(context, MaterialPageRoute(builder: (_) => FinancialHealthScreen(loans: _storageService.getAllLoans())))),
+                          _MenuItem(Icons.bar_chart_rounded, 'Yearly Summary', const Color(0xFFF59E0B),
+                              () => Navigator.push(context, MaterialPageRoute(builder: (_) => YearlySummaryScreen(loans: _storageService.getAllLoans())))),
+                          _MenuItem(Icons.psychology_rounded, 'AI Advisor', const Color(0xFF8B5CF6),
+                              () => Navigator.push(context, MaterialPageRoute(builder: (_) => AiAdvisorScreen(loans: _storageService.getAllLoans())))),
+                        ]),
+                        const SizedBox(height: 20),
+                        _menuSection(ctx, 'Calculators', [
+                          _MenuItem(Icons.payments_rounded, 'Prepayment', const Color(0xFFEF4444),
+                              () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PrepaymentCalculatorScreen()))),
+                          _MenuItem(Icons.compare_arrows_rounded, 'Balance Transfer', const Color(0xFFF97316),
+                              () => Navigator.push(context, MaterialPageRoute(builder: (_) => const BalanceTransferScreen()))),
+                          _MenuItem(Icons.home_work_rounded, 'EMI vs Rent', const Color(0xFF0EA5E9),
+                              () => Navigator.push(context, MaterialPageRoute(builder: (_) => const EmiVsRentScreen()))),
+                          _MenuItem(Icons.account_balance_rounded, 'Debt Payoff', const Color(0xFF6366F1),
+                              () => Navigator.push(context, MaterialPageRoute(builder: (_) => ConsolidationPlannerScreen(loans: _storageService.getAllLoans())))),
+                          _MenuItem(Icons.receipt_long_rounded, 'Tax Summary', const Color(0xFF8B5CF6),
+                              () => Navigator.push(context, MaterialPageRoute(builder: (_) => TaxBenefitScreen(loans: _storageService.getAllLoans())))),
+                        ]),
+                        const SizedBox(height: 20),
+                        _menuSection(ctx, 'Trackers', [
+                          _MenuItem(Icons.account_balance_wallet_rounded, 'Expenses', const Color(0xFFF97316),
+                              () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ExpenseTrackerScreen()))),
+                          _MenuItem(Icons.savings_rounded, 'Savings Goals', const Color(0xFF10B981),
+                              () => Navigator.push(context, MaterialPageRoute(builder: (_) => SavingsGoalScreen(loans: _storageService.getAllLoans())))),
+                          _MenuItem(Icons.people_rounded, 'P2P Loans', const Color(0xFF3B82F6),
+                              () => Navigator.push(context, MaterialPageRoute(builder: (_) => const P2PLoanScreen()))),
+                        ]),
+                        const SizedBox(height: 20),
+                        // Settings row
+                        Row(
+                          children: [
+                            Expanded(child: _menuTileWide(ctx, Icons.backup_rounded, 'Backup', const Color(0xFF10B981), _exportBackup)),
+                            const SizedBox(width: 10),
+                            Expanded(child: _menuTileWide(ctx, Icons.restore_rounded, 'Restore', const Color(0xFF3B82F6), _importBackup)),
+                            const SizedBox(width: 10),
+                            Expanded(child: _menuTileWide(ctx, Icons.settings_rounded, 'Settings', const Color(0xFF6B7280), _showSettingsMenu)),
+                          ],
+                        ),
+                        const SizedBox(height: 10),
+                        // Share row
+                        Row(
+                          children: [
+                            Expanded(child: _menuTileWide(ctx, Icons.share_rounded, 'Share App', const Color(0xFF6366F1), () {
+                              HapticService.light();
+                              ShareService.shareApp();
+                            })),
+                            const SizedBox(width: 10),
+                            Expanded(child: _menuTileWide(ctx, Icons.summarize_rounded, 'Share Summary', const Color(0xFF10B981), () {
+                              HapticService.light();
+                              ShareService.shareMonthlyOverview(_storageService.getAllLoans());
+                            })),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _menuSection(BuildContext ctx, String title, List<_MenuItem> items) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(left: 4, bottom: 10),
+          child: Text(
+            title.toUpperCase(),
+            style: const TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+              color: Color(0xFF9CA3AF),
+              letterSpacing: 1.2,
+            ),
+          ),
+        ),
+        GridView.count(
+          crossAxisCount: 3,
+          crossAxisSpacing: 10,
+          mainAxisSpacing: 10,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          childAspectRatio: 1.05,
+          children: items.map((item) => _menuGridTile(ctx, item)).toList(),
+        ),
+      ],
+    );
+  }
+
+  Widget _menuGridTile(BuildContext ctx, _MenuItem item) {
+    return GestureDetector(
+      onTap: () {
+        HapticService.light();
+        Navigator.pop(ctx);
+        item.onTap();
+      },
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: item.color.withValues(alpha: 0.08),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    item.color.withValues(alpha: 0.18),
+                    item.color.withValues(alpha: 0.06),
+                  ],
+                ),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Icon(item.icon, color: item.color, size: 22),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              item.label,
+              style: const TextStyle(
+                fontSize: 11.5,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF374151),
+              ),
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _menuTileWide(BuildContext ctx, IconData icon, String label, Color color, VoidCallback action) {
+    return GestureDetector(
+      onTap: () {
+        Navigator.pop(ctx);
+        action();
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          boxShadow: [
+            BoxShadow(
+              color: color.withValues(alpha: 0.07),
+              blurRadius: 6,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(
+          children: [
+            Icon(icon, color: color, size: 22),
+            const SizedBox(height: 6),
+            Text(label,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.grey[700],
+                )),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildQuickActions() {
+    final actions = [
+      _QuickAction(Icons.calculate_rounded, 'Calculator', const Color(0xFF6366F1),
+          () => Navigator.push(context, MaterialPageRoute(builder: (_) => const EMICalculatorScreen()))),
+      _QuickAction(Icons.calendar_month_rounded, 'Calendar', const Color(0xFF0EA5E9),
+          () => Navigator.push(context, MaterialPageRoute(builder: (_) => CalendarScreen(storageService: _storageService)))),
+      _QuickAction(Icons.trending_up_rounded, 'Progress', const Color(0xFF10B981),
+          () => Navigator.push(context, MaterialPageRoute(builder: (_) => EMIProgressScreen(storageService: _storageService)))),
+      _QuickAction(Icons.dashboard_rounded, 'Dashboard', const Color(0xFFF59E0B),
+          () => Navigator.push(context, MaterialPageRoute(builder: (_) => DebtDashboardScreen(loans: _storageService.getAllLoans())))),
+      _QuickAction(Icons.payments_rounded, 'Prepay', const Color(0xFFEF4444),
+          () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PrepaymentCalculatorScreen()))),
+      _QuickAction(Icons.health_and_safety_rounded, 'Health', const Color(0xFF8B5CF6),
+          () => Navigator.push(context, MaterialPageRoute(builder: (_) => FinancialHealthScreen(loans: _storageService.getAllLoans())))),
+    ];
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(0, 4, 0, 4),
+      child: SizedBox(
+        height: 86,
+        child: ListView.builder(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          itemCount: actions.length,
+          itemBuilder: (context, i) {
+            final a = actions[i];
+            return GestureDetector(
+              onTap: a.onTap,
+              child: Container(
+                margin: const EdgeInsets.only(right: 10),
+                width: 70,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(
+                      width: 50,
+                      height: 50,
+                      decoration: BoxDecoration(
+                        color: a.color.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: a.color.withValues(alpha: 0.2), width: 1),
+                      ),
+                      child: Icon(a.icon, color: a.color, size: 24),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      a.label,
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.grey[700],
+                      ),
+                      textAlign: TextAlign.center,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
   Widget _buildLoansHeader() {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
+      padding: const EdgeInsets.fromLTRB(20, 8, 16, 10),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(
             AppLocalizations.of(context).yourLoans,
             style: const TextStyle(
-              fontSize: 20,
+              fontSize: 17,
               fontWeight: FontWeight.bold,
-              color: AppTheme.textDark,
+              color: Color(0xFF1F2937),
             ),
           ),
-          TextButton.icon(
-            onPressed: () => _showFilterOptions(),
-            icon: const Icon(Icons.filter_list_rounded, size: 20),
-            label: Text(AppLocalizations.of(context).filter),
+          Row(
+            children: [
+              if (_loans.isNotEmpty)
+                GestureDetector(
+                  onTap: () {
+                    HapticService.light();
+                    PdfExportService.exportLoansSummary(
+                      context: context,
+                      loans: _loans,
+                    );
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    margin: const EdgeInsets.only(right: 8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFEF4444).withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: const Color(0xFFEF4444).withValues(alpha: 0.2)),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.picture_as_pdf_rounded, size: 14, color: Color(0xFFEF4444)),
+                        SizedBox(width: 4),
+                        Text('PDF', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFFEF4444))),
+                      ],
+                    ),
+                  ),
+                ),
+              TextButton.icon(
+                onPressed: () {
+                  HapticService.light();
+                  _showFilterOptions();
+                },
+                icon: const Icon(Icons.tune_rounded, size: 16),
+                label: Text(AppLocalizations.of(context).filter,
+                    style: const TextStyle(fontSize: 13)),
+                style: TextButton.styleFrom(
+                  foregroundColor: AppTheme.primaryColor,
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20)),
+                  backgroundColor: AppTheme.primaryColor.withValues(alpha: 0.07),
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -996,6 +1227,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     onDelete: () => _deleteLoan(loan),
                     onMarkPaid: () => _markLoanPaid(loan),
                     onMarkUnpaid: () => _markLoanUnpaid(loan),
+                    onShare: () {
+                      HapticService.light();
+                      ShareService.shareLoanSummary(loan);
+                    },
                   ),
                 );
               },
@@ -1006,61 +1241,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   Widget _buildEmptyState() {
-    return Padding(
-      padding: const EdgeInsets.all(40),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(32),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  AppTheme.primaryColor.withValues(alpha: 0.1),
-                  AppTheme.secondaryColor.withValues(alpha: 0.1),
-                ],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              Icons.account_balance_wallet_outlined,
-              size: 64,
-              color: AppTheme.primaryColor,
-            ),
-          ),
-          const SizedBox(height: 32),
-          Text(
-            AppLocalizations.of(context).noLoans,
-            style: const TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: AppTheme.textDark,
-            ),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            AppLocalizations.of(context).addYourFirstLoan,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 15,
-              color: AppTheme.textMedium,
-              height: 1.5,
-            ),
-          ),
-          const SizedBox(height: 32),
-          ElevatedButton.icon(
-            onPressed: () => _navigateToAddLoan(context),
-            icon: const Icon(Icons.add_rounded),
-            label: const Text('Add Your First Loan'),
-            style: ElevatedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-            ),
-          ),
-        ],
-      ),
-    );
+    return EmptyLoansState(onAddLoan: () => _navigateToAddLoan(context));
   }
 
   Future<void> _navigateToAddLoan(BuildContext context) async {
@@ -1341,7 +1522,48 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     // The loan stays marked as paid, but notifications are scheduled for next month
     await _notificationService.scheduleLoadReminders(loan);
 
-    _showSuccessSnackBar('${loan.name} marked as paid!');
+    // Check if this was the FINAL EMI — trigger celebration 🎉
+    final isFullyComplete = loan.tenureMonths != null &&
+        loan.emisPaidCount >= loan.tenureMonths!;
+
+    if (isFullyComplete && mounted) {
+      await HapticService.celebrate();
+      await Future.delayed(const Duration(milliseconds: 400));
+      if (mounted) {
+        showLoanCompletionCelebration(
+          context: context,
+          loanName: loan.name,
+          totalPaid: loan.emiAmount * loan.tenureMonths!,
+          currencySymbol: loan.currencySymbol,
+          tenureMonths: loan.tenureMonths!,
+        );
+      }
+    } else {
+      await HapticService.success();
+      _showSuccessSnackBar('${loan.name} marked as paid!');
+    }
+    _maybeRequestReview();
+  }
+
+  Future<void> _maybeRequestReview() async {
+    try {
+      final prefs = await _getPrefs();
+      final paidCount = (prefs.getInt('loans_paid_count') ?? 0) + 1;
+      await prefs.setInt('loans_paid_count', paidCount);
+
+      // Ask for review after 3rd payment marked — feels natural, not too early
+      if (paidCount == 3 || paidCount == 10) {
+        final inAppReview = InAppReview.instance;
+        if (await inAppReview.isAvailable()) {
+          await Future.delayed(const Duration(milliseconds: 800));
+          await inAppReview.requestReview();
+        }
+      }
+    } catch (_) {}
+  }
+
+  Future<dynamic> _getPrefs() async {
+    return await SharedPreferences.getInstance();
   }
 
   void _showSuccessSnackBar(String message) {
@@ -2334,3 +2556,20 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
   }
 }
+
+class _QuickAction {
+  final IconData icon;
+  final String label;
+  final Color color;
+  final VoidCallback onTap;
+  const _QuickAction(this.icon, this.label, this.color, this.onTap);
+}
+
+class _MenuItem {
+  final IconData icon;
+  final String label;
+  final Color color;
+  final VoidCallback onTap;
+  const _MenuItem(this.icon, this.label, this.color, this.onTap);
+}
+

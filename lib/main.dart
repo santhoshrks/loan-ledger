@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'screens/home_screen.dart';
+import 'screens/onboarding_screen.dart';
+import 'screens/splash_screen.dart';
 import 'services/loan_storage_service.dart';
 import 'services/notification_service.dart';
 import 'services/language_provider.dart';
@@ -53,6 +56,9 @@ Future<void> main() async {
     debugPrint('❌ Language provider error: $e');
   }
 
+  final prefs = await SharedPreferences.getInstance();
+  final onboardingDone = prefs.getBool('onboarding_done') ?? false;
+
   runApp(
     MultiProvider(
       providers: [
@@ -61,6 +67,7 @@ Future<void> main() async {
       child: EmiReminderApp(
         storageService: storageService,
         notificationService: notificationService,
+        showOnboarding: !onboardingDone,
       ),
     ),
   );
@@ -69,11 +76,13 @@ Future<void> main() async {
 class EmiReminderApp extends StatelessWidget {
   final LoanStorageService? storageService;
   final NotificationService? notificationService;
+  final bool showOnboarding;
 
   const EmiReminderApp({
     super.key,
     this.storageService,
     this.notificationService,
+    this.showOnboarding = false,
   });
 
   @override
@@ -106,7 +115,8 @@ class EmiReminderApp extends StatelessWidget {
             Locale('ur'),  // Urdu — Pakistan
             Locale('es'),  // Spanish — Mexico, Colombia, Argentina, etc.
           ],
-          home: HomeScreen(
+          // Splash screen handles routing to onboarding or home
+          home: SplashScreen(
             storageService: storageService,
             notificationService: notificationService,
           ),

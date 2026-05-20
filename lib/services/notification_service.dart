@@ -267,11 +267,10 @@ class NotificationService {
     for (int hour in notificationHours) {
       final scheduledDate = DateTime(day3Before.year, day3Before.month, day3Before.day, hour, 0, 0);
       if (scheduledDate.isAfter(now)) {
-        final title = await _getNotificationTitle(3, hour);
         final success = await _scheduleNotification(
           id: baseId + notificationIndex,
-          title: title,
-          body: '$translatedLoanName - $currencySymbol${loan.emiAmount.toStringAsFixed(0)} ${_getLocalizedText('dueOn', lang)} ${loan.dueDay}${_getDaySuffix(loan.dueDay)}',
+          title: _smartTitle(3, lang),
+          body: _smartBody(loan.name, currencySymbol, loan.emiAmount, 3, lang),
           scheduledDate: scheduledDate,
           payload: loan.id,
         );
@@ -284,11 +283,10 @@ class NotificationService {
     for (int hour in notificationHours) {
       final scheduledDate = DateTime(day1Before.year, day1Before.month, day1Before.day, hour, 0, 0);
       if (scheduledDate.isAfter(now)) {
-        final title = await _getNotificationTitle(1, hour);
         final success = await _scheduleNotification(
           id: baseId + notificationIndex,
-          title: title,
-          body: '$translatedLoanName - $currencySymbol${loan.emiAmount.toStringAsFixed(0)} ${_getLocalizedText('dueTomorrow', lang)}',
+          title: _smartTitle(1, lang),
+          body: _smartBody(loan.name, currencySymbol, loan.emiAmount, 1, lang),
           scheduledDate: scheduledDate,
           payload: loan.id,
         );
@@ -301,11 +299,10 @@ class NotificationService {
     for (int hour in notificationHours) {
       final scheduledDate = DateTime(dueDay.year, dueDay.month, dueDay.day, hour, 0, 0);
       if (scheduledDate.isAfter(now)) {
-        final title = await _getNotificationTitle(0, hour);
         final success = await _scheduleNotification(
           id: baseId + notificationIndex,
-          title: title,
-          body: '$translatedLoanName - $currencySymbol${loan.emiAmount.toStringAsFixed(0)} ${_getLocalizedText('dueToday', lang)}',
+          title: _smartTitle(0, lang),
+          body: _smartBody(loan.name, currencySymbol, loan.emiAmount, 0, lang),
           scheduledDate: scheduledDate,
           payload: loan.id,
         );
@@ -315,6 +312,9 @@ class NotificationService {
     }
 
     debugPrint('✅ Scheduled $scheduledCount out of $notificationIndex notifications for ${loan.name}');
+
+    // Also schedule 7-day advance smart reminder
+    await scheduleSevenDayReminder(loan);
 
     // Verify by checking pending notifications
     final pendingCount = await getPendingNotificationsCount();
@@ -686,15 +686,136 @@ class NotificationService {
   String _getDaySuffix(int day) {
     if (day >= 11 && day <= 13) return 'th';
     switch (day % 10) {
-      case 1:
-        return 'st';
-      case 2:
-        return 'nd';
-      case 3:
-        return 'rd';
-      default:
-        return 'th';
+      case 1: return 'st';
+      case 2: return 'nd';
+      case 3: return 'rd';
+      default: return 'th';
     }
+  }
+
+  // ─────────────────────────────────────────────
+  // SMART NOTIFICATIONS — Engaging copy per stage
+  // ─────────────────────────────────────────────
+
+  /// Returns a smart, engaging notification body based on days until due
+  String _smartBody(String loanName, String symbol, double amount, int daysLeft, String lang) {
+    final amt = '${symbol}${amount.toStringAsFixed(0)}';
+    if (daysLeft == 7) {
+      return _smartText(lang, {
+        'en': '📅 $loanName EMI of $amt is due in 7 days. Plan ahead to avoid surprises!',
+        'hi': '📅 $loanName की $amt EMI 7 दिनों में है। अभी से तैयारी करें!',
+        'ta': '📅 $loanName EMI $amt — 7 நாட்களில் செலுத்த வேண்டும். முன்கூட்டியே திட்டமிடுங்கள்!',
+        'te': '📅 $loanName EMI $amt — 7 రోజుల్లో చెల్లించాలి. ముందే ప్లాన్ చేయండి!',
+      });
+    } else if (daysLeft == 3) {
+      return _smartText(lang, {
+        'en': '⚠️ $loanName EMI of $amt due in 3 days. Set aside the amount now!',
+        'hi': '⚠️ $loanName की $amt EMI 3 दिनों में है। अभी राशि तैयार रखें!',
+        'ta': '⚠️ $loanName EMI $amt — 3 நாட்களில் செலுத்த வேண்டும்!',
+        'te': '⚠️ $loanName EMI $amt — 3 రోజుల్లో చెల్లించాలి!',
+      });
+    } else if (daysLeft == 1) {
+      return _smartText(lang, {
+        'en': '🔔 Tomorrow is the day! $loanName EMI of $amt is due. Don\'t miss it!',
+        'hi': '🔔 कल $loanName की $amt EMI देय है। भूलें नहीं!',
+        'ta': '🔔 நாளை $loanName EMI $amt செலுத்த வேண்டும். மறக்காதீர்கள்!',
+        'te': '🔔 రేపు $loanName EMI $amt చెల్లించాలి. మర్చిపోకండి!',
+      });
+    } else {
+      return _smartText(lang, {
+        'en': '🚨 Today is the last day! Pay $loanName EMI of $amt now to avoid late fees.',
+        'hi': '🚨 आज आखिरी दिन! $loanName की $amt EMI अभी दें — देरी शुल्क से बचें।',
+        'ta': '🚨 இன்றே கடைசி நாள்! $loanName EMI $amt இப்போதே செலுத்துங்கள்.',
+        'te': '🚨 ఈరోజే చివరి రోజు! $loanName EMI $amt ఇప్పుడే చెల్లించండి.',
+      });
+    }
+  }
+
+  String _smartText(String lang, Map<String, String> map) =>
+      map[lang] ?? map['en'] ?? '';
+
+  /// Smart title per urgency level
+  String _smartTitle(int daysLeft, String lang) {
+    if (daysLeft == 7) {
+      return _smartText(lang, {'en': '💡 EMI Reminder — 1 Week Left', 'hi': '💡 EMI याद — 1 सप्ताह बाकी', 'ta': '💡 EMI நினைவூட்டல் — 1 வாரம் உள்ளது', 'te': '💡 EMI రిమైండర్ — 1 వారం మిగిలింది'});
+    } else if (daysLeft == 3) {
+      return _smartText(lang, {'en': '⚠️ EMI Due in 3 Days', 'hi': '⚠️ 3 दिनों में EMI देय', 'ta': '⚠️ 3 நாட்களில் EMI', 'te': '⚠️ 3 రోజుల్లో EMI'});
+    } else if (daysLeft == 1) {
+      return _smartText(lang, {'en': '🔔 EMI Due Tomorrow!', 'hi': '🔔 कल EMI देय है!', 'ta': '🔔 நாளை EMI!', 'te': '🔔 రేపు EMI!'});
+    } else {
+      return _smartText(lang, {'en': '🚨 EMI Due TODAY!', 'hi': '🚨 आज EMI देय है!', 'ta': '🚨 இன்று EMI!', 'te': '🚨 ఈరోజు EMI!'});
+    }
+  }
+
+  /// Schedule 7-day advance reminder (smart notification)
+  Future<void> scheduleSevenDayReminder(Loan loan) async {
+    if (!_isInitialized || !_hasPermission) return;
+    final lang = await _getCurrentLanguage();
+    final nextDue = loan.getNextDueDate();
+    final now = DateTime.now();
+    final day7Before = nextDue.subtract(const Duration(days: 7));
+    final scheduled = DateTime(day7Before.year, day7Before.month, day7Before.day, 9, 0, 0);
+    if (scheduled.isBefore(now)) return;
+
+    final baseId = loan.id.hashCode.abs() % 100000;
+    await _scheduleNotification(
+      id: baseId + 900,
+      title: _smartTitle(7, lang),
+      body: _smartBody(loan.name, loan.currencySymbol, loan.emiAmount, 7, lang),
+      scheduledDate: scheduled,
+      payload: loan.id,
+    );
+    debugPrint('✅ 7-day reminder scheduled for ${loan.name} on $scheduled');
+  }
+
+  // ─────────────────────────────────────────────
+  // MONTHLY SUMMARY NOTIFICATION
+  // ─────────────────────────────────────────────
+
+  /// Schedule a monthly summary notification on the 1st of every month at 8 AM
+  Future<void> scheduleMonthSummaryNotification(List<Loan> loans) async {
+    if (!_isInitialized || !_hasPermission || loans.isEmpty) return;
+
+    // Cancel previous monthly summary (id 999999)
+    await _flutterLocalNotificationsPlugin.cancel(999999);
+
+    final lang = await _getCurrentLanguage();
+    final now = DateTime.now();
+
+    // Schedule for 1st of next month at 8:00 AM
+    final nextMonth = DateTime(now.month == 12 ? now.year + 1 : now.year,
+        now.month == 12 ? 1 : now.month + 1, 1, 8, 0, 0);
+
+    final totalEmi = loans.fold<double>(0, (s, l) => s + l.emiAmount);
+    final loanCount = loans.length;
+    final symbol = loans.first.currencySymbol;
+    final totalStr = '$symbol${totalEmi.toStringAsFixed(0)}';
+
+    // Upcoming due loans this month
+    final dueSoon = loans.where((l) => !l.isPaid && l.daysUntilDue() <= 7).length;
+
+    final title = _smartText(lang, {
+      'en': '📊 Your Monthly EMI Summary',
+      'hi': '📊 आपका मासिक EMI सारांश',
+      'ta': '📊 உங்கள் மாதாந்திர EMI சுருக்கம்',
+      'te': '📊 మీ నెలవారీ EMI సారాంశం',
+    });
+
+    final body = _smartText(lang, {
+      'en': 'You have $loanCount loans totalling $totalStr/month.${dueSoon > 0 ? ' $dueSoon payments due soon!' : ' Stay on track! 💪'}',
+      'hi': 'आपके $loanCount लोन हैं, कुल $totalStr/माह।${dueSoon > 0 ? ' $dueSoon भुगतान जल्द देय है!' : ' ट्रैक पर रहें! 💪'}',
+      'ta': 'உங்களிடம் $loanCount கடன்கள் உள்ளன, மொத்தம் $totalStr/மாதம்।${dueSoon > 0 ? ' $dueSoon கொடுப்பனவுகள் விரைவில்!' : ' தொடர்ந்து முன்னேறுங்கள்! 💪'}',
+      'te': 'మీకు $loanCount రుణాలు ఉన్నాయి, మొత్తం $totalStr/నెల।${dueSoon > 0 ? ' $dueSoon చెల్లింపులు త్వరలో!' : ' ట్రాక్‌లో ఉండండి! 💪'}',
+    });
+
+    await _scheduleNotification(
+      id: 999999,
+      title: title,
+      body: body,
+      scheduledDate: nextMonth,
+      payload: 'monthly_summary',
+    );
+    debugPrint('✅ Monthly summary notification scheduled for $nextMonth');
   }
 }
 
