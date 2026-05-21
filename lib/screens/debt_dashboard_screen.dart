@@ -19,6 +19,19 @@ class DebtDashboardScreen extends StatefulWidget {
 class _DebtDashboardScreenState extends State<DebtDashboardScreen> {
   int _touchedIndex = -1;
 
+  // DTI card state — must live here so it survives StatefulBuilder rebuilds
+  final TextEditingController _dtiController = TextEditingController();
+  double? _dtiIncome;
+  double _dti = 0;
+  String _dtiStatus = '';
+  Color _dtiColor = AppTheme.statusSuccess;
+
+  @override
+  void dispose() {
+    _dtiController.dispose();
+    super.dispose();
+  }
+
   // Loan type colors
   static const Map<String, Color> _typeColors = {
     'Home Loan': Color(0xFF6366F1),
@@ -167,110 +180,111 @@ class _DebtDashboardScreenState extends State<DebtDashboardScreen> {
   }
 
   Widget _buildDTICard(double totalMonthlyEMI) {
-    final controller = TextEditingController();
-
-    return StatefulBuilder(
-      builder: (context, setInner) {
-        double? income;
-        double dti = 0;
-        String dtiStatus = '';
-        Color dtiColor = AppTheme.statusSuccess;
-
-        return Container(
-          margin: const EdgeInsets.symmetric(horizontal: 16),
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: AppTheme.bgCard,
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: AppTheme.softShadow,
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppTheme.bgCard,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: AppTheme.softShadow,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
             children: [
-              Row(
-                children: [
-                  const Icon(Icons.balance_rounded, color: AppTheme.primaryColor, size: 20),
-                  const SizedBox(width: 8),
-                  const Text('Debt-to-Income Ratio (DTI)',
-                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: AppTheme.textDark)),
-                  const Spacer(),
-                  const Tooltip(
-                    message: 'DTI = Monthly EMIs / Monthly Income × 100\n'
-                        'Below 30%: Healthy\n30–40%: Manageable\nAbove 40%: High risk',
-                    child: Icon(Icons.info_outline_rounded, size: 16, color: AppTheme.textLight),
-                  ),
-                ],
+              const Icon(Icons.balance_rounded, color: AppTheme.primaryColor, size: 20),
+              const SizedBox(width: 8),
+              const Text('Debt-to-Income Ratio (DTI)',
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: AppTheme.textDark)),
+              const Spacer(),
+              const Tooltip(
+                message: 'DTI = Monthly EMIs / Monthly Income × 100\n'
+                    'Below 30%: Healthy\n30–40%: Manageable\nAbove 40%: High risk',
+                child: Icon(Icons.info_outline_rounded, size: 16, color: AppTheme.textLight),
               ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: controller,
-                keyboardType: TextInputType.number,
-                onChanged: (v) {
-                  setInner(() {
-                    income = double.tryParse(v);
-                    if (income != null && income! > 0) {
-                      dti = (totalMonthlyEMI / income!) * 100;
-                      if (dti < 30) {
-                        dtiStatus = '✅ Healthy DTI';
-                        dtiColor = AppTheme.statusSuccess;
-                      } else if (dti < 40) {
-                        dtiStatus = '⚠️ Manageable';
-                        dtiColor = AppTheme.statusWarning;
-                      } else {
-                        dtiStatus = '🚨 High Risk';
-                        dtiColor = AppTheme.statusError;
-                      }
-                    }
-                  });
-                },
-                decoration: InputDecoration(
-                  labelText: 'Your Monthly Income',
-                  prefixIcon: const Icon(Icons.payments_rounded, color: AppTheme.primaryColor),
-                  filled: true,
-                  fillColor: AppTheme.bgLight,
-                  border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                      borderSide: BorderSide.none),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                ),
-              ),
-              if (income != null && income! > 0) ...[
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Text(
-                      '${dti.toStringAsFixed(1)}%',
-                      style: TextStyle(
-                          fontSize: 28, fontWeight: FontWeight.bold, color: dtiColor),
-                    ),
-                    const SizedBox(width: 12),
-                    Text(dtiStatus,
-                        style: TextStyle(fontSize: 14, color: dtiColor, fontWeight: FontWeight.w600)),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                LinearProgressIndicator(
-                  value: (dti / 60).clamp(0, 1),
-                  backgroundColor: AppTheme.bgLight,
-                  valueColor: AlwaysStoppedAnimation<Color>(dtiColor),
-                  minHeight: 8,
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                const SizedBox(height: 4),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: const [
-                    Text('0%', style: TextStyle(fontSize: 10, color: AppTheme.textLight)),
-                    Text('30% Healthy', style: TextStyle(fontSize: 10, color: AppTheme.statusSuccess)),
-                    Text('40% Caution', style: TextStyle(fontSize: 10, color: AppTheme.statusWarning)),
-                    Text('60%+', style: TextStyle(fontSize: 10, color: AppTheme.statusError)),
-                  ],
-                ),
-              ],
             ],
           ),
-        );
-      },
+          const SizedBox(height: 12),
+          TextField(
+            controller: _dtiController,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            onChanged: (v) {
+              setState(() {
+                final parsed = double.tryParse(v.replaceAll(',', ''));
+                _dtiIncome = parsed;
+                if (parsed != null && parsed > 0) {
+                  _dti = (totalMonthlyEMI / parsed) * 100;
+                  if (_dti < 30) {
+                    _dtiStatus = '✅ Healthy DTI';
+                    _dtiColor = AppTheme.statusSuccess;
+                  } else if (_dti < 40) {
+                    _dtiStatus = '⚠️ Manageable';
+                    _dtiColor = AppTheme.statusWarning;
+                  } else {
+                    _dtiStatus = '🚨 High Risk';
+                    _dtiColor = AppTheme.statusError;
+                  }
+                } else {
+                  _dti = 0;
+                  _dtiStatus = '';
+                }
+              });
+            },
+            decoration: InputDecoration(
+              labelText: 'Your Monthly Salary / Income',
+              hintText: 'e.g. 50000',
+              prefixIcon: const Icon(Icons.payments_rounded, color: AppTheme.primaryColor),
+              filled: true,
+              fillColor: AppTheme.bgLight,
+              border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: BorderSide.none),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            ),
+          ),
+          if (_dtiIncome != null && _dtiIncome! > 0) ...[
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Text(
+                  '${_dti.toStringAsFixed(1)}%',
+                  style: TextStyle(
+                      fontSize: 28, fontWeight: FontWeight.bold, color: _dtiColor),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(_dtiStatus,
+                      style: TextStyle(fontSize: 14, color: _dtiColor, fontWeight: FontWeight.w600)),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text(
+              '₹${totalMonthlyEMI.toStringAsFixed(0)} EMI  ÷  ₹${_dtiIncome!.toStringAsFixed(0)} Income',
+              style: const TextStyle(fontSize: 11, color: AppTheme.textLight),
+            ),
+            const SizedBox(height: 10),
+            LinearProgressIndicator(
+              value: (_dti / 60).clamp(0, 1),
+              backgroundColor: AppTheme.bgLight,
+              valueColor: AlwaysStoppedAnimation<Color>(_dtiColor),
+              minHeight: 8,
+              borderRadius: BorderRadius.circular(4),
+            ),
+            const SizedBox(height: 4),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: const [
+                Text('0%', style: TextStyle(fontSize: 10, color: AppTheme.textLight)),
+                Text('30% Healthy', style: TextStyle(fontSize: 10, color: AppTheme.statusSuccess)),
+                Text('40% Caution', style: TextStyle(fontSize: 10, color: AppTheme.statusWarning)),
+                Text('60%+', style: TextStyle(fontSize: 10, color: AppTheme.statusError)),
+              ],
+            ),
+          ],
+        ],
+      ),
     );
   }
 

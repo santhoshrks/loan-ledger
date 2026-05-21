@@ -15,8 +15,9 @@ class AmortizationScreen extends StatefulWidget {
 }
 
 class _AmortizationScreenState extends State<AmortizationScreen> {
-  List<_AmortizationRow> _schedule = [];
+  final List<_AmortizationRow> _schedule = [];
   bool _showFullTable = false;
+  bool _isFullAmortization = false; // true when loanAmount + interestRate available
 
   @override
   void initState() {
@@ -26,42 +27,82 @@ class _AmortizationScreenState extends State<AmortizationScreen> {
 
   void _generateSchedule() {
     final loan = widget.loan;
-    if (loan.loanAmount == null || loan.interestRate == null || loan.tenureMonths == null) {
-      return;
-    }
 
-    double balance = loan.loanAmount!;
-    final monthlyRate = loan.interestRate! / 12 / 100;
+    // Determine if we have enough for full amortization
+    final hasFullData = loan.loanAmount != null &&
+        loan.interestRate != null &&
+        loan.tenureMonths != null;
+
+    // Need at least EMI amount and tenure for simplified schedule
+    final hasMinData = loan.tenureMonths != null && loan.emiAmount > 0;
+
+    if (!hasFullData && !hasMinData) return;
+
+    _isFullAmortization = hasFullData;
+
     final tenure = loan.tenureMonths!;
-    final emi = _calculateEMI(balance, monthlyRate, tenure);
 
-    DateTime date = loan.startDate;
+    // Compute first-payment date (1 month after start)
+    final start = loan.startDate;
+    int firstMonth = start.month + 1;
+    int firstYear = start.year;
+    if (firstMonth > 12) { firstMonth = 1; firstYear++; }
+    final daysInFirstMonth = DateTime(firstYear, firstMonth + 1, 0).day;
+    final firstDay = start.day.clamp(1, daysInFirstMonth);
+    DateTime date = DateTime(firstYear, firstMonth, firstDay);
+
     _schedule.clear();
 
-    for (int i = 1; i <= tenure; i++) {
-      final interest = balance * monthlyRate;
-      final principal = emi - interest;
-      balance = math.max(0, balance - principal);
+    if (hasFullData) {
+      // ── Full amortization ──
+      double balance = loan.loanAmount!;
+      final monthlyRate = loan.interestRate! / 12 / 100;
+      final emi = _calculateEMI(balance, monthlyRate, tenure);
 
-      _schedule.add(_AmortizationRow(
-        month: i,
-        date: date,
-        emi: emi,
-        principal: principal,
-        interest: interest,
-        balance: balance,
-        isPaid: i <= loan.emisPaidCount,
-      ));
+      for (int i = 1; i <= tenure; i++) {
+        final interest = balance * monthlyRate;
+        double principal = emi - interest;
+        if (i == tenure) principal = balance; // clear residual on last month
+        balance = math.max(0, balance - principal);
 
-      // Move to next month
-      int nextMonth = date.month + 1;
-      int nextYear = date.year;
-      if (nextMonth > 12) {
-        nextMonth = 1;
-        nextYear++;
+        _schedule.add(_AmortizationRow(
+          month: i,
+          date: date,
+          emi: i == tenure ? (principal + interest) : emi,
+          principal: principal,
+          interest: interest,
+          balance: balance,
+          isPaid: i <= loan.emisPaidCount,
+        ));
+
+        date = _nextMonthDate(date, firstDay);
       }
-      date = DateTime(nextYear, nextMonth, date.day);
+    } else {
+      // ── Simplified schedule (EMI only, no P/I split) ──
+      final emi = loan.emiAmount;
+
+      for (int i = 1; i <= tenure; i++) {
+        _schedule.add(_AmortizationRow(
+          month: i,
+          date: date,
+          emi: emi,
+          principal: 0, // unknown
+          interest: 0,  // unknown
+          balance: emi * (tenure - i), // remaining instalments × EMI
+          isPaid: i <= loan.emisPaidCount,
+        ));
+
+        date = _nextMonthDate(date, firstDay);
+      }
     }
+  }
+
+  DateTime _nextMonthDate(DateTime from, int anchorDay) {
+    int nextMonth = from.month + 1;
+    int nextYear = from.year;
+    if (nextMonth > 12) { nextMonth = 1; nextYear++; }
+    final daysInNext = DateTime(nextYear, nextMonth + 1, 0).day;
+    return DateTime(nextYear, nextMonth, anchorDay.clamp(1, daysInNext));
   }
 
   double _calculateEMI(double principal, double monthlyRate, int tenure) {
@@ -74,7 +115,7 @@ class _AmortizationScreenState extends State<AmortizationScreen> {
   Widget build(BuildContext context) {
     final loan = widget.loan;
     final symbol = loan.currencySymbol;
-    final hasData = loan.loanAmount != null && loan.interestRate != null && loan.tenureMonths != null;
+    final canShow = _schedule.isNotEmpty;
 
     return Scaffold(
       backgroundColor: AppTheme.bgLight,
@@ -84,7 +125,7 @@ class _AmortizationScreenState extends State<AmortizationScreen> {
         foregroundColor: Colors.white,
         elevation: 0,
       ),
-      body: hasData ? _buildContent(symbol) : _buildNoDataView(),
+      body: canShow ? _buildContent(symbol) : _buildNoDataView(),
     );
   }
 
@@ -98,12 +139,12 @@ class _AmortizationScreenState extends State<AmortizationScreen> {
             Icon(Icons.table_chart_outlined, size: 64, color: AppTheme.textLight),
             const SizedBox(height: 16),
             const Text(
-              'No Amortization Data',
+              'Cannot Generate Schedule',
               style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppTheme.textDark),
             ),
             const SizedBox(height: 8),
-            Text(
-              'Please add Loan Amount, Interest Rate, and Tenure to view the amortization schedule.',
+            const Text(
+              'Please edit this loan and add the EMI Amount and Loan Tenure to view the payment schedule.',
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 14, color: AppTheme.textMedium),
             ),
@@ -114,59 +155,74 @@ class _AmortizationScreenState extends State<AmortizationScreen> {
   }
 
   Widget _buildContent(String symbol) {
-    if (_schedule.isEmpty) return _buildNoDataView();
+    final loan = widget.loan;
+    final tenure = loan.tenureMonths ?? _schedule.length;
 
-    final totalInterest = _schedule.fold(0.0, (s, r) => s + r.interest);
-    final totalPrincipal = widget.loan.loanAmount ?? 0;
-    final totalAmount = totalPrincipal + totalInterest;
+    // Summary numbers
+    final totalEMI = loan.emiAmount * tenure;
+    final totalInterest = _isFullAmortization
+        ? _schedule.fold(0.0, (s, r) => s + r.interest)
+        : null;
+    final totalPrincipal = loan.loanAmount;
+    final totalAmount = totalPrincipal != null && totalInterest != null
+        ? totalPrincipal + totalInterest
+        : totalEMI;
+
     final paidRows = _schedule.where((r) => r.isPaid).toList();
-    final paidPrincipal = paidRows.fold(0.0, (s, r) => s + r.principal);
-    final paidInterest = paidRows.fold(0.0, (s, r) => s + r.interest);
+    final paidPrincipal = _isFullAmortization
+        ? paidRows.fold(0.0, (s, r) => s + r.principal)
+        : null;
+    final paidInterest = _isFullAmortization
+        ? paidRows.fold(0.0, (s, r) => s + r.interest)
+        : null;
+    final paidEMI = loan.emiAmount * loan.emisPaidCount;
 
     return SingleChildScrollView(
       child: Column(
         children: [
-          // Summary Header
+          // ── Header ──
           Container(
             width: double.infinity,
-            decoration: const BoxDecoration(
-              gradient: AppTheme.primaryGradient,
-            ),
+            decoration: const BoxDecoration(gradient: AppTheme.primaryGradient),
             padding: const EdgeInsets.all(20),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  widget.loan.name,
-                  style: const TextStyle(color: Colors.white70, fontSize: 14),
-                ),
+                Text(loan.name,
+                    style: const TextStyle(color: Colors.white70, fontSize: 14)),
                 const SizedBox(height: 4),
                 Text(
                   IndianNumberFormat.formatCompact(totalAmount, symbol: symbol),
-                  style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold),
+                  style: const TextStyle(
+                      color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold),
                 ),
                 Text(
-                  'Total Payment (Principal + Interest)',
+                  _isFullAmortization
+                      ? 'Total Payment (Principal + Interest)'
+                      : 'Total EMI Outflow ($tenure months)',
                   style: const TextStyle(color: Colors.white70, fontSize: 12),
                 ),
                 const SizedBox(height: 16),
                 Row(
                   children: [
                     _summaryChip(
-                      label: 'Principal',
-                      value: IndianNumberFormat.formatCompact(totalPrincipal, symbol: symbol),
+                      label: totalPrincipal != null ? 'Principal' : 'EMI/Month',
+                      value: IndianNumberFormat.formatCompact(
+                          totalPrincipal ?? loan.emiAmount, symbol: symbol),
                       color: Colors.white,
                     ),
+                    if (totalInterest != null) ...[
+                      const SizedBox(width: 12),
+                      _summaryChip(
+                        label: 'Total Interest',
+                        value: IndianNumberFormat.formatCompact(totalInterest, symbol: symbol),
+                        color: AppTheme.accentOrange,
+                      ),
+                    ],
                     const SizedBox(width: 12),
                     _summaryChip(
-                      label: 'Total Interest',
-                      value: IndianNumberFormat.formatCompact(totalInterest, symbol: symbol),
-                      color: AppTheme.accentOrange,
-                    ),
-                    const SizedBox(width: 12),
-                    _summaryChip(
-                      label: 'EMI',
-                      value: IndianNumberFormat.formatCompact(_schedule.first.emi, symbol: symbol),
+                      label: 'Tenure',
+                      value: '$tenure months',
                       color: Colors.greenAccent,
                     ),
                   ],
@@ -175,8 +231,32 @@ class _AmortizationScreenState extends State<AmortizationScreen> {
             ),
           ),
 
-          // Progress Summary
-          if (widget.loan.emisPaidCount > 0)
+          // ── Partial data notice ──
+          if (!_isFullAmortization)
+            Container(
+              margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppTheme.accentOrange.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppTheme.accentOrange.withValues(alpha: 0.3)),
+              ),
+              child: Row(
+                children: const [
+                  Icon(Icons.info_outline_rounded, color: AppTheme.accentOrange, size: 18),
+                  SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'Add Loan Amount & Interest Rate to see the full principal/interest breakdown.',
+                      style: TextStyle(fontSize: 12, color: AppTheme.accentOrange),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+          // ── Payment Progress ──
+          if (loan.emisPaidCount > 0)
             Container(
               margin: const EdgeInsets.all(16),
               padding: const EdgeInsets.all(16),
@@ -189,12 +269,14 @@ class _AmortizationScreenState extends State<AmortizationScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text('Payment Progress',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppTheme.textDark)),
+                      style: TextStyle(
+                          fontSize: 16, fontWeight: FontWeight.bold, color: AppTheme.textDark)),
                   const SizedBox(height: 12),
                   LinearProgressIndicator(
-                    value: widget.loan.emisPaidCount / (widget.loan.tenureMonths ?? 1),
+                    value: loan.emisPaidCount / (loan.tenureMonths ?? 1),
                     backgroundColor: AppTheme.bgLight,
-                    valueColor: const AlwaysStoppedAnimation<Color>(AppTheme.statusSuccess),
+                    valueColor:
+                        const AlwaysStoppedAnimation<Color>(AppTheme.statusSuccess),
                     minHeight: 8,
                     borderRadius: BorderRadius.circular(4),
                   ),
@@ -202,39 +284,63 @@ class _AmortizationScreenState extends State<AmortizationScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text('${widget.loan.emisPaidCount} EMIs paid',
+                      Text('${loan.emisPaidCount} EMIs paid',
                           style: const TextStyle(fontSize: 12, color: AppTheme.textMedium)),
-                      Text('${(widget.loan.tenureMonths ?? 0) - widget.loan.emisPaidCount} remaining',
-                          style: const TextStyle(fontSize: 12, color: AppTheme.textMedium)),
+                      Text(
+                          '${(loan.tenureMonths ?? 0) - loan.emisPaidCount} remaining',
+                          style:
+                              const TextStyle(fontSize: 12, color: AppTheme.textMedium)),
                     ],
                   ),
                   const SizedBox(height: 12),
                   Row(
                     children: [
-                      Expanded(
-                        child: _progressStat('Principal Paid',
-                            IndianNumberFormat.formatCompact(paidPrincipal, symbol: symbol),
-                            AppTheme.statusSuccess),
-                      ),
-                      Expanded(
-                        child: _progressStat('Interest Paid',
-                            IndianNumberFormat.formatCompact(paidInterest, symbol: symbol),
-                            AppTheme.accentOrange),
-                      ),
+                      if (_isFullAmortization && paidPrincipal != null) ...[
+                        Expanded(
+                          child: _progressStat(
+                              'Principal Paid',
+                              IndianNumberFormat.formatCompact(paidPrincipal,
+                                  symbol: symbol),
+                              AppTheme.statusSuccess),
+                        ),
+                        Expanded(
+                          child: _progressStat(
+                              'Interest Paid',
+                              IndianNumberFormat.formatCompact(
+                                  paidInterest ?? 0, symbol: symbol),
+                              AppTheme.accentOrange),
+                        ),
+                      ] else ...[
+                        Expanded(
+                          child: _progressStat(
+                              'Total Paid',
+                              IndianNumberFormat.formatCompact(paidEMI,
+                                  symbol: symbol),
+                              AppTheme.statusSuccess),
+                        ),
+                        Expanded(
+                          child: _progressStat(
+                              'Remaining',
+                              IndianNumberFormat.formatCompact(
+                                  totalAmount - paidEMI, symbol: symbol),
+                              AppTheme.accentOrange),
+                        ),
+                      ],
                     ],
                   ),
                 ],
               ),
             ),
 
-          // Table Header
+          // ── Table header ──
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 const Text('Monthly Breakdown',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppTheme.textDark)),
+                    style: TextStyle(
+                        fontSize: 16, fontWeight: FontWeight.bold, color: AppTheme.textDark)),
                 TextButton(
                   onPressed: () => setState(() => _showFullTable = !_showFullTable),
                   child: Text(_showFullTable ? 'Show Summary' : 'Show All'),
@@ -243,7 +349,7 @@ class _AmortizationScreenState extends State<AmortizationScreen> {
             ),
           ),
 
-          // Table
+          // ── Table ──
           Container(
             margin: const EdgeInsets.all(16),
             decoration: BoxDecoration(
@@ -253,10 +359,8 @@ class _AmortizationScreenState extends State<AmortizationScreen> {
             ),
             child: Column(
               children: [
-                // Table header row
                 _buildTableHeader(),
                 const Divider(height: 1),
-                // Table rows
                 ..._getDisplayedRows(symbol),
               ],
             ),
@@ -279,7 +383,8 @@ class _AmortizationScreenState extends State<AmortizationScreen> {
             alignment: Alignment.center,
             child: Text(
               'View all ${_schedule.length} months →',
-              style: const TextStyle(color: AppTheme.primaryColor, fontWeight: FontWeight.w600),
+              style: const TextStyle(
+                  color: AppTheme.primaryColor, fontWeight: FontWeight.w600),
             ),
           ),
         ),
@@ -297,11 +402,28 @@ class _AmortizationScreenState extends State<AmortizationScreen> {
       ),
       child: Row(
         children: [
-          const SizedBox(width: 32, child: Text('#', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
-          const Expanded(child: Text('Date', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
-          const Expanded(child: Text('Principal', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12), textAlign: TextAlign.right)),
-          const Expanded(child: Text('Interest', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12), textAlign: TextAlign.right)),
-          const Expanded(child: Text('Balance', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12), textAlign: TextAlign.right)),
+          const SizedBox(
+              width: 32,
+              child: Text('#',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
+          const Expanded(
+              child: Text('Date',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
+          Expanded(
+              child: Text(
+                  _isFullAmortization ? 'Principal' : 'EMI',
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                  textAlign: TextAlign.right)),
+          if (_isFullAmortization)
+            const Expanded(
+                child: Text('Interest',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                    textAlign: TextAlign.right)),
+          Expanded(
+              child: Text(
+                  _isFullAmortization ? 'Balance' : 'Remaining',
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                  textAlign: TextAlign.right)),
         ],
       ),
     );
@@ -311,24 +433,18 @@ class _AmortizationScreenState extends State<AmortizationScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       decoration: BoxDecoration(
-        color: row.isPaid
-            ? AppTheme.statusSuccess.withValues(alpha: 0.05)
-            : null,
+        color: row.isPaid ? AppTheme.statusSuccess.withValues(alpha: 0.05) : null,
         border: const Border(bottom: BorderSide(color: Color(0xFFF1F5F9))),
       ),
       child: Row(
         children: [
           SizedBox(
             width: 32,
-            child: Row(
-              children: [
-                if (row.isPaid)
-                  const Icon(Icons.check_circle_rounded, size: 14, color: AppTheme.statusSuccess)
-                else
-                  Text('${row.month}',
-                      style: TextStyle(fontSize: 12, color: AppTheme.textLight)),
-              ],
-            ),
+            child: row.isPaid
+                ? const Icon(Icons.check_circle_rounded,
+                    size: 14, color: AppTheme.statusSuccess)
+                : Text('${row.month}',
+                    style: const TextStyle(fontSize: 12, color: AppTheme.textLight)),
           ),
           Expanded(
             child: Text(
@@ -340,24 +456,33 @@ class _AmortizationScreenState extends State<AmortizationScreen> {
               ),
             ),
           ),
+          // Principal column (or EMI in simplified mode)
           Expanded(
             child: Text(
-              IndianNumberFormat.formatCompact(row.principal, symbol: symbol),
+              _isFullAmortization
+                  ? IndianNumberFormat.formatCompact(row.principal, symbol: symbol)
+                  : IndianNumberFormat.formatCompact(row.emi, symbol: symbol),
               style: const TextStyle(fontSize: 11, color: AppTheme.statusSuccess),
               textAlign: TextAlign.right,
             ),
           ),
-          Expanded(
-            child: Text(
-              IndianNumberFormat.formatCompact(row.interest, symbol: symbol),
-              style: const TextStyle(fontSize: 11, color: AppTheme.accentOrange),
-              textAlign: TextAlign.right,
+          // Interest column (full mode only)
+          if (_isFullAmortization)
+            Expanded(
+              child: Text(
+                IndianNumberFormat.formatCompact(row.interest, symbol: symbol),
+                style: const TextStyle(fontSize: 11, color: AppTheme.accentOrange),
+                textAlign: TextAlign.right,
+              ),
             ),
-          ),
+          // Balance / Remaining
           Expanded(
             child: Text(
               IndianNumberFormat.formatCompact(row.balance, symbol: symbol),
-              style: const TextStyle(fontSize: 11, color: AppTheme.textDark, fontWeight: FontWeight.w500),
+              style: const TextStyle(
+                  fontSize: 11,
+                  color: AppTheme.textDark,
+                  fontWeight: FontWeight.w500),
               textAlign: TextAlign.right,
             ),
           ),
@@ -366,7 +491,8 @@ class _AmortizationScreenState extends State<AmortizationScreen> {
     );
   }
 
-  Widget _summaryChip({required String label, required String value, required Color color}) {
+  Widget _summaryChip(
+      {required String label, required String value, required Color color}) {
     return Expanded(
       child: Container(
         padding: const EdgeInsets.all(10),
@@ -377,7 +503,8 @@ class _AmortizationScreenState extends State<AmortizationScreen> {
         child: Column(
           children: [
             Text(value,
-                style: TextStyle(color: color, fontSize: 13, fontWeight: FontWeight.bold)),
+                style: TextStyle(
+                    color: color, fontSize: 13, fontWeight: FontWeight.bold)),
             const SizedBox(height: 2),
             Text(label,
                 style: const TextStyle(color: Colors.white70, fontSize: 10)),
@@ -390,8 +517,11 @@ class _AmortizationScreenState extends State<AmortizationScreen> {
   Widget _progressStat(String label, String value, Color color) {
     return Column(
       children: [
-        Text(value, style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: color)),
-        Text(label, style: const TextStyle(fontSize: 11, color: AppTheme.textMedium)),
+        Text(value,
+            style: TextStyle(
+                fontSize: 16, fontWeight: FontWeight.bold, color: color)),
+        Text(label,
+            style: const TextStyle(fontSize: 11, color: AppTheme.textMedium)),
       ],
     );
   }

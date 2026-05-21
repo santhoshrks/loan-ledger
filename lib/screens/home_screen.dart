@@ -542,8 +542,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
                       children: [
                         _menuSection(ctx, 'Tools', [
-                          _MenuItem(Icons.calendar_month_rounded, AppLocalizations.of(context).calendar, const Color(0xFF6366F1),
-                              () => Navigator.push(context, MaterialPageRoute(builder: (_) => CalendarScreen(storageService: _storageService)))),
                           _MenuItem(Icons.calculate_rounded, AppLocalizations.of(context).emiCalculator, const Color(0xFF0EA5E9),
                               () => Navigator.push(context, MaterialPageRoute(builder: (_) => const EMICalculatorScreen()))),
                           _MenuItem(Icons.trending_up_rounded, AppLocalizations.of(context).progress, const Color(0xFF10B981),
@@ -553,8 +551,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                         _menuSection(ctx, 'Analytics', [
                           _MenuItem(Icons.dashboard_rounded, 'Debt Dashboard', const Color(0xFF3B82F6),
                               () => Navigator.push(context, MaterialPageRoute(builder: (_) => DebtDashboardScreen(loans: _storageService.getAllLoans())))),
-                          _MenuItem(Icons.health_and_safety_rounded, 'Health Score', const Color(0xFF10B981),
-                              () => Navigator.push(context, MaterialPageRoute(builder: (_) => FinancialHealthScreen(loans: _storageService.getAllLoans())))),
                           _MenuItem(Icons.bar_chart_rounded, 'Yearly Summary', const Color(0xFFF59E0B),
                               () => Navigator.push(context, MaterialPageRoute(builder: (_) => YearlySummaryScreen(loans: _storageService.getAllLoans())))),
                           _MenuItem(Icons.psychology_rounded, 'AI Advisor', const Color(0xFF8B5CF6),
@@ -579,8 +575,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                               () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ExpenseTrackerScreen()))),
                           _MenuItem(Icons.savings_rounded, 'Savings Goals', const Color(0xFF10B981),
                               () => Navigator.push(context, MaterialPageRoute(builder: (_) => SavingsGoalScreen(loans: _storageService.getAllLoans())))),
-                          _MenuItem(Icons.people_rounded, 'P2P Loans', const Color(0xFF3B82F6),
-                              () => Navigator.push(context, MaterialPageRoute(builder: (_) => const P2PLoanScreen()))),
                         ]),
                         const SizedBox(height: 20),
                         // Settings row
@@ -744,16 +738,16 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     final actions = [
       _QuickAction(Icons.calculate_rounded, 'Calculator', const Color(0xFF6366F1),
           () => Navigator.push(context, MaterialPageRoute(builder: (_) => const EMICalculatorScreen()))),
-      _QuickAction(Icons.calendar_month_rounded, 'Calendar', const Color(0xFF0EA5E9),
-          () => Navigator.push(context, MaterialPageRoute(builder: (_) => CalendarScreen(storageService: _storageService)))),
       _QuickAction(Icons.trending_up_rounded, 'Progress', const Color(0xFF10B981),
           () => Navigator.push(context, MaterialPageRoute(builder: (_) => EMIProgressScreen(storageService: _storageService)))),
       _QuickAction(Icons.dashboard_rounded, 'Dashboard', const Color(0xFFF59E0B),
           () => Navigator.push(context, MaterialPageRoute(builder: (_) => DebtDashboardScreen(loans: _storageService.getAllLoans())))),
       _QuickAction(Icons.payments_rounded, 'Prepay', const Color(0xFFEF4444),
           () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PrepaymentCalculatorScreen()))),
-      _QuickAction(Icons.health_and_safety_rounded, 'Health', const Color(0xFF8B5CF6),
-          () => Navigator.push(context, MaterialPageRoute(builder: (_) => FinancialHealthScreen(loans: _storageService.getAllLoans())))),
+      _QuickAction(Icons.account_balance_wallet_rounded, 'Expenses', const Color(0xFFF97316),
+          () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ExpenseTrackerScreen()))),
+      _QuickAction(Icons.people_rounded, 'P2P', const Color(0xFF3B82F6),
+          () => Navigator.push(context, MaterialPageRoute(builder: (_) => const P2PLoanScreen()))),
     ];
 
     return Padding(

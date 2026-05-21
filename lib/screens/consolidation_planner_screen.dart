@@ -15,40 +15,64 @@ class ConsolidationPlannerScreen extends StatefulWidget {
 
 class _ConsolidationPlannerScreenState extends State<ConsolidationPlannerScreen> {
   final _extraCtrl = TextEditingController(text: '0');
-  String _method = 'avalanche'; // avalanche or snowball
+  String _method = 'avalanche';
   List<_PayoffPlan> _avalanchePlan = [];
   List<_PayoffPlan> _snowballPlan = [];
   bool _calculated = false;
 
+  double _calcEMI(double p, double r, int n) {
+    if (r == 0) return p / n;
+    final f = math.pow(1 + r, n).toDouble();
+    return p * r * f / (f - 1);
+  }
+
   void _calculate() {
-    final extraPayment = double.tryParse(_extraCtrl.text) ?? 0;
-    final loans = widget.loans.where((l) => l.loanAmount != null && l.interestRate != null && l.tenureMonths != null).toList();
+    final extra = double.tryParse(_extraCtrl.text) ?? 0;
+    final loans = widget.loans;
     if (loans.isEmpty) return;
 
-    _avalanchePlan = _buildPlan(loans, extraPayment, avalanche: true);
-    _snowballPlan = _buildPlan(loans, extraPayment, avalanche: false);
+    _avalanchePlan = _buildPlan(loans, extra, avalanche: true);
+    _snowballPlan  = _buildPlan(loans, extra, avalanche: false);
     setState(() => _calculated = true);
   }
 
   List<_PayoffPlan> _buildPlan(List<Loan> loans, double extra, {required bool avalanche}) {
-    // Calculate outstanding balances
+    final now = DateTime.now();
+
+    // Build items — works with full data (loanAmount+rate+tenure) OR simplified (emi+tenure)
     var items = loans.map((l) {
-      final r = l.interestRate! / 12 / 100;
-      final n = l.tenureMonths!;
-      final emi = _calcEMI(l.loanAmount!, r, n);
-      final monthsElapsed = ((DateTime.now().year - l.startDate.year) * 12 + (DateTime.now().month - l.startDate.month)).clamp(0, n);
-      double bal = l.loanAmount!;
-      for (int i = 0; i < monthsElapsed; i++) {
-        final interest = bal * r;
-        bal = math.max(0, bal - (emi - interest));
+      final hasFullData = l.loanAmount != null && l.interestRate != null && l.tenureMonths != null;
+
+      if (hasFullData) {
+        final r = l.interestRate! / 12 / 100;
+        final n = l.tenureMonths!;
+        final emi = _calcEMI(l.loanAmount!, r, n);
+        // Recompute current outstanding balance
+        final monthsElapsed = ((now.year - l.startDate.year) * 12 +
+            (now.month - l.startDate.month)).clamp(0, n);
+        double bal = l.loanAmount!;
+        for (int i = 0; i < monthsElapsed; i++) {
+          final interest = bal * r;
+          bal = math.max(0, bal - (emi - interest));
+        }
+        return _LoanItem(loan: l, balance: bal, rate: l.interestRate!, emi: emi, hasFullData: true);
+      } else {
+        // Simplified: use EMI × remaining months as proxy balance
+        final remaining = math.max(0, (l.tenureMonths ?? 0) - l.emisPaidCount);
+        final proxyBalance = l.emiAmount * remaining;
+        return _LoanItem(loan: l, balance: proxyBalance, rate: 0, emi: l.emiAmount, hasFullData: false);
       }
-      return _LoanItem(loan: l, balance: bal, rate: l.interestRate!, emi: emi);
     }).toList();
 
-    // Sort: avalanche = highest rate first, snowball = lowest balance first
+    // Sort strategy
     if (avalanche) {
-      items.sort((a, b) => b.rate.compareTo(a.rate));
+      // Highest rate first; for zero-rate (simplified) loans, sort by balance desc
+      items.sort((a, b) {
+        if (a.rate != b.rate) return b.rate.compareTo(a.rate);
+        return b.balance.compareTo(a.balance);
+      });
     } else {
+      // Smallest balance first
       items.sort((a, b) => a.balance.compareTo(b.balance));
     }
 
@@ -59,53 +83,74 @@ class _ConsolidationPlannerScreenState extends State<ConsolidationPlannerScreen>
     for (final item in items) {
       double balance = item.balance;
       final r = item.rate / 12 / 100;
-      final emi = item.emi + availableExtra;
+      final monthlyPayment = item.emi + availableExtra;
       int months = 0;
       double totalInterest = 0;
 
-      while (balance > 0.01 && months < 600) {
-        final interest = balance * r;
-        totalInterest += interest;
-        balance = math.max(0, balance - (emi - interest));
-        months++;
+      if (item.hasFullData && r > 0) {
+        // Standard amortization payoff simulation
+        while (balance > 0.01 && months < 600) {
+          final interest = balance * r;
+          totalInterest += interest;
+          balance = math.max(0, balance - (monthlyPayment - interest));
+          months++;
+        }
+      } else {
+        // Simplified: months = balance / monthlyPayment
+        months = monthlyPayment > 0
+            ? (balance / monthlyPayment).ceil().clamp(0, 600)
+            : (l: item.loan.tenureMonths ?? 0, s: 0).l;
+        totalInterest = 0; // unknown
       }
 
-      final debtFreeDate = DateTime(DateTime.now().year, DateTime.now().month + months);
-      plans.add(_PayoffPlan(loan: item.loan, order: order++, months: months, totalInterest: totalInterest, debtFreeDate: debtFreeDate, balance: item.balance));
-      availableExtra += item.emi; // freed-up EMI goes to next loan
+      int rawMonth = now.month + months - 1;
+      final debtFreeDate = DateTime(
+        now.year + rawMonth ~/ 12,
+        rawMonth % 12 + 1,
+      );
+      plans.add(_PayoffPlan(
+        loan: item.loan,
+        order: order++,
+        months: months,
+        totalInterest: totalInterest,
+        debtFreeDate: debtFreeDate,
+        balance: item.balance,
+        hasFullData: item.hasFullData,
+      ));
+      availableExtra += item.emi; // freed EMI rolls to next loan
     }
     return plans;
-  }
-
-  double _calcEMI(double p, double r, int n) {
-    if (r == 0) return p / n;
-    final f = math.pow(1 + r, n).toDouble();
-    return p * r * f / (f - 1);
   }
 
   List<_PayoffPlan> get _activePlan => _method == 'avalanche' ? _avalanchePlan : _snowballPlan;
 
   @override
   Widget build(BuildContext context) {
-    final hasEligible = widget.loans.any((l) => l.loanAmount != null && l.interestRate != null && l.tenureMonths != null);
+    final hasAnyLoan = widget.loans.isNotEmpty;
 
     return Scaffold(
       backgroundColor: AppTheme.bgLight,
-      appBar: AppBar(title: const Text('Debt Payoff Planner'), backgroundColor: AppTheme.primaryColor, foregroundColor: Colors.white, elevation: 0),
+      appBar: AppBar(
+        title: const Text('Debt Payoff Planner'),
+        backgroundColor: AppTheme.primaryColor,
+        foregroundColor: Colors.white,
+        elevation: 0,
+      ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          if (!hasEligible)
-            _infoBanner('⚠️ Add Loan Amount, Interest Rate & Tenure to your loans to use this planner.')
+          if (!hasAnyLoan)
+            _infoBanner('⚠️ Add at least one loan to use the Debt Payoff Planner.')
           else ...[
-            // Method selector
+            // Strategy selector
             _card(Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              const Text('Choose Strategy', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: AppTheme.textDark)),
+              const Text('Choose Strategy',
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: AppTheme.textDark)),
               const SizedBox(height: 12),
               Row(children: [
-                _methodBtn('avalanche', '🏔️ Avalanche', 'Pay highest interest first\n(Saves most money)'),
+                _methodBtn('avalanche', '🏔️ Avalanche', 'Highest interest first\n(Saves most money)'),
                 const SizedBox(width: 12),
-                _methodBtn('snowball', '⛄ Snowball', 'Pay smallest balance first\n(Quick wins, motivation)'),
+                _methodBtn('snowball', '⛄ Snowball', 'Smallest balance first\n(Quick wins, motivation)'),
               ]),
               const SizedBox(height: 12),
               TextField(
@@ -113,28 +158,41 @@ class _ConsolidationPlannerScreenState extends State<ConsolidationPlannerScreen>
                 keyboardType: TextInputType.number,
                 inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                 decoration: InputDecoration(
-                  labelText: 'Extra Monthly Payment',
+                  labelText: 'Extra Monthly Payment (optional)',
                   helperText: 'Amount you can add on top of regular EMIs',
                   prefixIcon: const Icon(Icons.add_circle_rounded, color: AppTheme.primaryColor),
                   filled: true, fillColor: AppTheme.bgLight,
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none),
                 ),
               ),
             ])),
             const SizedBox(height: 16),
+
+            // Loans that lack full data — info
+            if (widget.loans.any((l) => l.loanAmount == null || l.interestRate == null))
+              _infoBanner('ℹ️ Some loans are missing Loan Amount or Interest Rate. '
+                  'Payoff dates are estimated from EMI × remaining tenure. '
+                  'Edit loans to add full details for exact interest savings.'),
+
+            const SizedBox(height: 12),
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
                 onPressed: _calculate,
                 icon: const Icon(Icons.play_arrow_rounded),
-                label: const Text('Generate Payoff Plan', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                label: const Text('Generate Payoff Plan',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.primaryColor, foregroundColor: Colors.white,
+                  backgroundColor: AppTheme.primaryColor,
+                  foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                 ),
               ),
             ),
+
             if (_calculated) ...[
               const SizedBox(height: 24),
               _buildComparisonBanner(),
@@ -154,21 +212,29 @@ class _ConsolidationPlannerScreenState extends State<ConsolidationPlannerScreen>
     final snowInterest = _snowballPlan.fold(0.0, (s, p) => s + p.totalInterest);
     final avMonths = _avalanchePlan.map((p) => p.months).reduce(math.max);
     final snowMonths = _snowballPlan.map((p) => p.months).reduce(math.max);
+    final hasInterestData = avInterest > 0 || snowInterest > 0;
     final saved = (snowInterest - avInterest).abs();
 
     return _card(Column(children: [
-      const Text('Strategy Comparison', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: AppTheme.textDark)),
+      const Text('Strategy Comparison',
+          style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: AppTheme.textDark)),
       const SizedBox(height: 12),
       Row(children: [
-        _compStat('🏔️ Avalanche', '${avMonths}m', IndianNumberFormat.formatCompact(avInterest), _method == 'avalanche'),
+        _compStat('🏔️ Avalanche', '${avMonths}m',
+            hasInterestData ? IndianNumberFormat.formatCompact(avInterest) : 'N/A',
+            _method == 'avalanche'),
         const SizedBox(width: 12),
-        _compStat('⛄ Snowball', '${snowMonths}m', IndianNumberFormat.formatCompact(snowInterest), _method == 'snowball'),
+        _compStat('⛄ Snowball', '${snowMonths}m',
+            hasInterestData ? IndianNumberFormat.formatCompact(snowInterest) : 'N/A',
+            _method == 'snowball'),
       ]),
       const SizedBox(height: 8),
       Text(
-        avInterest < snowInterest
-            ? '💡 Avalanche saves ${IndianNumberFormat.formatCompact(saved)} more in interest'
-            : '💡 Both strategies are similar in this case',
+        hasInterestData
+            ? (avInterest < snowInterest
+                ? '💡 Avalanche saves ${IndianNumberFormat.formatCompact(saved)} more in interest'
+                : '💡 Both strategies are similar in this case')
+            : '💡 Add Loan Amount & Interest Rate for interest savings comparison.',
         style: const TextStyle(fontSize: 12, color: AppTheme.textMedium),
         textAlign: TextAlign.center,
       ),
@@ -184,10 +250,11 @@ class _ConsolidationPlannerScreenState extends State<ConsolidationPlannerScreen>
         border: Border.all(color: active ? AppTheme.primaryColor : Colors.transparent),
       ),
       child: Column(children: [
-        Text(name, style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: active ? AppTheme.primaryColor : AppTheme.textMedium)),
+        Text(name, style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold,
+            color: active ? AppTheme.primaryColor : AppTheme.textMedium)),
         Text(months, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppTheme.textDark)),
         Text(interest, style: const TextStyle(fontSize: 11, color: AppTheme.accentOrange)),
-        const Text('total interest', style: TextStyle(fontSize: 10, color: AppTheme.textLight)),
+        const Text('interest', style: TextStyle(fontSize: 10, color: AppTheme.textLight)),
       ]),
     ),
   );
@@ -205,18 +272,31 @@ class _ConsolidationPlannerScreenState extends State<ConsolidationPlannerScreen>
       Container(
         width: 36, height: 36,
         decoration: BoxDecoration(gradient: AppTheme.primaryGradient, shape: BoxShape.circle),
-        child: Center(child: Text('${p.order}', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
+        child: Center(child: Text('${p.order}',
+            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
       ),
       const SizedBox(width: 12),
       Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(p.loan.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppTheme.textDark)),
-        Text('Balance: ${IndianNumberFormat.formatCompact(p.balance)} • ${p.loan.interestRate?.toStringAsFixed(1)}% p.a.',
-            style: const TextStyle(fontSize: 11, color: AppTheme.textMedium)),
-        Text('Interest: ${IndianNumberFormat.formatCompact(p.totalInterest)}',
-            style: const TextStyle(fontSize: 11, color: AppTheme.accentOrange)),
+        Text(p.loan.name,
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppTheme.textDark)),
+        Text(
+          p.hasFullData
+              ? 'Balance: ${IndianNumberFormat.formatCompact(p.balance)} • ${p.loan.interestRate?.toStringAsFixed(1)}% p.a.'
+              : 'Balance: ${IndianNumberFormat.formatCompact(p.balance)} (estimated)',
+          style: const TextStyle(fontSize: 11, color: AppTheme.textMedium),
+        ),
+        Text(
+          p.hasFullData
+              ? 'Interest: ${IndianNumberFormat.formatCompact(p.totalInterest)}'
+              : 'Interest: N/A (add rate for details)',
+          style: TextStyle(
+              fontSize: 11,
+              color: p.hasFullData ? AppTheme.accentOrange : AppTheme.textLight),
+        ),
       ])),
       Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-        Text('${p.months}m', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppTheme.primaryColor)),
+        Text('${p.months}m',
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppTheme.primaryColor)),
         Text(DateFormat('MMM yyyy').format(p.debtFreeDate),
             style: const TextStyle(fontSize: 11, color: AppTheme.statusSuccess, fontWeight: FontWeight.w600)),
         const Text('Debt Free', style: TextStyle(fontSize: 10, color: AppTheme.textLight)),
@@ -235,7 +315,8 @@ class _ConsolidationPlannerScreenState extends State<ConsolidationPlannerScreen>
           border: Border.all(color: _method == val ? AppTheme.primaryColor : AppTheme.textLight),
         ),
         child: Column(children: [
-          Text(title, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: _method == val ? AppTheme.primaryColor : AppTheme.textDark)),
+          Text(title, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13,
+              color: _method == val ? AppTheme.primaryColor : AppTheme.textDark)),
           const SizedBox(height: 4),
           Text(sub, style: const TextStyle(fontSize: 10, color: AppTheme.textMedium), textAlign: TextAlign.center),
         ]),
@@ -244,8 +325,11 @@ class _ConsolidationPlannerScreenState extends State<ConsolidationPlannerScreen>
   );
 
   Widget _infoBanner(String msg) => Container(
+    margin: const EdgeInsets.only(bottom: 12),
     padding: const EdgeInsets.all(14),
-    decoration: BoxDecoration(color: AppTheme.statusWarning.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),
+    decoration: BoxDecoration(
+        color: AppTheme.statusWarning.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(12)),
     child: Row(children: [
       const Icon(Icons.warning_rounded, color: AppTheme.statusWarning, size: 18),
       const SizedBox(width: 10),
@@ -255,11 +339,29 @@ class _ConsolidationPlannerScreenState extends State<ConsolidationPlannerScreen>
 
   Widget _card(Widget c) => Container(
     width: double.infinity, padding: const EdgeInsets.all(16),
-    decoration: BoxDecoration(color: AppTheme.bgCard, borderRadius: BorderRadius.circular(16), boxShadow: AppTheme.softShadow),
+    decoration: BoxDecoration(
+        color: AppTheme.bgCard,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: AppTheme.softShadow),
     child: c,
   );
 }
 
-class _LoanItem { final Loan loan; final double balance, rate, emi; _LoanItem({required this.loan, required this.balance, required this.rate, required this.emi}); }
-class _PayoffPlan { final Loan loan; final int order, months; final double totalInterest, balance; final DateTime debtFreeDate; _PayoffPlan({required this.loan, required this.order, required this.months, required this.totalInterest, required this.debtFreeDate, required this.balance}); }
+class _LoanItem {
+  final Loan loan;
+  final double balance, rate, emi;
+  final bool hasFullData;
+  _LoanItem({required this.loan, required this.balance, required this.rate,
+      required this.emi, required this.hasFullData});
+}
 
+class _PayoffPlan {
+  final Loan loan;
+  final int order, months;
+  final double totalInterest, balance;
+  final DateTime debtFreeDate;
+  final bool hasFullData;
+  _PayoffPlan({required this.loan, required this.order, required this.months,
+      required this.totalInterest, required this.debtFreeDate,
+      required this.balance, required this.hasFullData});
+}
