@@ -736,6 +736,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   Widget _buildQuickActions() {
     final actions = [
+      _QuickAction(Icons.people_rounded, 'P2P', const Color(0xFF3B82F6),
+          () => Navigator.push(context, MaterialPageRoute(builder: (_) => P2PLoanScreen(notificationService: _notificationService)))),
+      _QuickAction(Icons.account_balance_wallet_rounded, 'Expenses', const Color(0xFFF97316),
+          () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ExpenseTrackerScreen()))),
       _QuickAction(Icons.calculate_rounded, 'Calculator', const Color(0xFF6366F1),
           () => Navigator.push(context, MaterialPageRoute(builder: (_) => const EMICalculatorScreen()))),
       _QuickAction(Icons.trending_up_rounded, 'Progress', const Color(0xFF10B981),
@@ -744,10 +748,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           () => Navigator.push(context, MaterialPageRoute(builder: (_) => DebtDashboardScreen(loans: _storageService.getAllLoans())))),
       _QuickAction(Icons.payments_rounded, 'Prepay', const Color(0xFFEF4444),
           () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PrepaymentCalculatorScreen()))),
-      _QuickAction(Icons.account_balance_wallet_rounded, 'Expenses', const Color(0xFFF97316),
-          () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ExpenseTrackerScreen()))),
-      _QuickAction(Icons.people_rounded, 'P2P', const Color(0xFF3B82F6),
-          () => Navigator.push(context, MaterialPageRoute(builder: (_) => const P2PLoanScreen()))),
     ];
 
     return Padding(

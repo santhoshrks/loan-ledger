@@ -26,7 +26,9 @@ class LoanCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final daysUntilDue = loan.daysUntilDue();
-    final nextDueDate = loan.getNextDueDate();
+    // For a paid loan, show the current month's due date (the one just paid).
+    // For an unpaid loan, show the upcoming due date.
+    final nextDueDate = loan.isPaid ? loan.getCurrentDueDate() : loan.getNextDueDate();
     final isOverdue = loan.isOverdue();
     final statusColor = _getStatusColor(daysUntilDue, isOverdue);
     final l = AppLocalizations.of(context);
@@ -110,21 +112,31 @@ class LoanCard extends StatelessWidget {
                                 overflow: TextOverflow.ellipsis,
                               ),
                               const SizedBox(height: 4),
-                              Row(
-                                children: [
-                                  Icon(Icons.schedule_rounded,
-                                      size: 12, color: Colors.grey[400]),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    'Due ${DateFormat('MMM d').format(nextDueDate)}',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: Colors.grey[500],
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                ],
-                              ),
+                                  Row(
+                                 children: [
+                                   Icon(
+                                     loan.isPaid
+                                         ? Icons.check_circle_outline_rounded
+                                         : Icons.schedule_rounded,
+                                     size: 12,
+                                     color: loan.isPaid
+                                         ? const Color(0xFF10B981)
+                                         : Colors.grey[400]),
+                                   const SizedBox(width: 4),
+                                   Text(
+                                     loan.isPaid
+                                         ? 'Paid • ${DateFormat('MMM d').format(nextDueDate)}'
+                                         : 'Due ${DateFormat('MMM d').format(nextDueDate)}',
+                                     style: TextStyle(
+                                       fontSize: 12,
+                                       color: loan.isPaid
+                                           ? const Color(0xFF10B981)
+                                           : Colors.grey[500],
+                                       fontWeight: FontWeight.w500,
+                                     ),
+                                   ),
+                                 ],
+                               ),
                             ],
                           ),
                         ),

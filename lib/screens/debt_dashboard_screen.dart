@@ -48,8 +48,24 @@ class _DebtDashboardScreenState extends State<DebtDashboardScreen> {
     'Other': Color(0xFF94A3B8),
   };
 
-  Color _colorForType(String? type) =>
-      _typeColors[type ?? 'Other'] ?? const Color(0xFF94A3B8);
+  Color _colorForType(String? type) {
+    if (type == null) return const Color(0xFF94A3B8);
+    if (_typeColors.containsKey(type)) return _typeColors[type]!;
+    // Generate a stable distinct color from the string hash for unrecognized names
+    final palette = [
+      const Color(0xFF6366F1), const Color(0xFF14B8A6), const Color(0xFF8B5CF6),
+      const Color(0xFFF59E0B), const Color(0xFF3B82F6), const Color(0xFF10B981),
+      const Color(0xFFD97706), const Color(0xFFEC4899), const Color(0xFF84CC16),
+      const Color(0xFF06B6D4), const Color(0xFFEF4444), const Color(0xFFE879F9),
+    ];
+    return palette[type.hashCode.abs() % palette.length];
+  }
+
+  /// Returns the display label for chart/color — prefers loanTypeName, falls back to loan.name
+  String _loanLabel(Loan loan) =>
+      (loan.loanTypeName != null && loan.loanTypeName!.isNotEmpty)
+          ? loan.loanTypeName!
+          : loan.name;
 
   @override
   Widget build(BuildContext context) {
@@ -68,6 +84,8 @@ class _DebtDashboardScreenState extends State<DebtDashboardScreen> {
     }
 
     final totalMonthlyEMI = loans.fold(0.0, (s, l) => s + l.emiAmount);
+    final totalPaidThisMonth = loans.where((l) => l.isPaid).fold(0.0, (s, l) => s + l.emiAmount);
+    final totalRemainingThisMonth = totalMonthlyEMI - totalPaidThisMonth;
     final totalLoanAmount = loans.fold(0.0, (s, l) => s + (l.loanAmount ?? 0));
     final totalInterest = loans.fold(0.0, (s, l) {
       if (l.loanAmount != null && l.interestRate != null && l.tenureMonths != null) {
@@ -80,10 +98,12 @@ class _DebtDashboardScreenState extends State<DebtDashboardScreen> {
     final overdueCount = loans.where((l) => l.isOverdue()).length;
     final paidCount = loans.where((l) => l.isPaid).length;
 
-    // Group by type
+    // Group by type — fall back to loan name when loanTypeName is not set
     final Map<String, double> byType = {};
     for (final loan in loans) {
-      final type = loan.loanTypeName ?? 'Other';
+      final type = (loan.loanTypeName != null && loan.loanTypeName!.isNotEmpty)
+          ? loan.loanTypeName!
+          : loan.name;
       byType[type] = (byType[type] ?? 0) + loan.emiAmount;
     }
 
@@ -132,7 +152,26 @@ class _DebtDashboardScreenState extends State<DebtDashboardScreen> {
                     IndianNumberFormat.formatWithFull(totalMonthlyEMI),
                     style: const TextStyle(color: Colors.white60, fontSize: 12),
                   ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 12),
+                  // Paid vs Remaining this month
+                  Row(
+                    children: [
+                      _paidChip(
+                        icon: Icons.check_circle_rounded,
+                        label: 'Paid',
+                        amount: totalPaidThisMonth,
+                        color: const Color(0xFF4ADE80),
+                      ),
+                      const SizedBox(width: 10),
+                      _paidChip(
+                        icon: Icons.pending_rounded,
+                        label: 'Remaining',
+                        amount: totalRemainingThisMonth,
+                        color: const Color(0xFFFBBF24),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
                   Row(
                     children: [
                       _headerStat('${loans.length}', 'Total Loans'),
@@ -175,6 +214,28 @@ class _DebtDashboardScreenState extends State<DebtDashboardScreen> {
             const SizedBox(height: 32),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _paidChip({required IconData icon, required String label, required double amount, required Color color}) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.15),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: color.withValues(alpha: 0.3)),
+        ),
+        child: Row(children: [
+          Icon(icon, color: color, size: 14),
+          const SizedBox(width: 6),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(label, style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.w600)),
+            Text(IndianNumberFormat.formatCompact(amount),
+                style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold)),
+          ])),
+        ]),
       ),
     );
   }
@@ -495,12 +556,12 @@ class _DebtDashboardScreenState extends State<DebtDashboardScreen> {
                   width: 36,
                   height: 36,
                   decoration: BoxDecoration(
-                    color: _colorForType(loan.loanTypeName).withValues(alpha: 0.1),
+                    color: _colorForType(_loanLabel(loan)).withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Icon(
                     _iconForType(loan.loanTypeName),
-                    color: _colorForType(loan.loanTypeName),
+                    color: _colorForType(_loanLabel(loan)),
                     size: 18,
                   ),
                 ),
@@ -537,7 +598,7 @@ class _DebtDashboardScreenState extends State<DebtDashboardScreen> {
               LinearProgressIndicator(
                 value: progress.clamp(0.0, 1.0),
                 backgroundColor: AppTheme.bgLight,
-                valueColor: AlwaysStoppedAnimation<Color>(_colorForType(loan.loanTypeName)),
+                valueColor: AlwaysStoppedAnimation<Color>(_colorForType(_loanLabel(loan))),
                 minHeight: 4,
                 borderRadius: BorderRadius.circular(2),
               ),

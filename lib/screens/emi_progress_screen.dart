@@ -136,7 +136,6 @@ class _EMIProgressScreenState extends State<EMIProgressScreen> {
 
   Widget _buildSummaryHeader(BuildContext context, List<Loan> loans) {
     final l = AppLocalizations.of(context);
-    double totalPrincipal = 0;
     int totalEmisPaid = 0;
     int totalEmisRemaining = 0;
 
@@ -145,16 +144,11 @@ class _EMIProgressScreenState extends State<EMIProgressScreen> {
     final Map<String, double> remainingByCurrency = {};
     final Map<String, double> interestByCurrency = {};
 
-    debugPrint('=== Building Summary Header ===');
-    debugPrint('Number of loans: ${loans.length}');
-
     for (var loan in loans) {
       final progress = _calculateLoanProgress(loan);
 
       final emisPaid = (progress['emisPaid'] as int?) ?? 0;
-      final emisRemaining = (progress['emisRemaining'] as int?) ?? 0;
-
-      debugPrint('Loan ${loan.name}: emisPaid=$emisPaid, emisRemaining=$emisRemaining');
+      final emisRemaining = (progress['emisRemaining'] as int?) ?? 0;      debugPrint('Loan ${loan.name}: emisPaid=$emisPaid, emisRemaining=$emisRemaining');
 
       // Add to totals from progress calculation
       totalEmisPaid += emisPaid;
@@ -168,10 +162,6 @@ class _EMIProgressScreenState extends State<EMIProgressScreen> {
       paidByCurrency[currency] = (paidByCurrency[currency] ?? 0) + amtPaid;
       remainingByCurrency[currency] = (remainingByCurrency[currency] ?? 0) + amtRemaining;
       interestByCurrency[currency] = (interestByCurrency[currency] ?? 0) + totInterest;
-
-      if (loan.loanAmount != null) {
-        totalPrincipal += loan.loanAmount!;
-      }
     }
 
     debugPrint('Total EMIs Paid: $totalEmisPaid');
@@ -373,226 +363,131 @@ class _EMIProgressScreenState extends State<EMIProgressScreen> {
     debugPrint('emisPaid calculated: $emisPaid');
     debugPrint('progressPercent: $progressPercent');
 
+    final progressColor = _getProgressColor(progressPercent);
     return Card(
-      margin: const EdgeInsets.only(bottom: 16),
-      elevation: 2,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
+      margin: const EdgeInsets.only(bottom: 10),
+      elevation: 1,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Loan Name & EMI
+            // ── Row 1: icon + name/EMI + % badge ─────────────────────
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
+                Container(
+                  padding: const EdgeInsets.all(7),
+                  decoration: BoxDecoration(
+                    color: loan.isPaid
+                        ? AppTheme.statusSuccess.withValues(alpha: 0.1)
+                        : AppTheme.primaryColor.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(
+                    loan.isPaid ? Icons.check_circle : Icons.account_balance,
+                    color: loan.isPaid ? AppTheme.statusSuccess : AppTheme.primaryColor,
+                    size: 16,
+                  ),
+                ),
+                const SizedBox(width: 8),
                 Expanded(
-                  child: Row(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: loan.isPaid
-                              ? AppTheme.statusSuccess.withValues(alpha: 0.1)
-                              : AppTheme.primaryColor.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(10),
+                      Row(children: [
+                        Expanded(
+                          child: Text(
+                            _getTranslatedLoanName(loan, l),
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
-                        child: Icon(
-                          loan.isPaid ? Icons.check_circle : Icons.account_balance,
-                          color: loan.isPaid ? AppTheme.statusSuccess : AppTheme.primaryColor,
-                          size: 20,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: Text(
-                                    _getTranslatedLoanName(loan, l),
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 16,
-                                    ),
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                                // Show paid status badge
-                                if (loan.isPaid)
-                                  Container(
-                                    margin: const EdgeInsets.only(left: 8),
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                                    decoration: BoxDecoration(
-                                      color: AppTheme.statusSuccess.withValues(alpha: 0.1),
-                                      borderRadius: BorderRadius.circular(10),
-                                    ),
-                                    child: Text(
-                                      l.paidStatus,
-                                      style: TextStyle(
-                                        color: AppTheme.statusSuccess,
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ),
-                              ],
+                        if (loan.isPaid) ...[
+                          const SizedBox(width: 4),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                            decoration: BoxDecoration(
+                              color: AppTheme.statusSuccess.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(8),
                             ),
-                            Text(
-                              '${loan.formattedEmi}/month • Due: ${loan.dueDay}${_getDaySuffix(loan.dueDay)}',
-                              style: TextStyle(
-                                color: Colors.grey.shade600,
-                                fontSize: 13,
-                              ),
-                            ),
-                          ],
-                        ),
+                            child: Text(l.paidStatus,
+                                style: TextStyle(color: AppTheme.statusSuccess, fontSize: 9, fontWeight: FontWeight.bold)),
+                          ),
+                        ],
+                      ]),
+                      Text(
+                        '${loan.formattedEmi}/month • Due: ${loan.dueDay}${_getDaySuffix(loan.dueDay)}',
+                        style: TextStyle(color: Colors.grey.shade600, fontSize: 11),
                       ),
                     ],
                   ),
                 ),
+                const SizedBox(width: 8),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
-                    color: _getProgressColor(progressPercent).withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(20),
+                    color: progressColor.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(16),
                   ),
                   child: Text(
                     '${progressPercent.toStringAsFixed(1)}%',
-                    style: TextStyle(
-                      color: _getProgressColor(progressPercent),
-                      fontWeight: FontWeight.bold,
-                      fontSize: 14,
-                    ),
+                    style: TextStyle(color: progressColor, fontWeight: FontWeight.bold, fontSize: 12),
                   ),
                 ),
               ],
             ),
 
-            const SizedBox(height: 16),
+            const SizedBox(height: 8),
 
-            // Progress Bar
+            // ── Progress bar ──────────────────────────────────────────
             ClipRRect(
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(4),
               child: LinearProgressIndicator(
                 value: progressPercent / 100,
-                minHeight: 10,
+                minHeight: 6,
                 backgroundColor: Colors.grey.shade200,
-                valueColor: AlwaysStoppedAnimation<Color>(
-                  _getProgressColor(progressPercent),
-                ),
+                valueColor: AlwaysStoppedAnimation<Color>(progressColor),
               ),
             ),
 
-            const SizedBox(height: 16),
+            const SizedBox(height: 8),
 
-            // Stats Row - show even if tenureMonths is null
+            // ── Row 2: EMIs paid | Remaining | Paid ₹ | Remaining ₹ ──
             Row(
               children: [
-                Expanded(
-                  child: _buildStatItem(
-                    l.emisPaid,
-                    loan.tenureMonths != null
-                        ? '$emisPaid / ${loan.tenureMonths}'
-                        : '$emisPaid',
-                    Icons.check_circle,
-                    AppTheme.statusSuccess,
-                  ),
+                // EMIs paid
+                Icon(Icons.check_circle, color: AppTheme.statusSuccess, size: 13),
+                const SizedBox(width: 3),
+                Text(
+                  loan.tenureMonths != null ? '$emisPaid/${loan.tenureMonths}' : '$emisPaid',
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
                 ),
-                Expanded(
-                  child: _buildStatItem(
-                    l.remaining,
-                    '$emisRemaining',
-                    Icons.schedule,
-                    AppTheme.statusWarning,
+                Text(' ${l.emisPaid}', style: TextStyle(color: Colors.grey.shade500, fontSize: 10)),
+                const SizedBox(width: 12),
+                // EMIs remaining
+                Icon(Icons.schedule, color: AppTheme.statusWarning, size: 13),
+                const SizedBox(width: 3),
+                Text('$emisRemaining', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                Text(' ${l.remaining}', style: TextStyle(color: Colors.grey.shade500, fontSize: 10)),
+                const Spacer(),
+                // Amount paid / remaining (compact)
+                if (amountPaid > 0 || amountRemaining > 0) ...[
+                  Text(
+                    _formatCurrency(amountPaid, symbol: loan.currencySymbol),
+                    style: TextStyle(color: AppTheme.statusSuccess, fontWeight: FontWeight.bold, fontSize: 11),
                   ),
-                ),
-              ],
-            ),
-
-            if (loan.loanAmount != null) ...[
-              const Divider(height: 24),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        l.paid,
-                        style: TextStyle(
-                          color: Colors.grey.shade600,
-                          fontSize: 12,
-                        ),
-                      ),
-                      Text(
-                        _formatCurrency(amountPaid),
-                        style: TextStyle(
-                          color: AppTheme.statusSuccess,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 14,
-                        ),
-                      ),
-                    ],
-                  ),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Text(
-                        l.remaining,
-                        style: TextStyle(
-                          color: Colors.grey.shade600,
-                          fontSize: 12,
-                        ),
-                      ),
-                      Text(
-                        _formatCurrency(amountRemaining),
-                        style: TextStyle(
-                          color: AppTheme.statusWarning,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 14,
-                        ),
-                      ),
-                    ],
+                  Text(' / ', style: TextStyle(color: Colors.grey.shade400, fontSize: 11)),
+                  Text(
+                    _formatCurrency(amountRemaining, symbol: loan.currencySymbol),
+                    style: TextStyle(color: AppTheme.statusWarning, fontWeight: FontWeight.bold, fontSize: 11),
                   ),
                 ],
-              ),
-            ],
+              ],
+            ),
           ],
         ),
       ),
-    );
-  }
-
-  Widget _buildStatItem(String label, String value, IconData icon, Color color) {
-    return Row(
-      children: [
-        Icon(icon, color: color, size: 18),
-        const SizedBox(width: 6),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              label,
-              style: TextStyle(
-                color: Colors.grey.shade600,
-                fontSize: 11,
-              ),
-            ),
-            Text(
-              value,
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 14,
-              ),
-            ),
-          ],
-        ),
-      ],
     );
   }
 
@@ -672,15 +567,15 @@ class _EMIProgressScreenState extends State<EMIProgressScreen> {
     return AppTheme.secondaryColor;
   }
 
-  String _formatCurrency(double amount) {
+  String _formatCurrency(double amount, {String symbol = '₹'}) {
     if (amount >= 1000000000) {
-      return '${(amount / 1000000000).toStringAsFixed(2)}B';
+      return '$symbol${(amount / 1000000000).toStringAsFixed(2)}B';
     } else if (amount >= 1000000) {
-      return '${(amount / 1000000).toStringAsFixed(2)}M';
+      return '$symbol${(amount / 1000000).toStringAsFixed(2)}M';
     } else if (amount >= 1000) {
-      return '${(amount / 1000).toStringAsFixed(1)}K';
+      return '$symbol${(amount / 1000).toStringAsFixed(1)}K';
     }
-    return amount.toStringAsFixed(0);
+    return '$symbol${amount.toStringAsFixed(0)}';
   }
 
   // Format a map of currency->amount into a compact readable string

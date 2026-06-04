@@ -551,6 +551,108 @@ class NotificationService {
     }
   }
 
+  // ─────────────────────────────────────────────────────────────────────────
+  // P2P LOAN INTEREST REMINDERS
+  // ─────────────────────────────────────────────────────────────────────────
+
+  /// Schedule monthly interest reminders for a flat-interest P2P loan.
+  /// Uses IDs in the 500000+ range to avoid collisions with regular loan IDs.
+  Future<void> scheduleP2PInterestReminder({
+    required String loanId,
+    required String personName,
+    required double monthlyInterest,
+    required int dueDay,         // 1-31: day of month interest is due
+    required bool isLent,        // true = they owe you, false = you owe them
+  }) async {
+    if (!_isInitialized) return;
+
+    // Cancel existing reminders for this loan first
+    await cancelP2PReminders(loanId);
+
+    final now = DateTime.now();
+    final baseId = (loanId.hashCode.abs() % 100000) + 500000;
+
+    // Compute the next occurrence of dueDay
+    int year = now.year, month = now.month;
+    int clampedDay(int y, int m) =>
+        dueDay.clamp(1, DateTime(y, m + 1, 0).day);
+
+    DateTime nextDue = DateTime(year, month, clampedDay(year, month));
+    if (!nextDue.isAfter(now)) {
+      month++;
+      if (month > 12) { month = 1; year++; }
+      nextDue = DateTime(year, month, clampedDay(year, month));
+    }
+
+    final amtStr = '₹${monthlyInterest.toStringAsFixed(0)}';
+    final who = isLent ? personName : 'you';
+    final action = isLent ? 'collect interest from' : 'pay interest to';
+    final body = 'Monthly interest $amtStr is due — $action $personName';
+
+    int idx = 0;
+
+    Future<void> scheduleIfFuture(DateTime dt, String title) async {
+      if (dt.isAfter(now)) {
+        await _scheduleNotification(
+          id: baseId + idx,
+          title: title,
+          body: body,
+          scheduledDate: dt,
+          payload: 'p2p:$loanId',
+        );
+      }
+      idx++;
+    }
+
+    // 3 days before
+    await scheduleIfFuture(
+      DateTime(nextDue.year, nextDue.month, nextDue.day - 3, 9, 0),
+      '💰 P2P Interest Due in 3 Days',
+    );
+    // 1 day before
+    await scheduleIfFuture(
+      DateTime(nextDue.year, nextDue.month, nextDue.day - 1, 9, 0),
+      '💰 P2P Interest Due Tomorrow',
+    );
+    // On due day — morning
+    await scheduleIfFuture(
+      DateTime(nextDue.year, nextDue.month, nextDue.day, 9, 0),
+      '🔔 P2P Interest Due Today!',
+    );
+    // On due day — evening reminder
+    await scheduleIfFuture(
+      DateTime(nextDue.year, nextDue.month, nextDue.day, 18, 0),
+      '⏰ Reminder: P2P Interest Due Today!',
+    );
+
+    debugPrint('✅ P2P reminders scheduled for $personName — next due: $nextDue');
+  }
+
+  /// Cancel all scheduled reminders for a P2P loan
+  Future<void> cancelP2PReminders(String loanId) async {
+    if (!_isInitialized) return;
+    final baseId = (loanId.hashCode.abs() % 100000) + 500000;
+    for (int i = 0; i < 6; i++) {
+      try {
+        await _flutterLocalNotificationsPlugin.cancel(baseId + i);
+      } catch (_) {}
+    }
+  }
+
+  /// Test P2P notification
+  Future<void> showP2PTestNotification(String personName, double amount) async {
+    try {
+      await _flutterLocalNotificationsPlugin.show(
+        999998,
+        '💰 P2P Interest Reminder Test',
+        'Monthly interest ₹${amount.toStringAsFixed(0)} from $personName — reminder is working!',
+        const NotificationDetails(android: androidDetails),
+      );
+    } catch (e) {
+      debugPrint('❌ P2P test notification error: $e');
+    }
+  }
+
   /// Test notification
   Future<void> showTestNotification() async {
     try {
