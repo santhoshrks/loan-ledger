@@ -585,9 +585,29 @@ class NotificationService {
     }
 
     final amtStr = '₹${monthlyInterest.toStringAsFixed(0)}';
-    final who = isLent ? personName : 'you';
-    final action = isLent ? 'collect interest from' : 'pay interest to';
-    final body = 'Monthly interest $amtStr is due — $action $personName';
+
+    // Differentiate clearly: taken loan = you must PAY, given loan = you must COLLECT
+    final String body;
+    final String title3Days;
+    final String title1Day;
+    final String titleMorning;
+    final String titleEvening;
+
+    if (isLent) {
+      // You gave the loan — remind to collect
+      body = 'Collect $amtStr interest from $personName today';
+      title3Days  = '💰 Collect from $personName in 3 days';
+      title1Day   = '💰 Collect from $personName tomorrow';
+      titleMorning = '🔔 Collect $amtStr from $personName today!';
+      titleEvening = '⏰ Still pending: collect $amtStr from $personName';
+    } else {
+      // You took the loan — remind to pay
+      body = 'You need to pay $amtStr interest to $personName today';
+      title3Days  = '💸 Pay $personName interest in 3 days';
+      title1Day   = '💸 Pay $personName interest tomorrow';
+      titleMorning = '🔔 Pay $amtStr to $personName today!';
+      titleEvening = '⏰ Don\'t forget: pay $amtStr to $personName';
+    }
 
     int idx = 0;
 
@@ -607,22 +627,22 @@ class NotificationService {
     // 3 days before
     await scheduleIfFuture(
       DateTime(nextDue.year, nextDue.month, nextDue.day - 3, 9, 0),
-      '💰 P2P Interest Due in 3 Days',
+      title3Days,
     );
     // 1 day before
     await scheduleIfFuture(
       DateTime(nextDue.year, nextDue.month, nextDue.day - 1, 9, 0),
-      '💰 P2P Interest Due Tomorrow',
+      title1Day,
     );
     // On due day — morning
     await scheduleIfFuture(
       DateTime(nextDue.year, nextDue.month, nextDue.day, 9, 0),
-      '🔔 P2P Interest Due Today!',
+      titleMorning,
     );
     // On due day — evening reminder
     await scheduleIfFuture(
       DateTime(nextDue.year, nextDue.month, nextDue.day, 18, 0),
-      '⏰ Reminder: P2P Interest Due Today!',
+      titleEvening,
     );
 
     debugPrint('✅ P2P reminders scheduled for $personName — next due: $nextDue');

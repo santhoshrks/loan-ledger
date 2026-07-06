@@ -76,9 +76,13 @@ class _P2PLoanDetailScreenState extends State<P2PLoanDetailScreen> {
           onPressed: () => _recordInterestPayment(monthlyInt),
           icon: const Icon(Icons.payments_rounded),
           label: Text(
-            overdue > 1
-                ? 'Pay ₹${IndianNumberFormat.formatCompact(monthlyInt)} Interest  ($overdue months overdue)'
-                : 'Record ₹${IndianNumberFormat.formatCompact(monthlyInt)} Interest Payment',
+            loan.isLent
+                ? (overdue > 1
+                    ? 'Collect ₹${IndianNumberFormat.formatCompact(monthlyInt)} from ${loan.personName} ($overdue months overdue)'
+                    : 'Collect ₹${IndianNumberFormat.formatCompact(monthlyInt)} Interest from ${loan.personName}')
+                : (overdue > 1
+                    ? 'Pay ₹${IndianNumberFormat.formatCompact(monthlyInt)} to ${loan.personName} ($overdue months overdue)'
+                    : 'Pay ₹${IndianNumberFormat.formatCompact(monthlyInt)} Interest to ${loan.personName}'),
             style: const TextStyle(fontWeight: FontWeight.bold),
           ),
           style: ElevatedButton.styleFrom(backgroundColor: color, foregroundColor: Colors.white,
@@ -275,11 +279,14 @@ class _P2PLoanDetailScreenState extends State<P2PLoanDetailScreen> {
         decoration: BoxDecoration(color: AppTheme.statusSuccess.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(12),
             border: Border.all(color: AppTheme.statusSuccess.withValues(alpha: 0.3))),
-        child: const Row(children: [
-          Icon(Icons.check_circle_rounded, color: AppTheme.statusSuccess, size: 18),
-          SizedBox(width: 10),
-          Expanded(child: Text('All interest payments are up to date ✅',
-              style: TextStyle(color: AppTheme.statusSuccess, fontWeight: FontWeight.w600, fontSize: 13))),
+        child: Row(children: [
+          const Icon(Icons.check_circle_rounded, color: AppTheme.statusSuccess, size: 18),
+          const SizedBox(width: 10),
+          Expanded(child: Text(
+              loan.isLent
+                  ? 'All interest received from ${loan.personName} ✅'
+                  : 'All interest payments to ${loan.personName} are up to date ✅',
+              style: const TextStyle(color: AppTheme.statusSuccess, fontWeight: FontWeight.w600, fontSize: 13))),
         ]),
       );
     }
@@ -292,10 +299,18 @@ class _P2PLoanDetailScreenState extends State<P2PLoanDetailScreen> {
         const Icon(Icons.warning_rounded, color: AppTheme.statusError, size: 18),
         const SizedBox(width: 10),
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text('$overdue month${overdue > 1 ? 's' : ''} interest overdue!',
-              style: const TextStyle(color: AppTheme.statusError, fontWeight: FontWeight.bold, fontSize: 13)),
-          Text('Total overdue: ${IndianNumberFormat.formatCompact(monthlyInt * overdue)}',
-              style: const TextStyle(color: AppTheme.statusError, fontSize: 11)),
+          Text(
+            loan.isLent
+                ? '$overdue month${overdue > 1 ? 's' : ''} interest pending from ${loan.personName}!'
+                : 'You owe $overdue month${overdue > 1 ? 's' : ''} interest to ${loan.personName}!',
+            style: const TextStyle(color: AppTheme.statusError, fontWeight: FontWeight.bold, fontSize: 13),
+          ),
+          Text(
+            loan.isLent
+                ? 'Collect: ${IndianNumberFormat.formatCompact(monthlyInt * overdue)}'
+                : 'You need to pay: ${IndianNumberFormat.formatCompact(monthlyInt * overdue)}',
+            style: const TextStyle(color: AppTheme.statusError, fontSize: 11),
+          ),
         ])),
       ]),
     );
@@ -854,7 +869,10 @@ class _P2PLoanDetailScreenState extends State<P2PLoanDetailScreen> {
         builder: (ctx, setInner) => SingleChildScrollView(
           padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom + 24, left: 20, right: 20, top: 24),
           child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text('Record Interest Payment — ${loan.personName}',
+            Text(
+                loan.isLent
+                    ? 'Record Interest Received — ${loan.personName}'
+                    : 'Record Interest Payment to ${loan.personName}',
                 style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
             const SizedBox(height: 4),
             Text('Monthly interest: ${IndianNumberFormat.formatCompact(monthlyInt)}  •  Paid so far: ${loan.interestPaymentsMade} months',
