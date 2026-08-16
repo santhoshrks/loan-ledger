@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../models/p2p_loan.dart';
 import '../services/notification_service.dart';
+import '../services/share_service.dart';
 import '../theme/app_theme.dart';
 import '../utils/indian_number_format.dart';
 import 'p2p_loan_detail_screen.dart';
@@ -20,24 +21,130 @@ class P2PLoanScreen extends StatefulWidget {
 class _P2PLoanScreenState extends State<P2PLoanScreen> with SingleTickerProviderStateMixin {
   late TabController _tab;
   late Box<P2PLoan> _box;
+  String _sortBy = 'overdue'; // 'overdue', 'amount', 'name', 'date'
+
+  // ── Search ──────────────────────────────────────────────────────
+  bool _isSearching = false;
+  final TextEditingController _searchCtrl = TextEditingController();
+  String _query = '';
 
   @override
   void initState() {
     super.initState();
     _tab = TabController(length: 2, vsync: this);
     _box = Hive.box<P2PLoan>('p2p_loans');
+    _searchCtrl.addListener(() => setState(() => _query = _searchCtrl.text.trim().toLowerCase()));
+  }
+
+  void _startSearch() => setState(() { _isSearching = true; _query = ''; _searchCtrl.clear(); });
+  void _stopSearch()  => setState(() { _isSearching = false; _query = ''; _searchCtrl.clear(); });
+
+  List<P2PLoan> _filtered(List<P2PLoan> items) {
+    if (_query.isEmpty) return items;
+    return items.where((l) {
+      final nameMatch = l.personName.toLowerCase().contains(_query);
+      final phone = (l.phoneNumber ?? '').replaceAll(' ', '');
+      final phoneMatch = phone.contains(_query.replaceAll(' ', ''));
+      return nameMatch || phoneMatch;
+    }).toList();
+  }
+
+  List<P2PLoan> _sorted(List<P2PLoan> items) {
+    final list = List<P2PLoan>.from(items);
+    switch (_sortBy) {
+      case 'overdue':
+        list.sort((a, b) {
+          final aOver = a.isFlat ? a.interestPaymentsOverdue : (a.isOverdue ? 1 : 0);
+          final bOver = b.isFlat ? b.interestPaymentsOverdue : (b.isOverdue ? 1 : 0);
+          if (bOver != aOver) return bOver.compareTo(aOver);
+          return b.amount.compareTo(a.amount);
+        });
+      case 'amount':
+        list.sort((a, b) => b.outstanding.compareTo(a.outstanding));
+      case 'name':
+        list.sort((a, b) => a.personName.toLowerCase().compareTo(b.personName.toLowerCase()));
+      case 'date':
+        list.sort((a, b) => b.date.compareTo(a.date));
+    }
+    // Settled always at bottom
+    list.sort((a, b) {
+      if (a.isSettled && !b.isSettled) return 1;
+      if (!a.isSettled && b.isSettled) return -1;
+      return 0;
+    });
+    return list;
   }
 
   @override
-  void dispose() { _tab.dispose(); super.dispose(); }
+  void dispose() { _tab.dispose(); _searchCtrl.dispose(); super.dispose(); }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return PopScope(
+      canPop: !_isSearching,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop && _isSearching) _stopSearch();
+      },
+      child: Scaffold(
       backgroundColor: AppTheme.bgLight,
       appBar: AppBar(
-        title: const Text('P2P Loan Tracker'),
-        backgroundColor: AppTheme.primaryColor, foregroundColor: Colors.white, elevation: 0,
+        backgroundColor: AppTheme.primaryColor,
+        foregroundColor: Colors.white,
+        elevation: 0,
+        leading: _isSearching
+            ? IconButton(
+                icon: const Icon(Icons.arrow_back_rounded),
+                onPressed: _stopSearch,
+              )
+            : null,
+        title: _isSearching
+            ? Container(
+                height: 40,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: TextField(
+                  controller: _searchCtrl,
+                  autofocus: true,
+                  style: const TextStyle(color: AppTheme.textDark, fontSize: 14),
+                  cursorColor: AppTheme.primaryColor,
+                  decoration: InputDecoration(
+                    hintText: 'Search by name or number…',
+                    hintStyle: const TextStyle(color: AppTheme.textLight, fontSize: 14),
+                    prefixIcon: const Icon(Icons.search_rounded, color: AppTheme.textLight, size: 18),
+                    border: InputBorder.none,
+                    contentPadding: const EdgeInsets.symmetric(vertical: 10),
+                    suffixIcon: _query.isNotEmpty
+                        ? IconButton(
+                            icon: const Icon(Icons.close_rounded, color: AppTheme.textLight, size: 18),
+                            onPressed: () => setState(() { _searchCtrl.clear(); _query = ''; }),
+                          )
+                        : null,
+                  ),
+                ),
+              )
+            : const Text('P2P Loan Tracker'),
+        actions: _isSearching
+            ? []
+            : [
+                IconButton(
+                  icon: const Icon(Icons.search_rounded),
+                  tooltip: 'Search',
+                  onPressed: _startSearch,
+                ),
+                PopupMenuButton<String>(
+                  icon: const Icon(Icons.sort_rounded),
+                  tooltip: 'Sort by',
+                  onSelected: (v) => setState(() => _sortBy = v),
+                  itemBuilder: (_) => [
+                    _sortItem('overdue', '⚠️ Overdue First', Icons.warning_rounded),
+                    _sortItem('amount', '💰 Highest Amount', Icons.trending_down_rounded),
+                    _sortItem('name', '🔤 Name (A–Z)', Icons.sort_by_alpha_rounded),
+                    _sortItem('date', '📅 Newest First', Icons.calendar_today_rounded),
+                  ],
+                ),
+              ],
         bottom: TabBar(
           controller: _tab, indicatorColor: Colors.white, labelColor: Colors.white, unselectedLabelColor: Colors.white60,
           tabs: const [
@@ -49,10 +156,26 @@ class _P2PLoanScreenState extends State<P2PLoanScreen> with SingleTickerProvider
       body: ValueListenableBuilder(
         valueListenable: _box.listenable(),
         builder: (context, Box<P2PLoan> box, _) {
-          final lent = box.values.where((l) => l.isLent).toList();
-          final borrowed = box.values.where((l) => !l.isLent).toList();
+          final allLent     = _sorted(box.values.where((l) => l.isLent).toList());
+          final allBorrowed = _sorted(box.values.where((l) => !l.isLent).toList());
+          final lent        = _filtered(allLent);
+          final borrowed    = _filtered(allBorrowed);
           return Column(children: [
-            _buildSummaryBar(lent, borrowed),
+            // Search results info bar
+            if (_isSearching && _query.isNotEmpty)
+              Container(
+                color: AppTheme.primaryColor.withValues(alpha: 0.07),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: Row(children: [
+                  Icon(Icons.info_outline_rounded, size: 14, color: AppTheme.primaryColor.withValues(alpha: 0.7)),
+                  const SizedBox(width: 8),
+                  Text(
+                    '${lent.length + borrowed.length} result${(lent.length + borrowed.length) == 1 ? '' : 's'} for "$_query"',
+                    style: TextStyle(fontSize: 12, color: AppTheme.primaryColor.withValues(alpha: 0.85), fontWeight: FontWeight.w500),
+                  ),
+                ]),
+              ),
+            if (!_isSearching) _buildSummaryBar(allLent, allBorrowed),
             Expanded(child: TabBarView(controller: _tab, children: [
               _buildList(lent, true),
               _buildList(borrowed, false),
@@ -65,8 +188,27 @@ class _P2PLoanScreenState extends State<P2PLoanScreen> with SingleTickerProvider
         backgroundColor: AppTheme.primaryColor,
         icon: const Icon(Icons.add_rounded), label: const Text('Add Entry'),
       ),
-    );
+    ),   // Scaffold
+    );   // PopScope
   }
+
+  PopupMenuItem<String> _sortItem(String value, String label, IconData icon) =>
+    PopupMenuItem<String>(
+      value: value,
+      child: Row(children: [
+        Icon(icon, size: 16, color: _sortBy == value ? AppTheme.primaryColor : AppTheme.textMedium),
+        const SizedBox(width: 10),
+        Text(label, style: TextStyle(
+          fontWeight: _sortBy == value ? FontWeight.bold : FontWeight.normal,
+          color: _sortBy == value ? AppTheme.primaryColor : AppTheme.textDark,
+          fontSize: 13,
+        )),
+        if (_sortBy == value) ...[
+          const Spacer(),
+          const Icon(Icons.check_rounded, size: 14, color: AppTheme.primaryColor),
+        ],
+      ]),
+    );
 
   Widget _buildSummaryBar(List<P2PLoan> lent, List<P2PLoan> borrowed) {
     final totalLent = lent.where((l) => !l.isSettled).fold(0.0, (s, l) => s + l.outstanding);
@@ -159,6 +301,15 @@ class _P2PLoanScreenState extends State<P2PLoanScreen> with SingleTickerProvider
 
   Widget _buildList(List<P2PLoan> items, bool isLent) {
     if (items.isEmpty) {
+      if (_isSearching && _query.isNotEmpty) {
+        return Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+          const Icon(Icons.search_off_rounded, size: 56, color: AppTheme.textLight),
+          const SizedBox(height: 12),
+          Text('No results for "$_query"', style: const TextStyle(color: AppTheme.textMedium, fontSize: 15)),
+          const SizedBox(height: 6),
+          const Text('Try a different name or number', style: TextStyle(color: AppTheme.textLight, fontSize: 13)),
+        ]));
+      }
       return Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
         Icon(isLent ? Icons.arrow_circle_up_rounded : Icons.arrow_circle_down_rounded, size: 64, color: AppTheme.textLight),
         const SizedBox(height: 12),
@@ -346,9 +497,19 @@ class _P2PLoanScreenState extends State<P2PLoanScreen> with SingleTickerProvider
 
   void _sendWhatsApp(P2PLoan loan) async {
     final amount = IndianNumberFormat.formatCompact(loan.outstanding);
-    final msg = loan.isFlat && loan.interestPaymentsOverdue > 0
-        ? 'Hi ${loan.personName}, this is a reminder that ${loan.interestPaymentsOverdue} month${loan.interestPaymentsOverdue > 1 ? 's' : ''} of interest (${IndianNumberFormat.formatCompact(loan.monthlyInterestFlat * loan.interestPaymentsOverdue)}) is pending. Please settle at the earliest. Thank you!'
-        : 'Hi ${loan.personName}, just a friendly reminder about the outstanding amount of $amount. Please let me know when it\'s convenient to settle. Thank you!';
+    String msg;
+    if (loan.isLent) {
+      // User gave the loan → remind the borrower to pay
+      msg = loan.isFlat && loan.interestPaymentsOverdue > 0
+          ? 'Hi ${loan.personName}, this is a reminder that ${loan.interestPaymentsOverdue} month${loan.interestPaymentsOverdue > 1 ? 's' : ''} of interest (${IndianNumberFormat.formatCompact(loan.monthlyInterestFlat * loan.interestPaymentsOverdue)}) is pending. Please settle at the earliest. Thank you!'
+          : 'Hi ${loan.personName}, just a friendly reminder about the outstanding amount of $amount. Please let me know when it\'s convenient to settle. Thank you!';
+    } else {
+      // User took the loan → inform the lender that they will pay
+      msg = loan.isFlat && loan.interestPaymentsOverdue > 0
+          ? 'Hi ${loan.personName}, I will be sending the pending interest payment of ${IndianNumberFormat.formatCompact(loan.monthlyInterestFlat * loan.interestPaymentsOverdue)} (${loan.interestPaymentsOverdue} month${loan.interestPaymentsOverdue > 1 ? 's' : ''}) shortly. Please confirm once received. Thank you!'
+          : 'Hi ${loan.personName}, I will be transferring the amount of $amount to you soon. Please confirm once received. Thank you!';
+    }
+    msg = '$msg\n\nShared via EMI Reminder app: ${ShareService.playStoreUrl}';
     final phone = loan.phoneNumber ?? '';
     final url = Uri.parse('https://wa.me/$phone?text=${Uri.encodeComponent(msg)}');
     try {

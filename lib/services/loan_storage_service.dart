@@ -4,6 +4,7 @@ import '../models/loan.dart';
 import '../models/savings_goal.dart';
 import '../models/p2p_loan.dart';
 import '../models/expense.dart';
+import '../models/subscription.dart';
 
 class LoanStorageService {
   static const String _boxName = 'loans';
@@ -36,6 +37,10 @@ class LoanStorageService {
         Hive.registerAdapter(ExpenseAdapter());
         debugPrint('✅ ExpenseAdapter registered');
       }
+      if (!Hive.isAdapterRegistered(4)) {
+        Hive.registerAdapter(SubscriptionAdapter());
+        debugPrint('✅ SubscriptionAdapter registered');
+      }
 
       // Open the loans box
       _loansBox = await Hive.openBox<Loan>(_boxName);
@@ -43,6 +48,7 @@ class LoanStorageService {
       if (!Hive.isBoxOpen('savings_goals')) await Hive.openBox<SavingsGoal>('savings_goals');
       if (!Hive.isBoxOpen('p2p_loans')) await Hive.openBox<P2PLoan>('p2p_loans');
       if (!Hive.isBoxOpen('expenses')) await Hive.openBox<Expense>('expenses');
+      if (!Hive.isBoxOpen('subscriptions')) await Hive.openBox<Subscription>('subscriptions');
       _isInitialized = true;
       debugPrint('✅ Loans box opened with ${_loansBox?.length ?? 0} loans');
     } catch (e) {

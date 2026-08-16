@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:timezone/data/latest.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 import '../models/loan.dart';
+import '../models/subscription.dart';
 import '../constants/app_constants.dart';
 
 class NotificationService {
@@ -36,6 +37,10 @@ class NotificationService {
   bool _isInitialized = false;
   bool _hasPermission = false;
   String _currentTimezone = 'UTC';
+
+  static const int _sevenDayReminderOffset = 900;
+  static const int _monthlySummaryNotificationId = 999999;
+  static const int _subscriptionIdRangeStart = 200000;
 
   /// Check if notifications are initialized
   bool get isInitialized => _isInitialized;
@@ -236,6 +241,15 @@ class NotificationService {
         debugPrint('❌ TEST MODE ERROR: $e');
         debugPrint('========================================');
       }
+      return;
+    }
+
+    // Always clear this loan's previous reminders first to avoid duplicates.
+    await cancelLoanReminders(loan.id);
+
+    // Completed loans should not keep generating future reminders.
+    if (loan.tenureMonths != null && loan.emisPaidCount >= loan.tenureMonths!) {
+      debugPrint('✅ Skipping schedule for completed loan: ${loan.name}');
       return;
     }
 
@@ -529,16 +543,22 @@ class NotificationService {
 
   /// Cancel reminders for a loan
   Future<void> cancelLoanReminders(String loanId, {int tenureMonths = 12}) async {
-    // Cancel all 12 notifications (4 per day × 3 days)
-    final baseId = loanId.hashCode.abs() % 100000;
     try {
-      for (int i = 0; i < 12; i++) {
-        await _flutterLocalNotificationsPlugin.cancel(baseId + i);
+      for (final id in _loanReminderIds(loanId)) {
+        await _flutterLocalNotificationsPlugin.cancel(id);
       }
       debugPrint('✅ Cancelled all notifications for loan: $loanId');
     } catch (e) {
       debugPrint('❌ Error cancelling notifications: $e');
     }
+  }
+
+  Iterable<int> _loanReminderIds(String loanId) sync* {
+    final baseId = loanId.hashCode.abs() % 100000;
+    for (int i = 0; i < 12; i++) {
+      yield baseId + i;
+    }
+    yield baseId + _sevenDayReminderOffset;
   }
 
   /// Cancel all notifications
@@ -548,6 +568,139 @@ class NotificationService {
       debugPrint('✅ All notifications cancelled');
     } catch (e) {
       debugPrint('❌ Error cancelling all notifications: $e');
+    }
+  }
+
+  /// Schedule monthly reminders for a subscription.
+  Future<void> scheduleSubscriptionReminders(Subscription subscription) async {
+    if (!_isInitialized || !_hasPermission) return;
+
+    await cancelSubscriptionReminders(subscription.id);
+
+    if (!subscription.isActive) {
+      debugPrint('✅ Skipping inactive subscription: ${subscription.name}');
+      return;
+    }
+
+    final lang = await _getCurrentLanguage();
+    final nextDue = subscription.getNextDueDate();
+    final now = DateTime.now();
+    final amount = '${_symbolForCurrency(subscription.currencyCode)}${subscription.amount.toStringAsFixed(0)}';
+
+    final day3Before = nextDue.subtract(const Duration(days: 3));
+    final day1Before = nextDue.subtract(const Duration(days: 1));
+
+    final baseId = _subscriptionBaseId(subscription.id);
+    int idx = 0;
+
+    Future<void> scheduleIfFuture(DateTime date, String title, String body) async {
+      if (!date.isAfter(now)) {
+        idx++;
+        return;
+      }
+      await _scheduleNotification(
+        id: baseId + idx,
+        title: title,
+        body: body,
+        scheduledDate: date,
+        payload: 'subscription:${subscription.id}',
+      );
+      idx++;
+    }
+
+    await scheduleIfFuture(
+      DateTime(day3Before.year, day3Before.month, day3Before.day, 9, 0),
+      _smartText(lang, {
+        'en': '📅 ${subscription.name} renews in 3 days',
+        'hi': '📅 ${subscription.name} 3 दिनों में नवीनीकरण होगा',
+        'ta': '📅 ${subscription.name} 3 நாட்களில் புதுப்பிக்கப்படும்',
+        'te': '📅 ${subscription.name} 3 రోజుల్లో రీన్యూ అవుతుంది',
+      }),
+      _smartText(lang, {
+        'en': '$amount will be charged soon. Review if you still need this plan.',
+        'hi': '$amount जल्द चार्ज होगा। देखें कि यह प्लान अभी भी चाहिए या नहीं।',
+        'ta': '$amount விரைவில் பிடிக்கப்படும். இந்த திட்டம் இன்னும் தேவையா என சரிபார்க்கவும்.',
+        'te': '$amount త్వరలో ఛార్జ్ అవుతుంది. ఈ ప్లాన్ ఇంకా అవసరమో చూడండి.',
+      }),
+    );
+
+    await scheduleIfFuture(
+      DateTime(day1Before.year, day1Before.month, day1Before.day, 9, 0),
+      _smartText(lang, {
+        'en': '🔔 ${subscription.name} renews tomorrow',
+        'hi': '🔔 ${subscription.name} कल नवीनीकरण होगा',
+        'ta': '🔔 ${subscription.name} நாளை புதுப்பிக்கப்படும்',
+        'te': '🔔 ${subscription.name} రేపు రీన్యూ అవుతుంది',
+      }),
+      _smartText(lang, {
+        'en': 'Upcoming charge: $amount. Cancel or keep it active.',
+        'hi': 'आगामी शुल्क: $amount। रद्द करें या सक्रिय रखें।',
+        'ta': 'வரவிருக்கும் கட்டணம்: $amount. ரத்து செய்யவோ தொடரவோ முடியும்.',
+        'te': 'రాబోయే ఛార్జ్: $amount. రద్దు చేయండి లేదా కొనసాగించండి.',
+      }),
+    );
+
+    await scheduleIfFuture(
+      DateTime(nextDue.year, nextDue.month, nextDue.day, 9, 0),
+      _smartText(lang, {
+        'en': '🚨 ${subscription.name} renews today',
+        'hi': '🚨 ${subscription.name} आज नवीनीकरण होगा',
+        'ta': '🚨 ${subscription.name} இன்று புதுப்பிக்கப்படும்',
+        'te': '🚨 ${subscription.name} ఈరోజు రీన్యూ అవుతుంది',
+      }),
+      _smartText(lang, {
+        'en': '$amount is due today. Mark it paid after the charge.',
+        'hi': '$amount आज देय है। चार्ज के बाद इसे पेड मार्क करें।',
+        'ta': '$amount இன்று செலுத்த வேண்டும். கட்டணம் நடந்ததும் paid ஆக குறிக்கவும்.',
+        'te': '$amount ఈరోజు చెల్లించాలి. ఛార్జ్ అయిన తర్వాత paid గా గుర్తించండి.',
+      }),
+    );
+
+    await scheduleIfFuture(
+      DateTime(nextDue.year, nextDue.month, nextDue.day, 19, 0),
+      _smartText(lang, {
+        'en': '⏰ Final reminder: ${subscription.name}',
+        'hi': '⏰ अंतिम याद दिलाना: ${subscription.name}',
+        'ta': '⏰ கடைசி நினைவூட்டல்: ${subscription.name}',
+        'te': '⏰ చివరి రిమైండర్: ${subscription.name}',
+      }),
+      _smartText(lang, {
+        'en': 'Still pending? Confirm $amount renewal status tonight.',
+        'hi': 'अभी भी लंबित है? आज रात $amount नवीनीकरण स्थिति जांचें।',
+        'ta': 'இன்னும் நிலுவையிலா? இன்று இரவு $amount புதுப்பிப்பு நிலையை உறுதிப்படுத்தவும்.',
+        'te': 'ఇంకా పెండింగ్‌లో ఉందా? ఈ రాత్రి $amount రీన్యువల్ స్థితి చూడండి.',
+      }),
+    );
+
+    debugPrint('✅ Subscription reminders scheduled for ${subscription.name} on $nextDue');
+  }
+
+  Future<void> cancelSubscriptionReminders(String subscriptionId) async {
+    if (!_isInitialized) return;
+    final baseId = _subscriptionBaseId(subscriptionId);
+    for (int i = 0; i < 4; i++) {
+      try {
+        await _flutterLocalNotificationsPlugin.cancel(baseId + i);
+      } catch (_) {}
+    }
+  }
+
+  int _subscriptionBaseId(String subscriptionId) {
+    return (subscriptionId.hashCode.abs() % 100000) + _subscriptionIdRangeStart;
+  }
+
+  String _symbolForCurrency(String code) {
+    switch (code) {
+      case 'INR':
+        return 'Rs ';
+      case 'USD':
+        return '\$';
+      case 'EUR':
+        return 'EUR ';
+      case 'GBP':
+        return 'GBP ';
+      default:
+        return '$code ';
     }
   }
 
@@ -881,7 +1034,7 @@ class NotificationService {
 
     final baseId = loan.id.hashCode.abs() % 100000;
     await _scheduleNotification(
-      id: baseId + 900,
+      id: baseId + _sevenDayReminderOffset,
       title: _smartTitle(7, lang),
       body: _smartBody(loan.name, loan.currencySymbol, loan.emiAmount, 7, lang),
       scheduledDate: scheduled,
@@ -898,8 +1051,8 @@ class NotificationService {
   Future<void> scheduleMonthSummaryNotification(List<Loan> loans) async {
     if (!_isInitialized || !_hasPermission || loans.isEmpty) return;
 
-    // Cancel previous monthly summary (id 999999)
-    await _flutterLocalNotificationsPlugin.cancel(999999);
+    // Cancel previous monthly summary before scheduling a fresh one.
+    await _flutterLocalNotificationsPlugin.cancel(_monthlySummaryNotificationId);
 
     final lang = await _getCurrentLanguage();
     final now = DateTime.now();
@@ -931,13 +1084,22 @@ class NotificationService {
     });
 
     await _scheduleNotification(
-      id: 999999,
+      id: _monthlySummaryNotificationId,
       title: title,
       body: body,
       scheduledDate: nextMonth,
       payload: 'monthly_summary',
     );
     debugPrint('✅ Monthly summary notification scheduled for $nextMonth');
+  }
+
+  Future<void> cancelMonthSummaryNotification() async {
+    try {
+      await _flutterLocalNotificationsPlugin.cancel(_monthlySummaryNotificationId);
+      debugPrint('✅ Monthly summary notification cancelled');
+    } catch (e) {
+      debugPrint('❌ Error cancelling monthly summary notification: $e');
+    }
   }
 }
 

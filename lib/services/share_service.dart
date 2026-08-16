@@ -3,7 +3,7 @@ import 'package:intl/intl.dart';
 import '../models/loan.dart';
 
 class ShareService {
-  static const _playStoreUrl =
+  static const playStoreUrl =
       'https://play.google.com/store/apps/details?id=com.santhosh.emi.emi_reminder';
 
   /// Share the app on Play Store — drives organic installs
@@ -17,7 +17,7 @@ class ShareService {
 🆓 Free & works offline
 
 📲 Download now:
-$_playStoreUrl
+${ShareService.playStoreUrl}
 
 #EMIReminder #LoanTracker #PersonalFinance''';
 
@@ -72,7 +72,7 @@ $_playStoreUrl
     }
     buffer.writeln('');
     buffer.writeln('_Tracked with EMI Reminder App 📱_');
-    buffer.writeln(_playStoreUrl);
+    buffer.writeln(ShareService.playStoreUrl);
 
     await Share.share(buffer.toString(), subject: '${loan.name} — Loan Summary');
   }
@@ -104,7 +104,7 @@ $_playStoreUrl
     }
     buffer.writeln('');
     buffer.writeln('_Tracked with EMI Reminder App 📱_');
-    buffer.writeln(_playStoreUrl);
+    buffer.writeln(ShareService.playStoreUrl);
 
     await Share.share(buffer.toString(), subject: 'My Monthly EMI Overview');
   }

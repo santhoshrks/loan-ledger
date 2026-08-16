@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../models/p2p_loan.dart';
 import '../services/notification_service.dart';
+import '../services/share_service.dart';
 import '../theme/app_theme.dart';
 import '../utils/indian_number_format.dart';
 
@@ -89,6 +90,26 @@ class _P2PLoanDetailScreenState extends State<P2PLoanDetailScreen> {
               padding: const EdgeInsets.symmetric(vertical: 14),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
         )),
+        // Collect all overdue at once
+        if (overdue > 1) ...[
+          const SizedBox(height: 10),
+          SizedBox(width: double.infinity, child: ElevatedButton.icon(
+            onPressed: () => _collectAllOverdue(overdue, monthlyInt),
+            icon: const Icon(Icons.playlist_add_check_rounded),
+            label: Text(
+              loan.isLent
+                  ? 'Collect All $overdue Months (${IndianNumberFormat.formatCompact(monthlyInt * overdue)})'
+                  : 'Pay All $overdue Months (${IndianNumberFormat.formatCompact(monthlyInt * overdue)})',
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.statusError,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+            ),
+          )),
+        ],
         const SizedBox(height: 10),
         SizedBox(width: double.infinity, child: OutlinedButton.icon(
           onPressed: _recordPrincipalRepayment,
@@ -400,6 +421,10 @@ class _P2PLoanDetailScreenState extends State<P2PLoanDetailScreen> {
           final p = entry.value;
           final isInterest = p['type'] == 'I';
           final c = isInterest ? AppTheme.statusSuccess : AppTheme.primaryColor;
+          // Label: EMI Payment for reducing loans, Interest/Principal for flat
+          final entryLabel = loan.isFlat
+              ? (isInterest ? 'Interest Payment' : 'Principal Repayment')
+              : (isInterest ? 'EMI Payment' : 'Principal Repayment');
           return Dismissible(
             key: ValueKey('payment_${i}_${(p['date'] as DateTime).millisecondsSinceEpoch}_${p['amount']}'),
             direction: DismissDirection.endToStart,
@@ -426,7 +451,7 @@ class _P2PLoanDetailScreenState extends State<P2PLoanDetailScreen> {
                     child: Icon(isInterest ? Icons.payments_rounded : Icons.account_balance_rounded, size: 14, color: c)),
                 const SizedBox(width: 10),
                 Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(isInterest ? 'Interest Payment' : 'Principal Repayment',
+                  Text(entryLabel,
                       style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: c)),
                   Text(DateFormat('d MMM yyyy').format(p['date'] as DateTime),
                       style: const TextStyle(fontSize: 11, color: AppTheme.textLight)),
@@ -434,7 +459,6 @@ class _P2PLoanDetailScreenState extends State<P2PLoanDetailScreen> {
                 Text(IndianNumberFormat.formatCompact(p['amount'] as double),
                     style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: c)),
                 const SizedBox(width: 8),
-                // Edit button
                 GestureDetector(
                   onTap: () => _editPayment(i, p),
                   child: Container(
@@ -446,7 +470,6 @@ class _P2PLoanDetailScreenState extends State<P2PLoanDetailScreen> {
                   ),
                 ),
                 const SizedBox(width: 6),
-                // Delete button
                 GestureDetector(
                   onTap: () async {
                     final confirmed = await _confirmDeletePayment(i, p);
@@ -634,7 +657,9 @@ class _P2PLoanDetailScreenState extends State<P2PLoanDetailScreen> {
       if (hasTenure) ...[_infoCard(color, emi), const SizedBox(height: 16)],
       if (hasTenure) ...[_scheduleCard(emi), const SizedBox(height: 16)],
       _repaymentCard(),
-      const SizedBox(height: 24),
+      const SizedBox(height: 16),
+      _paymentHistoryCard(),
+      const SizedBox(height: 8),
       if (!loan.isSettled)
         SizedBox(width: double.infinity, child: ElevatedButton.icon(
           onPressed: _showEmiRepaySheet,
@@ -1044,43 +1069,125 @@ class _P2PLoanDetailScreenState extends State<P2PLoanDetailScreen> {
   }
 
   void _showEmiRepaySheet() {
-    final ctrl = TextEditingController();
+    final ctrl = TextEditingController(
+        text: loan.monthlyEmi > 0 ? loan.monthlyEmi.toStringAsFixed(0) : '');
+    DateTime paymentDate = DateTime.now();
     showModalBottomSheet(
       context: context, isScrollControlled: true,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (_) => Padding(
-        padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom + 24, left: 20, right: 20, top: 24),
-        child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text('Record Payment — ${loan.personName}', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 4),
-          Text('Outstanding: ${IndianNumberFormat.formatCompact(loan.outstanding)}',
-              style: const TextStyle(fontSize: 12, color: AppTheme.textLight)),
-          const SizedBox(height: 16),
-          TextField(controller: ctrl, autofocus: true,
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'))],
-            decoration: InputDecoration(labelText: 'Amount Paid',
-              hintText: loan.monthlyEmi > 0 ? loan.monthlyEmi.toStringAsFixed(0) : null,
-              prefixIcon: const Icon(Icons.currency_rupee_rounded, color: AppTheme.primaryColor),
-              filled: true, fillColor: AppTheme.bgLight,
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none)),
-          ),
-          const SizedBox(height: 14),
-          SizedBox(width: double.infinity, child: ElevatedButton(
-            onPressed: () async {
-              final amt = double.tryParse(ctrl.text) ?? 0;
-              if (amt <= 0) return;
-              loan.repaidAmount = (loan.repaidAmount + amt).clamp(0, loan.amount);
-              await loan.save();
-              if (mounted) { Navigator.pop(context); setState(() {}); }
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryColor, foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
-            child: const Text('Save Payment', style: TextStyle(fontWeight: FontWeight.bold)),
-          )),
-        ]),
+      builder: (_) => StatefulBuilder(
+        builder: (ctx, setInner) => SingleChildScrollView(
+          padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom + 24, left: 20, right: 20, top: 24),
+          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text('Record EMI Payment — ${loan.personName}',
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 4),
+            Text('Outstanding: ${IndianNumberFormat.formatCompact(loan.outstanding)}  •  '
+                '${loan.monthsPaid}/${loan.tenureMonths ?? '?'} EMIs done',
+                style: const TextStyle(fontSize: 12, color: AppTheme.textLight)),
+            const SizedBox(height: 16),
+            TextField(controller: ctrl, autofocus: true,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'))],
+              decoration: InputDecoration(labelText: 'EMI Amount',
+                prefixIcon: const Icon(Icons.currency_rupee_rounded, color: AppTheme.primaryColor),
+                filled: true, fillColor: AppTheme.bgLight,
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none)),
+            ),
+            const SizedBox(height: 12),
+            // Date picker
+            GestureDetector(
+              onTap: () async {
+                final picked = await showDatePicker(
+                  context: context,
+                  initialDate: paymentDate,
+                  firstDate: loan.date,
+                  lastDate: DateTime.now(),
+                  helpText: 'When was the EMI paid?',
+                );
+                if (picked != null) setInner(() => paymentDate = picked);
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+                decoration: BoxDecoration(
+                  color: AppTheme.bgLight, borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: AppTheme.primaryColor.withValues(alpha: 0.3)),
+                ),
+                child: Row(children: [
+                  const Icon(Icons.edit_calendar_rounded, color: AppTheme.primaryColor, size: 18),
+                  const SizedBox(width: 10),
+                  Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    const Text('Payment Date', style: TextStyle(fontSize: 11, color: AppTheme.textLight)),
+                    const SizedBox(height: 2),
+                    Text(DateFormat('d MMM yyyy').format(paymentDate),
+                        style: const TextStyle(fontSize: 13, color: AppTheme.textDark, fontWeight: FontWeight.w600)),
+                  ])),
+                  const Icon(Icons.chevron_right_rounded, size: 16, color: AppTheme.textLight),
+                ]),
+              ),
+            ),
+            const SizedBox(height: 14),
+            SizedBox(width: double.infinity, child: ElevatedButton(
+              onPressed: () async {
+                final amt = double.tryParse(ctrl.text) ?? 0;
+                if (amt <= 0) return;
+                loan.repaidAmount = (loan.repaidAmount + amt).clamp(0, loan.amount);
+                loan.addPaymentEntry(paymentDate, amt, 'I');
+                await loan.save();
+                if (mounted) { Navigator.pop(context); setState(() {}); }
+              },
+              style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryColor, foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+              child: const Text('Save Payment', style: TextStyle(fontWeight: FontWeight.bold)),
+            )),
+          ]),
+        ),
       ),
     );
+  }
+
+  void _collectAllOverdue(int overdue, double monthlyInt) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: Text(loan.isLent ? 'Collect All Overdue?' : 'Pay All Overdue?'),
+        content: Text(
+          'Record $overdue monthly payments of '
+          '${IndianNumberFormat.formatCompact(monthlyInt)} each\n\n'
+          'Total: ${IndianNumberFormat.formatCompact(monthlyInt * overdue)}\n\n'
+          'Each month will be logged separately.',
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(foregroundColor: AppTheme.statusError),
+            child: Text(loan.isLent ? 'Collect All' : 'Pay All',
+                style: const TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    // Find all unpaid months and log each one
+    final now = DateTime.now();
+    for (int i = 0; i < loan.monthsElapsed; i++) {
+      final monthDate = DateTime(loan.date.year, loan.date.month + i, 1);
+      if (monthDate.isAfter(DateTime(now.year, now.month))) break;
+      if (!_isMonthPaid(monthDate)) {
+        loan.repaidAmount += monthlyInt;
+        loan.addPaymentEntry(monthDate, monthlyInt, 'I');
+      }
+    }
+    await loan.save();
+    if (mounted) setState(() {});
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('✅ $overdue months recorded — ${IndianNumberFormat.formatCompact(monthlyInt * overdue)} total'),
+        backgroundColor: AppTheme.statusSuccess,
+      ));
+    }
   }
 
   void _showEditSheet(BuildContext context) {
@@ -1242,15 +1349,30 @@ class _P2PLoanDetailScreenState extends State<P2PLoanDetailScreen> {
 
   void _sendWhatsApp() async {
     String msg;
-    if (loan.isFlat) {
-      final overdue = loan.interestPaymentsOverdue;
-      final mi = loan.monthlyInterestFlat;
-      msg = overdue > 0
-          ? 'Hi ${loan.personName}, this is a reminder that $overdue month${overdue > 1 ? 's' : ''} of interest (${IndianNumberFormat.formatCompact(mi * overdue)}) is pending. Kindly pay at the earliest. Thank you!'
-          : 'Hi ${loan.personName}, just a reminder about the monthly interest payment of ${IndianNumberFormat.formatCompact(mi)}. Thank you!';
+    if (loan.isLent) {
+      // User gave the loan → remind the borrower to pay
+      if (loan.isFlat) {
+        final overdue = loan.interestPaymentsOverdue;
+        final mi = loan.monthlyInterestFlat;
+        msg = overdue > 0
+            ? 'Hi ${loan.personName}, this is a reminder that $overdue month${overdue > 1 ? 's' : ''} of interest (${IndianNumberFormat.formatCompact(mi * overdue)}) is pending. Kindly pay at the earliest. Thank you!'
+            : 'Hi ${loan.personName}, just a reminder about the monthly interest payment of ${IndianNumberFormat.formatCompact(mi)}. Thank you!';
+      } else {
+        msg = 'Hi ${loan.personName}, just a friendly reminder about the outstanding amount of ${IndianNumberFormat.formatCompact(loan.outstanding)}. Please let me know when it\'s convenient to settle. Thank you!';
+      }
     } else {
-      msg = 'Hi ${loan.personName}, just a friendly reminder about the outstanding amount of ${IndianNumberFormat.formatCompact(loan.outstanding)}. Please let me know when it\'s convenient to settle. Thank you!';
+      // User took the loan → inform the lender that they will pay
+      if (loan.isFlat) {
+        final overdue = loan.interestPaymentsOverdue;
+        final mi = loan.monthlyInterestFlat;
+        msg = overdue > 0
+            ? 'Hi ${loan.personName}, I will be sending the pending interest of ${IndianNumberFormat.formatCompact(mi * overdue)} ($overdue month${overdue > 1 ? 's' : ''}) to you shortly. Please confirm once received. Thank you!'
+            : 'Hi ${loan.personName}, I will be transferring the monthly interest of ${IndianNumberFormat.formatCompact(mi)} to you shortly. Please confirm once received. Thank you!';
+      } else {
+        msg = 'Hi ${loan.personName}, I will be transferring the outstanding amount of ${IndianNumberFormat.formatCompact(loan.outstanding)} to you soon. Please confirm once received. Thank you!';
+      }
     }
+    msg = '$msg\n\nShared via EMI Reminder app: ${ShareService.playStoreUrl}';
     final phone = loan.phoneNumber ?? '';
     final url = Uri.parse('https://wa.me/$phone?text=${Uri.encodeComponent(msg)}');
     try {

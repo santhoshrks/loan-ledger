@@ -6,6 +6,8 @@ import 'package:provider/provider.dart';
 import 'package:in_app_review/in_app_review.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/loan.dart';
+import '../models/subscription.dart';
+import '../models/p2p_loan.dart';
 import '../services/loan_storage_service.dart';
 import '../services/notification_service.dart';
 import '../services/language_provider.dart';
@@ -38,8 +40,9 @@ import 'consolidation_planner_screen.dart';
 import 'yearly_summary_screen.dart';
 import 'ai_advisor_screen.dart';
 import 'savings_goal_screen.dart';
-import 'p2p_loan_screen.dart';
 import 'expense_tracker_screen.dart';
+import 'subscription_screen.dart';
+import 'p2p_onboarding_screen.dart';
 
 
 class HomeScreen extends StatefulWidget {
@@ -56,13 +59,18 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
+class _HomeScreenState extends State<HomeScreen>
+    with TickerProviderStateMixin, WidgetsBindingObserver {
   late LoanStorageService _storageService;
   late NotificationService _notificationService;
   late BackupService _backupService;
   late AnimationController _fabAnimationController;
   bool _isInitialized = false;
   String? _initError;
+  bool _isReminderSyncInProgress = false;
+
+  static const String _lastReminderSyncAtKey = 'last_reminder_sync_at';
+  static const Duration _resumeSyncCooldown = Duration(hours: 6);
 
   // Loan data
   List<Loan> _loans = [];
@@ -83,11 +91,19 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _fabAnimationController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 300),
     );
     _initializeServices();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _syncRemindersForActiveLoans(trigger: 'resume');
+    }
   }
 
   Future<void> _initializeServices() async {
@@ -123,10 +139,15 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         // Schedule monthly summary notification
         if (_loans.isNotEmpty) {
           _notificationService.scheduleMonthSummaryNotification(_loans);
+        } else {
+          _notificationService.cancelMonthSummaryNotification();
         }
 
         // Check if backup reminder should be shown
         _checkBackupReminder();
+
+        // One-time app-open sync catches stale reminder state after app kill.
+        _syncRemindersForActiveLoans(trigger: 'app_open');
       }
     } catch (e) {
       if (mounted) {
@@ -139,11 +160,80 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     if (_isInitialized) {
       Hive.box<Loan>('loans').listenable().removeListener(_onLoansChanged);
     }
     _fabAnimationController.dispose();
     super.dispose();
+  }
+
+  Future<void> _syncRemindersForActiveLoans({
+    required String trigger,
+    bool force = false,
+  }) async {
+    if (!_isInitialized || _initError != null || _isReminderSyncInProgress) {
+      return;
+    }
+
+    final shouldSync = await _shouldRunReminderSync(force: force);
+    if (!shouldSync) {
+      return;
+    }
+
+    _isReminderSyncInProgress = true;
+    try {
+      final loans = _storageService.getAllLoans();
+      for (final loan in loans) {
+        await _notificationService.scheduleLoadReminders(loan);
+      }
+
+      final subscriptions = Hive.box<Subscription>('subscriptions').values.toList();
+      for (final subscription in subscriptions) {
+        await _notificationService.scheduleSubscriptionReminders(subscription);
+      }
+
+      if (loans.isNotEmpty) {
+        await _notificationService.scheduleMonthSummaryNotification(loans);
+      } else {
+        await _notificationService.cancelMonthSummaryNotification();
+      }
+
+      debugPrint(
+        '✅ Reminder sync complete ($trigger): ${loans.length} loans, '
+        '${subscriptions.length} subscriptions',
+      );
+    } catch (e) {
+      debugPrint('❌ Reminder sync failed ($trigger): $e');
+    } finally {
+      _isReminderSyncInProgress = false;
+    }
+  }
+
+  Future<bool> _shouldRunReminderSync({bool force = false}) async {
+    if (force) {
+      await _setLastReminderSyncTimestamp();
+      return true;
+    }
+
+    final prefs = await SharedPreferences.getInstance();
+    final lastSyncMillis = prefs.getInt(_lastReminderSyncAtKey);
+    final now = DateTime.now();
+
+    if (lastSyncMillis != null) {
+      final lastSync = DateTime.fromMillisecondsSinceEpoch(lastSyncMillis);
+      if (now.difference(lastSync) < _resumeSyncCooldown) {
+        return false;
+      }
+    }
+
+    await _setLastReminderSyncTimestamp();
+    return true;
+  }
+
+  Future<void> _setLastReminderSyncTimestamp() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(_lastReminderSyncAtKey, DateTime.now().millisecondsSinceEpoch);
   }
 
   Widget _buildBody() {
@@ -159,6 +249,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           SliverToBoxAdapter(child: _buildHeader()),
           SliverToBoxAdapter(child: const SizedBox(height: 16)),
           SliverToBoxAdapter(child: _buildDashboard(_loans)),
+          SliverToBoxAdapter(child: _buildP2POverviewCard()),
           SliverToBoxAdapter(child: _buildQuickActions()),
           SliverToBoxAdapter(child: _buildLoansHeader()),
           ..._buildLoansList(_loans),
@@ -439,6 +530,173 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
   }
 
+  Widget _buildP2POverviewCard() {
+    if (!Hive.isBoxOpen('p2p_loans')) {
+      return const SizedBox.shrink();
+    }
+    final p2pBox = Hive.box<P2PLoan>('p2p_loans');
+    return ValueListenableBuilder<Box<P2PLoan>>(
+      valueListenable: p2pBox.listenable(),
+      builder: (context, box, _) {
+        final loans = box.values.toList();
+        final lentOutstanding = loans
+            .where((loan) => loan.isLent && !loan.isSettled)
+            .fold<double>(0, (sum, loan) => sum + loan.outstanding);
+        final borrowedOutstanding = loans
+            .where((loan) => !loan.isLent && !loan.isSettled)
+            .fold<double>(0, (sum, loan) => sum + loan.outstanding);
+        final overdueCount = loans.where((loan) => !loan.isSettled && loan.isOverdue).length;
+        final activeCount = loans.where((loan) => !loan.isSettled).length;
+        return GestureDetector(
+          onTap: () => openP2PFlow(context, _notificationService),
+          child: Container(
+            margin: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(18),
+              boxShadow: [
+                BoxShadow(
+                  color: AppTheme.primaryColor.withValues(alpha: 0.08),
+                  blurRadius: 14,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 36,
+                      height: 36,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF3B82F6).withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(
+                        Icons.people_alt_rounded,
+                        color: Color(0xFF3B82F6),
+                        size: 18,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'P2P overview',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF1F2937),
+                            ),
+                          ),
+                          Text(
+                            '$activeCount live entries',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: AppTheme.textMedium,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (overdueCount > 0)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: AppTheme.statusError.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        child: Text(
+                          '$overdueCount overdue',
+                          style: const TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            color: AppTheme.statusError,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF22C55E).withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Lent',
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF166534),
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              IndianNumberFormat.formatCompact(lentOutstanding),
+                              style: const TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF166534),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF59E0B).withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Borrowed',
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF92400E),
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              IndianNumberFormat.formatCompact(borrowedOutstanding),
+                              style: const TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF92400E),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
   Widget _buildStatPill({
     required IconData icon,
     required String value,
@@ -575,6 +833,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                               () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ExpenseTrackerScreen()))),
                           _MenuItem(Icons.savings_rounded, 'Savings Goals', const Color(0xFF10B981),
                               () => Navigator.push(context, MaterialPageRoute(builder: (_) => SavingsGoalScreen(loans: _storageService.getAllLoans())))),
+                          _MenuItem(Icons.subscriptions_rounded, 'Subscriptions', const Color(0xFF6366F1),
+                              () => Navigator.push(context, MaterialPageRoute(builder: (_) => SubscriptionScreen(notificationService: _notificationService)))),
                         ]),
                         const SizedBox(height: 20),
                         // Settings row
@@ -599,6 +859,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                             Expanded(child: _menuTileWide(ctx, Icons.summarize_rounded, 'Share Summary', const Color(0xFF10B981), () {
                               HapticService.light();
                               ShareService.shareMonthlyOverview(_storageService.getAllLoans());
+                            })),
+                            const SizedBox(width: 10),
+                            Expanded(child: _menuTileWide(ctx, Icons.star_rate_rounded, 'Rate App', const Color(0xFFF59E0B), () {
+                              HapticService.light();
+                              _rateApp();
                             })),
                           ],
                         ),
@@ -722,12 +987,17 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           children: [
             Icon(icon, color: color, size: 22),
             const SizedBox(height: 6),
-            Text(label,
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.grey[700],
-                )),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: Colors.grey[700],
+              ),
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
           ],
         ),
       ),
@@ -736,8 +1006,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   Widget _buildQuickActions() {
     final actions = [
+      _QuickAction(Icons.subscriptions_rounded, 'Subscriptions', const Color(0xFF6366F1),
+          () => Navigator.push(context, MaterialPageRoute(builder: (_) => SubscriptionScreen(notificationService: _notificationService)))),
       _QuickAction(Icons.people_rounded, 'P2P', const Color(0xFF3B82F6),
-          () => Navigator.push(context, MaterialPageRoute(builder: (_) => P2PLoanScreen(notificationService: _notificationService)))),
+          () => openP2PFlow(context, _notificationService)),
       _QuickAction(Icons.account_balance_wallet_rounded, 'Expenses', const Color(0xFFF97316),
           () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ExpenseTrackerScreen()))),
       _QuickAction(Icons.calculate_rounded, 'Calculator', const Color(0xFF6366F1),
@@ -1506,14 +1778,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     await loan.save();
     debugPrint('After save: isPaid = ${loan.isPaid}, emisPaidCount = ${loan.emisPaidCount}');
 
-    // Cancel current month's notifications
-    await _notificationService.cancelLoanReminders(
-      loan.id,
-      tenureMonths: loan.tenureMonths ?? 60,
-    );
-
-    // Schedule notifications for next month's due date
-    // The loan stays marked as paid, but notifications are scheduled for next month
+    // Service-level scheduling is idempotent and cleans old reminders first.
     await _notificationService.scheduleLoadReminders(loan);
 
     // Check if this was the FINAL EMI — trigger celebration 🎉
@@ -1554,6 +1819,36 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         }
       }
     } catch (_) {}
+  }
+
+  Future<void> _rateApp() async {
+    try {
+      await _requestReviewWithStoreFallback();
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Unable to open rating now. Please try again.')),
+      );
+    }
+  }
+
+  Future<void> _requestReviewWithStoreFallback() async {
+    final inAppReview = InAppReview.instance;
+    final available = await inAppReview.isAvailable();
+    if (!available) {
+      await inAppReview.openStoreListing();
+      return;
+    }
+
+    // Play may silently skip the in-app dialog due to quota/policy.
+    // Heuristic: if request completes too quickly, open store listing fallback.
+    final timer = Stopwatch()..start();
+    await inAppReview.requestReview();
+    timer.stop();
+
+    if (timer.elapsedMilliseconds < 900) {
+      await inAppReview.openStoreListing();
+    }
   }
 
   Future<dynamic> _getPrefs() async {
@@ -2007,12 +2302,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
 
     try {
-      // Cancel all existing notifications first
-      await _notificationService.cancelAllNotifications();
-
       // Get all loans and reschedule
       final loans = _storageService.getAllLoans();
       int scheduledLoans = 0;
+      int scheduledSubscriptions = 0;
 
       for (final loan in loans) {
         debugPrint('Scheduling for loan: ${loan.name}, Due day: ${loan.dueDay}');
@@ -2020,6 +2313,20 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         await _notificationService.scheduleLoadReminders(loan);
         scheduledLoans++;
       }
+
+      final subscriptions = Hive.box<Subscription>('subscriptions').values.toList();
+      for (final subscription in subscriptions) {
+        await _notificationService.scheduleSubscriptionReminders(subscription);
+        scheduledSubscriptions++;
+      }
+
+      if (loans.isNotEmpty) {
+        await _notificationService.scheduleMonthSummaryNotification(loans);
+      } else {
+        await _notificationService.cancelMonthSummaryNotification();
+      }
+
+      await _setLastReminderSyncTimestamp();
 
       // Get updated pending count
       final pendingCount = await _notificationService.getPendingNotificationsCount();
@@ -2030,6 +2337,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           SnackBar(
             content: Text(
               '✅ Rescheduled reminders for $scheduledLoans loans. '
+              '$scheduledSubscriptions subscriptions. '
               '$pendingCount notifications pending.',
             ),
             backgroundColor: AppTheme.statusSuccess,

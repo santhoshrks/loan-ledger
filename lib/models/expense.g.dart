@@ -24,7 +24,7 @@ class ExpenseAdapter extends TypeAdapter<Expense> {
       category: fields[4] as String,
       date: fields[5] as DateTime,
       note: fields[6] as String?,
-      currencyCode: fields[7] == null ? 'INR' : fields[7] as String,
+      currencyCode: fields[7] as String,
       paymentMethod: fields[8] as String?,
     );
   }
@@ -63,4 +63,3 @@ class ExpenseAdapter extends TypeAdapter<Expense> {
           runtimeType == other.runtimeType &&
           typeId == other.typeId;
 }
-
