@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:math';
 import '../models/loan.dart';
+import '../services/analytics_service.dart';
+import '../services/loan_template_service.dart';
 import '../services/loan_storage_service.dart';
 import '../services/notification_service.dart';
 import '../theme/app_theme.dart';
@@ -12,12 +15,14 @@ class AddLoanScreen extends StatefulWidget {
   final LoanStorageService storageService;
   final NotificationService notificationService;
   final Loan? existingLoan;
+  final bool showQuickStartTemplates;
 
   const AddLoanScreen({
     super.key,
     required this.storageService,
     required this.notificationService,
     this.existingLoan,
+    this.showQuickStartTemplates = false,
   });
 
   @override
@@ -37,9 +42,11 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
 
   DateTime? _selectedStartDate;
   bool _isLoading = false;
+  bool _templateApplied = false;
   final _formKey = GlobalKey<FormState>();
   String _selectedLoanType = 'Other';
-  String _selectedCurrency = 'INR'; // Default currency (overridden from locale on init)
+  String _selectedCurrency =
+      'INR'; // Default currency (overridden from locale on init)
 
   final List<Map<String, dynamic>> _loanTypes = [
     {'name': 'Home Loan', 'icon': Icons.home_rounded},
@@ -65,7 +72,12 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
     // UK / Europe
     'Lloyds Bank', 'NatWest', 'Santander', 'BNP Paribas',
     // India
-    'SBI', 'HDFC Bank', 'ICICI Bank', 'Axis Bank', 'Kotak Mahindra', 'Bajaj Finance',
+    'SBI',
+    'HDFC Bank',
+    'ICICI Bank',
+    'Axis Bank',
+    'Kotak Mahindra',
+    'Bajaj Finance',
     // Southeast Asia
     'Maybank', 'CIMB', 'DBS', 'BRI', 'BCA', 'BDO', 'BPI',
     // Others
@@ -116,7 +128,9 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
       // Try to determine loan type from name (legacy)
       final name = loan.name.toLowerCase();
       for (var type in _loanTypes) {
-        if (name.contains(type['name'].toString().toLowerCase().split(' ')[0])) {
+        if (name.contains(
+          type['name'].toString().toLowerCase().split(' ')[0],
+        )) {
           _selectedLoanType = type['name'];
           break;
         }
@@ -144,7 +158,10 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
                   color: Colors.white.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Icon(Icons.arrow_back_rounded, color: Colors.white),
+                child: const Icon(
+                  Icons.arrow_back_rounded,
+                  color: Colors.white,
+                ),
               ),
               onPressed: () => Navigator.pop(context),
             ),
@@ -162,8 +179,8 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
                       children: [
                         Text(
                           widget.existingLoan == null
-                            ? AppLocalizations.of(context).addLoanTitle
-                            : AppLocalizations.of(context).editLoanTitle,
+                              ? AppLocalizations.of(context).addLoanTitle
+                              : AppLocalizations.of(context).editLoanTitle,
                           style: const TextStyle(
                             color: Colors.white,
                             fontSize: 28,
@@ -173,7 +190,9 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
                         const SizedBox(height: 4),
                         Text(
                           widget.existingLoan == null
-                              ? AppLocalizations.of(context).trackYourEmiPayments
+                              ? AppLocalizations.of(
+                                  context,
+                                ).trackYourEmiPayments
                               : AppLocalizations.of(context).updateLoanDetails,
                           style: TextStyle(
                             color: Colors.white.withValues(alpha: 0.8),
@@ -196,6 +215,12 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    if (widget.existingLoan == null &&
+                        widget.showQuickStartTemplates) ...[
+                      _buildQuickStartTemplates(),
+                      const SizedBox(height: 24),
+                    ],
+
                     // Loan Type Selection
                     _buildSectionTitle(AppLocalizations.of(context).loanType),
                     const SizedBox(height: 12),
@@ -203,7 +228,9 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
                     const SizedBox(height: 24),
 
                     // Loan Name
-                    _buildSectionTitle(AppLocalizations.of(context).loanDetails),
+                    _buildSectionTitle(
+                      AppLocalizations.of(context).loanDetails,
+                    ),
                     const SizedBox(height: 12),
                     _buildTextField(
                       controller: _nameController,
@@ -231,14 +258,21 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
                           child: _buildTextField(
                             controller: _emiController,
                             label: AppLocalizations.of(context).emiAmount,
-                            hint: '${CurrencyHelper.getSymbol(_selectedCurrency)}0',
+                            hint:
+                                '${CurrencyHelper.getSymbol(_selectedCurrency)}0',
                             icon: Icons.payments_rounded,
                             keyboardType: TextInputType.number,
-                            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                            inputFormatters: [
+                              FilteringTextInputFormatter.digitsOnly,
+                            ],
                             onChanged: (_) => setState(() {}),
                             validator: (value) {
-                              if (value?.isEmpty ?? true) return 'Required';
-                              if (double.tryParse(value!) == null) return 'Invalid';
+                              if (value?.isEmpty ?? true) {
+                                return 'Required';
+                              }
+                              if (double.tryParse(value!) == null) {
+                                return 'Invalid';
+                              }
                               return null;
                             },
                           ),
@@ -257,8 +291,12 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
                       inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                       onChanged: (_) => setState(() {}),
                       validator: (value) {
-                        if (value?.isEmpty ?? true) return 'Required';
-                        if (int.tryParse(value!) == null) return 'Invalid';
+                        if (value?.isEmpty ?? true) {
+                          return 'Required';
+                        }
+                        if (int.tryParse(value!) == null) {
+                          return 'Invalid';
+                        }
                         return null;
                       },
                     ),
@@ -272,14 +310,24 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
                         hint: _getExpectedEmisPaid().toString(),
                         icon: Icons.check_circle_rounded,
                         keyboardType: TextInputType.number,
-                        inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                        helperText: 'Your loan started ${_getMonthsSinceStart()} months ago. Enter how many EMIs you\'ve already paid.',
+                        inputFormatters: [
+                          FilteringTextInputFormatter.digitsOnly,
+                        ],
+                        helperText:
+                            'Your loan started ${_getMonthsSinceStart()} months ago. Enter how many EMIs you\'ve already paid.',
                         validator: (value) {
-                          if (value?.isEmpty ?? true) return null; // Optional
+                          if (value?.isEmpty ?? true) {
+                            return null;
+                          } // Optional
                           final paid = int.tryParse(value!);
-                          if (paid == null || paid < 0) return 'Invalid';
-                          final tenure = int.tryParse(_tenureController.text) ?? 0;
-                          if (tenure > 0 && paid > tenure) return 'Cannot exceed tenure';
+                          if (paid == null || paid < 0) {
+                            return 'Invalid';
+                          }
+                          final tenure =
+                              int.tryParse(_tenureController.text) ?? 0;
+                          if (tenure > 0 && paid > tenure) {
+                            return 'Cannot exceed tenure';
+                          }
                           return null;
                         },
                       ),
@@ -291,7 +339,9 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
                     const SizedBox(height: 24),
 
                     // Due Date
-                    _buildSectionTitle(AppLocalizations.of(context).paymentSchedule),
+                    _buildSectionTitle(
+                      AppLocalizations.of(context).paymentSchedule,
+                    ),
                     const SizedBox(height: 12),
                     Row(
                       children: [
@@ -302,9 +352,13 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
                             hint: '1-31',
                             icon: Icons.calendar_month_rounded,
                             keyboardType: TextInputType.number,
-                            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                            inputFormatters: [
+                              FilteringTextInputFormatter.digitsOnly,
+                            ],
                             validator: (value) {
-                              if (value?.isEmpty ?? true) return 'Required';
+                              if (value?.isEmpty ?? true) {
+                                return 'Required';
+                              }
                               final day = int.tryParse(value!);
                               if (day == null || day < 1 || day > 31) {
                                 return 'Invalid day';
@@ -314,15 +368,15 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
                           ),
                         ),
                         const SizedBox(width: 12),
-                        Expanded(
-                          child: _buildDatePicker(),
-                        ),
+                        Expanded(child: _buildDatePicker()),
                       ],
                     ),
                     const SizedBox(height: 24),
 
                     // Optional Details
-                    _buildSectionTitle(AppLocalizations.of(context).additionalDetails),
+                    _buildSectionTitle(
+                      AppLocalizations.of(context).additionalDetails,
+                    ),
                     const SizedBox(height: 12),
                     Row(
                       children: [
@@ -330,10 +384,13 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
                           child: _buildTextField(
                             controller: _loanAmountController,
                             label: AppLocalizations.of(context).loanAmount,
-                            hint: '${CurrencyHelper.getSymbol(_selectedCurrency)}0',
+                            hint:
+                                '${CurrencyHelper.getSymbol(_selectedCurrency)}0',
                             icon: Icons.account_balance_wallet_rounded,
                             keyboardType: TextInputType.number,
-                            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                            inputFormatters: [
+                              FilteringTextInputFormatter.digitsOnly,
+                            ],
                           ),
                         ),
                         const SizedBox(width: 12),
@@ -343,7 +400,9 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
                             label: AppLocalizations.of(context).interestRate,
                             hint: '0%',
                             icon: Icons.percent_rounded,
-                            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                            keyboardType: const TextInputType.numberWithOptions(
+                              decimal: true,
+                            ),
                           ),
                         ),
                       ],
@@ -400,10 +459,12 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
               setState(() {
                 // Check if current name matches any loan type (auto-generated) in any language
                 final l = AppLocalizations.of(context);
-                final isAutoName = _loanTypes.any((t) =>
-                    _nameController.text == t['name'] ||
-                    _nameController.text == l.getLoanTypeName(t['name']) ||
-                    _nameController.text.isEmpty);
+                final isAutoName = _loanTypes.any(
+                  (t) =>
+                      _nameController.text == t['name'] ||
+                      _nameController.text == l.getLoanTypeName(t['name']) ||
+                      _nameController.text.isEmpty,
+                );
 
                 _selectedLoanType = type['name'];
 
@@ -416,12 +477,16 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
             },
             child: Container(
               width: 80,
-              margin: EdgeInsets.only(right: index < _loanTypes.length - 1 ? 12 : 0),
+              margin: EdgeInsets.only(
+                right: index < _loanTypes.length - 1 ? 12 : 0,
+              ),
               decoration: BoxDecoration(
                 color: isSelected ? AppTheme.primaryColor : AppTheme.bgCard,
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(
-                  color: isSelected ? AppTheme.primaryColor : AppTheme.textLight.withValues(alpha: 0.2),
+                  color: isSelected
+                      ? AppTheme.primaryColor
+                      : AppTheme.textLight.withValues(alpha: 0.2),
                   width: isSelected ? 2 : 1,
                 ),
                 boxShadow: isSelected ? AppTheme.cardShadow : null,
@@ -436,7 +501,9 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    AppLocalizations.of(context).getLoanTypeName(type['name']).split(' ')[0],
+                    AppLocalizations.of(
+                      context,
+                    ).getLoanTypeName(type['name']).split(' ')[0],
                     style: TextStyle(
                       color: isSelected ? Colors.white : AppTheme.textMedium,
                       fontSize: 11,
@@ -481,10 +548,7 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
             children: [
               Text(
                 'Currency',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: AppTheme.textMedium,
-                ),
+                style: TextStyle(fontSize: 12, color: AppTheme.textMedium),
               ),
               const SizedBox(height: 4),
               Row(
@@ -586,8 +650,10 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
                     ),
                     subtitle: Text(CurrencyHelper.getName(code)),
                     trailing: isSelected
-                        ? Icon(Icons.check_circle_rounded,
-                            color: AppTheme.primaryColor)
+                        ? Icon(
+                            Icons.check_circle_rounded,
+                            color: AppTheme.primaryColor,
+                          )
                         : null,
                   );
                 },
@@ -641,7 +707,10 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
           ),
           filled: true,
           fillColor: AppTheme.bgCard,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 20,
+            vertical: 18,
+          ),
         ),
       ),
     );
@@ -667,10 +736,7 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
                 children: [
                   Text(
                     AppLocalizations.of(context).startDate,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: AppTheme.textMedium,
-                    ),
+                    style: TextStyle(fontSize: 12, color: AppTheme.textMedium),
                   ),
                   const SizedBox(height: 4),
                   Text(
@@ -733,7 +799,10 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
                   color: Colors.white.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(12),
@@ -841,8 +910,8 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
                   const SizedBox(width: 8),
                   Text(
                     widget.existingLoan == null
-                      ? AppLocalizations.of(context).addLoan
-                      : AppLocalizations.of(context).save,
+                        ? AppLocalizations.of(context).addLoan
+                        : AppLocalizations.of(context).save,
                     style: const TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
@@ -907,7 +976,9 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
         emiAmount: double.parse(_emiController.text),
         dueDay: int.parse(_dueDayController.text),
         startDate: _selectedStartDate!,
-        notes: _notesController.text.isEmpty ? null : _notesController.text.trim(),
+        notes: _notesController.text.isEmpty
+            ? null
+            : _notesController.text.trim(),
         loanAmount: _loanAmountController.text.isEmpty
             ? null
             : double.tryParse(_loanAmountController.text),
@@ -921,7 +992,9 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
         emisPaidCount: _emisPaidController.text.isEmpty
             ? 0
             : int.tryParse(_emisPaidController.text) ?? 0,
-        bankName: _bankNameController.text.isEmpty ? null : _bankNameController.text.trim(),
+        bankName: _bankNameController.text.isEmpty
+            ? null
+            : _bankNameController.text.trim(),
         loanTypeName: _selectedLoanType,
       );
 
@@ -929,6 +1002,11 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
         await widget.storageService.updateLoan(widget.existingLoan!.id, loan);
       } else {
         await widget.storageService.addLoan(loan);
+        await AnalyticsService.trackLoanCreated(
+          loanType: _selectedLoanType,
+          fromTemplate: _templateApplied,
+        );
+        await _markQuickStartTemplatesSeen();
       }
 
       // Schedule reminders
@@ -957,13 +1035,149 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
     return '${timestamp}_$random';
   }
 
+  Widget _buildQuickStartTemplates() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Quick Start (Recommended)',
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: AppTheme.textDark,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Tap a template to prefill common values. You can edit everything before saving.',
+          style: TextStyle(
+            fontSize: 13,
+            color: AppTheme.textMedium,
+            height: 1.4,
+          ),
+        ),
+        const SizedBox(height: 12),
+        SizedBox(
+          height: 128,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: LoanTemplateService.firstLoanTemplates.length,
+            separatorBuilder: (context, index) => const SizedBox(width: 10),
+            itemBuilder: (context, index) {
+              final template = LoanTemplateService.firstLoanTemplates[index];
+              return InkWell(
+                borderRadius: BorderRadius.circular(16),
+                onTap: () => _applyTemplate(template),
+                child: Ink(
+                  width: 210,
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: AppTheme.primaryColor.withValues(alpha: 0.18),
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.04),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: BoxDecoration(
+                              color: AppTheme.primaryColor.withValues(
+                                alpha: 0.1,
+                              ),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: const Icon(
+                              Icons.flash_on_rounded,
+                              size: 16,
+                              color: AppTheme.primaryColor,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              template.title,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w700,
+                                color: AppTheme.textDark,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        template.subtitle,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: AppTheme.textMedium,
+                        ),
+                      ),
+                      const Spacer(),
+                      Text(
+                        '${CurrencyHelper.getSymbol(_selectedCurrency)}${template.suggestedEmi}/mo  •  ${template.suggestedTenureMonths}m',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: AppTheme.primaryColor,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _applyTemplate(LoanQuickTemplate template) {
+    setState(() {
+      _templateApplied = true;
+      _selectedLoanType = template.loanType;
+      _nameController.text = template.suggestedName;
+      _emiController.text = template.suggestedEmi.toString();
+      _tenureController.text = template.suggestedTenureMonths.toString();
+      _dueDayController.text = template.suggestedDueDay.toString();
+      _interestRateController.text = template.suggestedInterestRate
+          .toStringAsFixed(1);
+      _selectedStartDate = DateTime.now();
+      _emisPaidController.text = '0';
+    });
+  }
+
+  Future<void> _markQuickStartTemplatesSeen() async {
+    if (!widget.showQuickStartTemplates) return;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('first_add_loan_quick_start_seen', true);
+  }
+
   /// Check if start date is in the past (before current month)
   bool _isStartDateInPast() {
     if (_selectedStartDate == null) return false;
     final now = DateTime.now();
     // Consider past if start date is before current month
     return _selectedStartDate!.year < now.year ||
-        (_selectedStartDate!.year == now.year && _selectedStartDate!.month < now.month);
+        (_selectedStartDate!.year == now.year &&
+            _selectedStartDate!.month < now.month);
   }
 
   /// Get months since start date (including start month)
@@ -972,7 +1186,8 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
     final now = DateTime.now();
     // June 2025 to January 2026 = 8 months (including both June and January)
     return (now.year - _selectedStartDate!.year) * 12 +
-           (now.month - _selectedStartDate!.month) + 1;
+        (now.month - _selectedStartDate!.month) +
+        1;
   }
 
   /// Get expected EMIs paid based on months since start
@@ -1018,12 +1233,17 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
                 });
               },
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
                   color: isSelected ? AppTheme.primaryColor : AppTheme.bgLight,
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(
-                    color: isSelected ? AppTheme.primaryColor : AppTheme.textLight,
+                    color: isSelected
+                        ? AppTheme.primaryColor
+                        : AppTheme.textLight,
                   ),
                 ),
                 child: Text(

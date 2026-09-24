@@ -3,9 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'screens/home_screen.dart';
-import 'screens/onboarding_screen.dart';
 import 'screens/splash_screen.dart';
+import 'services/analytics_service.dart';
 import 'services/loan_storage_service.dart';
 import 'services/notification_service.dart';
 import 'services/language_provider.dart';
@@ -33,31 +32,43 @@ Future<void> main() async {
   NotificationService? notificationService;
   final languageProvider = LanguageProvider();
 
-  try {
-    storageService = LoanStorageService();
-    await storageService.init();
-    debugPrint('✅ Storage service initialized');
-  } catch (e) {
-    debugPrint('❌ Storage service error: $e');
-  }
-
-  try {
-    notificationService = NotificationService();
-    await notificationService.init();
-    debugPrint('✅ Notification service initialized');
-  } catch (e) {
-    debugPrint('❌ Notification service error: $e');
-  }
-
-  try {
-    await languageProvider.init();
-    debugPrint('✅ Language provider initialized');
-  } catch (e) {
-    debugPrint('❌ Language provider error: $e');
-  }
+  await Future.wait([
+    () async {
+      try {
+        storageService = LoanStorageService();
+        await storageService!.init();
+        debugPrint('✅ Storage service initialized');
+      } catch (e) {
+        debugPrint('❌ Storage service error: $e');
+      }
+    }(),
+    () async {
+      try {
+        notificationService = NotificationService();
+        await notificationService!.init();
+        debugPrint('✅ Notification service initialized');
+      } catch (e) {
+        debugPrint('❌ Notification service error: $e');
+      }
+    }(),
+    () async {
+      try {
+        await languageProvider.init();
+        debugPrint('✅ Language provider initialized');
+      } catch (e) {
+        debugPrint('❌ Language provider error: $e');
+      }
+    }(),
+  ]);
 
   final prefs = await SharedPreferences.getInstance();
   final onboardingDone = prefs.getBool('onboarding_done') ?? false;
+
+  try {
+    await AnalyticsService.track('app_opened');
+  } catch (e) {
+    debugPrint('❌ Analytics event error: $e');
+  }
 
   runApp(
     MultiProvider(
@@ -112,8 +123,8 @@ class EmiReminderApp extends StatelessWidget {
             Locale('gu'),
             Locale('id'),
             Locale('fil'),
-            Locale('ur'),  // Urdu — Pakistan
-            Locale('es'),  // Spanish — Mexico, Colombia, Argentina, etc.
+            Locale('ur'), // Urdu — Pakistan
+            Locale('es'), // Spanish — Mexico, Colombia, Argentina, etc.
           ],
           // Splash screen handles routing to onboarding or home
           home: SplashScreen(

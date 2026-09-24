@@ -1,5 +1,6 @@
 import 'dart:ui';
 import 'package:flutter/foundation.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -8,30 +9,31 @@ import 'package:timezone/timezone.dart' as tz;
 import '../models/loan.dart';
 import '../models/subscription.dart';
 import '../constants/app_constants.dart';
+import 'reminder_experiment_service.dart';
 
 class NotificationService {
   static const AndroidNotificationDetails androidDetails =
       AndroidNotificationDetails(
-    NotificationConstants.channelId,
-    NotificationConstants.channelName,
-    channelDescription: NotificationConstants.channelDescription,
-    importance: Importance.max,
-    priority: Priority.high,
-    playSound: true,
-    enableVibration: true,
-    enableLights: true,
-    ledColor: Color.fromARGB(255, 99, 102, 241),
-    ledOnMs: 1000,
-    ledOffMs: 500,
-    icon: '@mipmap/ic_launcher',
-    largeIcon: DrawableResourceAndroidBitmap('@mipmap/ic_launcher'),
-    styleInformation: BigTextStyleInformation(''),
-    ticker: 'EMI Reminder',
-    visibility: NotificationVisibility.public,
-    category: AndroidNotificationCategory.reminder,
-    fullScreenIntent: true,
-    autoCancel: true,
-  );
+        NotificationConstants.channelId,
+        NotificationConstants.channelName,
+        channelDescription: NotificationConstants.channelDescription,
+        importance: Importance.max,
+        priority: Priority.high,
+        playSound: true,
+        enableVibration: true,
+        enableLights: true,
+        ledColor: Color.fromARGB(255, 99, 102, 241),
+        ledOnMs: 1000,
+        ledOffMs: 500,
+        icon: '@mipmap/ic_launcher',
+        largeIcon: DrawableResourceAndroidBitmap('@mipmap/ic_launcher'),
+        styleInformation: BigTextStyleInformation(''),
+        ticker: 'EMI Reminder',
+        visibility: NotificationVisibility.public,
+        category: AndroidNotificationCategory.reminder,
+        fullScreenIntent: true,
+        autoCancel: true,
+      );
 
   late FlutterLocalNotificationsPlugin _flutterLocalNotificationsPlugin;
   bool _isInitialized = false;
@@ -67,22 +69,21 @@ class NotificationService {
       requestSoundPermission: true,
     );
 
-    const settings = InitializationSettings(
-      android: android,
-      iOS: iOS,
-    );
+    const settings = InitializationSettings(android: android, iOS: iOS);
 
     try {
       await _flutterLocalNotificationsPlugin.initialize(
         settings,
         onDidReceiveNotificationResponse: _onNotificationTapped,
-        onDidReceiveBackgroundNotificationResponse: _onBackgroundNotificationTapped,
+        onDidReceiveBackgroundNotificationResponse:
+            _onBackgroundNotificationTapped,
       );
 
       // Get Android-specific implementation
       final androidImplementation = _flutterLocalNotificationsPlugin
           .resolvePlatformSpecificImplementation<
-              AndroidFlutterLocalNotificationsPlugin>();
+            AndroidFlutterLocalNotificationsPlugin
+          >();
 
       if (androidImplementation != null) {
         // Create notification channel (required for Android 8.0+)
@@ -98,19 +99,24 @@ class NotificationService {
           showBadge: true,
         );
         await androidImplementation.createNotificationChannel(channel);
-        debugPrint('✅ Notification channel created: ${NotificationConstants.channelId}');
+        debugPrint(
+          '✅ Notification channel created: ${NotificationConstants.channelId}',
+        );
 
         // Request notification permission (Android 13+)
-        final notifPermission = await androidImplementation.requestNotificationsPermission();
+        final notifPermission = await androidImplementation
+            .requestNotificationsPermission();
         _hasPermission = notifPermission ?? false;
         debugPrint('✅ Notification permission granted: $_hasPermission');
 
         // Request exact alarm permission (Android 12+)
-        final alarmPermission = await androidImplementation.requestExactAlarmsPermission();
+        final alarmPermission = await androidImplementation
+            .requestExactAlarmsPermission();
         debugPrint('✅ Exact alarm permission granted: $alarmPermission');
 
         // Check if notifications are enabled
-        final areEnabled = await androidImplementation.areNotificationsEnabled();
+        final areEnabled = await androidImplementation
+            .areNotificationsEnabled();
         debugPrint('✅ Notifications enabled: $areEnabled');
       }
 
@@ -159,36 +165,33 @@ class NotificationService {
     // Common timezone mappings
     final timezoneMap = {
       // Asia
-      '5:30': 'Asia/Kolkata',      // India
-      '5:45': 'Asia/Kathmandu',    // Nepal
-      '6:0': 'Asia/Dhaka',         // Bangladesh
-      '6:30': 'Asia/Yangon',       // Myanmar
-      '7:0': 'Asia/Bangkok',       // Thailand, Vietnam
-      '8:0': 'Asia/Singapore',     // Singapore, Malaysia, Philippines
-      '9:0': 'Asia/Tokyo',         // Japan, Korea
-      '9:30': 'Australia/Darwin',  // Australia Central
-      '10:0': 'Australia/Sydney',  // Australia Eastern
-      '11:0': 'Pacific/Noumea',    // New Caledonia
-      '12:0': 'Pacific/Auckland',  // New Zealand
-
+      '5:30': 'Asia/Kolkata', // India
+      '5:45': 'Asia/Kathmandu', // Nepal
+      '6:0': 'Asia/Dhaka', // Bangladesh
+      '6:30': 'Asia/Yangon', // Myanmar
+      '7:0': 'Asia/Bangkok', // Thailand, Vietnam
+      '8:0': 'Asia/Singapore', // Singapore, Malaysia, Philippines
+      '9:0': 'Asia/Tokyo', // Japan, Korea
+      '9:30': 'Australia/Darwin', // Australia Central
+      '10:0': 'Australia/Sydney', // Australia Eastern
+      '11:0': 'Pacific/Noumea', // New Caledonia
+      '12:0': 'Pacific/Auckland', // New Zealand
       // Middle East
-      '3:0': 'Asia/Riyadh',        // Saudi Arabia, East Africa
-      '3:30': 'Asia/Tehran',       // Iran
-      '4:0': 'Asia/Dubai',         // UAE
-      '4:30': 'Asia/Kabul',        // Afghanistan
-
+      '3:0': 'Asia/Riyadh', // Saudi Arabia, East Africa
+      '3:30': 'Asia/Tehran', // Iran
+      '4:0': 'Asia/Dubai', // UAE
+      '4:30': 'Asia/Kabul', // Afghanistan
       // Europe
-      '0:0': 'Europe/London',      // UK (GMT)
-      '1:0': 'Europe/Paris',       // Central Europe, West Africa
-      '2:0': 'Europe/Helsinki',    // Eastern Europe, Egypt
-
+      '0:0': 'Europe/London', // UK (GMT)
+      '1:0': 'Europe/Paris', // Central Europe, West Africa
+      '2:0': 'Europe/Helsinki', // Eastern Europe, Egypt
       // Americas
-      '-5:0': 'America/New_York',  // US Eastern
-      '-6:0': 'America/Chicago',   // US Central
-      '-7:0': 'America/Denver',    // US Mountain
+      '-5:0': 'America/New_York', // US Eastern
+      '-6:0': 'America/Chicago', // US Central
+      '-7:0': 'America/Denver', // US Mountain
       '-8:0': 'America/Los_Angeles', // US Pacific
       '-3:0': 'America/Sao_Paulo', // Brazil
-      '-4:0': 'America/Caracas',   // Venezuela, Atlantic
+      '-4:0': 'America/Caracas', // Venezuela, Atlantic
     };
 
     final key = '$hours:${minutes.abs()}';
@@ -217,7 +220,14 @@ class NotificationService {
 
     final currencySymbol = loan.currencySymbol;
     final lang = await _getCurrentLanguage();
-    final translatedLoanName = _getTranslatedLoanName(loan.name, lang);
+    final translatedLoanName = _getTranslatedLoanName(
+      loan.loanTypeName ?? loan.name,
+      lang,
+    );
+    final notificationLoanName = _buildReminderLoanName(
+      loan,
+      translatedLoanName,
+    );
 
     if (testMode) {
       // TEST MODE: Show immediate notification to verify it works
@@ -226,7 +236,8 @@ class NotificationService {
       debugPrint('Loan: ${loan.name}, EMI: ${loan.emiAmount}');
       try {
         final testTitle = '🔔 ${_getLocalizedText('emiReminderTest', lang)}';
-        final testBody = '$translatedLoanName - $currencySymbol${loan.emiAmount.toStringAsFixed(0)} ${_getLocalizedText('notificationWorking', lang)}';
+        final testBody =
+            '$translatedLoanName - $currencySymbol${loan.emiAmount.toStringAsFixed(0)} ${_getLocalizedText('notificationWorking', lang)}';
 
         await _flutterLocalNotificationsPlugin.show(
           DateTime.now().millisecondsSinceEpoch ~/ 1000,
@@ -271,20 +282,43 @@ class NotificationService {
     debugPrint('   1 day before: $day1Before');
     debugPrint('   Current time: $now');
 
-    // Notification times: 9 AM, 1 PM, 5 PM, 9 PM (every 4 hours)
-    final notificationHours = [9, 13, 17, 21];
+    final bucket = await ReminderExperimentService.getOrAssignBucket();
+    final notificationHours = ReminderExperimentService.getHoursForBucket(
+      bucket,
+    );
+    final dueIn3DaysCount = _countDueLoansForStage(3);
+    final dueTomorrowCount = _countDueLoansForStage(1);
+    final dueTodayCount = _countDueLoansForStage(0);
+    final remainingEmis = _remainingEmis(loan);
+
+    debugPrint('   Reminder timing bucket: $bucket -> $notificationHours');
 
     int notificationIndex = 0;
     int scheduledCount = 0;
 
     // Day 1: 3 days before due date
     for (int hour in notificationHours) {
-      final scheduledDate = DateTime(day3Before.year, day3Before.month, day3Before.day, hour, 0, 0);
+      final scheduledDate = DateTime(
+        day3Before.year,
+        day3Before.month,
+        day3Before.day,
+        hour,
+        0,
+        0,
+      );
       if (scheduledDate.isAfter(now)) {
         final success = await _scheduleNotification(
           id: baseId + notificationIndex,
           title: _smartTitle(3, lang),
-          body: _smartBody(loan.name, currencySymbol, loan.emiAmount, 3, lang),
+          body: _smartBody(
+            loanName: notificationLoanName,
+            symbol: currencySymbol,
+            amount: loan.emiAmount,
+            daysLeft: 3,
+            lang: lang,
+            dueLoansCount: dueIn3DaysCount,
+            emisRemaining: remainingEmis,
+          ),
           scheduledDate: scheduledDate,
           payload: loan.id,
         );
@@ -295,12 +329,27 @@ class NotificationService {
 
     // Day 2: 1 day before due date
     for (int hour in notificationHours) {
-      final scheduledDate = DateTime(day1Before.year, day1Before.month, day1Before.day, hour, 0, 0);
+      final scheduledDate = DateTime(
+        day1Before.year,
+        day1Before.month,
+        day1Before.day,
+        hour,
+        0,
+        0,
+      );
       if (scheduledDate.isAfter(now)) {
         final success = await _scheduleNotification(
           id: baseId + notificationIndex,
           title: _smartTitle(1, lang),
-          body: _smartBody(loan.name, currencySymbol, loan.emiAmount, 1, lang),
+          body: _smartBody(
+            loanName: notificationLoanName,
+            symbol: currencySymbol,
+            amount: loan.emiAmount,
+            daysLeft: 1,
+            lang: lang,
+            dueLoansCount: dueTomorrowCount,
+            emisRemaining: remainingEmis,
+          ),
           scheduledDate: scheduledDate,
           payload: loan.id,
         );
@@ -311,12 +360,27 @@ class NotificationService {
 
     // Day 3: On due date
     for (int hour in notificationHours) {
-      final scheduledDate = DateTime(dueDay.year, dueDay.month, dueDay.day, hour, 0, 0);
+      final scheduledDate = DateTime(
+        dueDay.year,
+        dueDay.month,
+        dueDay.day,
+        hour,
+        0,
+        0,
+      );
       if (scheduledDate.isAfter(now)) {
         final success = await _scheduleNotification(
           id: baseId + notificationIndex,
           title: _smartTitle(0, lang),
-          body: _smartBody(loan.name, currencySymbol, loan.emiAmount, 0, lang),
+          body: _smartBody(
+            loanName: notificationLoanName,
+            symbol: currencySymbol,
+            amount: loan.emiAmount,
+            daysLeft: 0,
+            lang: lang,
+            dueLoansCount: dueTodayCount,
+            emisRemaining: remainingEmis,
+          ),
           scheduledDate: scheduledDate,
           payload: loan.id,
         );
@@ -325,7 +389,9 @@ class NotificationService {
       notificationIndex++;
     }
 
-    debugPrint('✅ Scheduled $scheduledCount out of $notificationIndex notifications for ${loan.name}');
+    debugPrint(
+      '✅ Scheduled $scheduledCount out of $notificationIndex notifications for ${loan.name}',
+    );
 
     // Also schedule 7-day advance smart reminder
     await scheduleSevenDayReminder(loan);
@@ -403,8 +469,10 @@ class NotificationService {
       },
       'dueToday': {
         'en': 'is due today! Pay now to avoid late fees.',
-        'ta': 'இன்று செலுத்த வேண்டும்! தாமதக் கட்டணத்தைத் தவிர்க்க இப்போதே செலுத்துங்கள்.',
-        'te': 'ఈరోజు చెల్లించాలి! ఆలస్య రుసుము నివారించడానికి ఇప్పుడే చెల్లించండి.',
+        'ta':
+            'இன்று செலுத்த வேண்டும்! தாமதக் கட்டணத்தைத் தவிர்க்க இப்போதே செலுத்துங்கள்.',
+        'te':
+            'ఈరోజు చెల్లించాలి! ఆలస్య రుసుము నివారించడానికి ఇప్పుడే చెల్లించండి.',
         'hi': 'आज देय है! विलंब शुल्क से बचने के लिए अभी भुगतान करें।',
       },
       'emiReminderTest': {
@@ -426,10 +494,14 @@ class NotificationService {
         'hi': 'टेस्ट नोटिफिकेशन',
       },
       'testNotificationBody': {
-        'en': 'EMI Reminder is working! You will receive timely reminders for your EMI payments.',
-        'ta': 'EMI நினைவூட்டல் வேலை செய்கிறது! உங்கள் EMI கட்டணங்களுக்கு சரியான நேரத்தில் நினைவூட்டல்களைப் பெறுவீர்கள்.',
-        'te': 'EMI రిమైండర్ పని చేస్తోంది! మీ EMI చెల్లింపులకు సకాలంలో రిమైండర్లు అందుకుంటారు.',
-        'hi': 'EMI रिमाइंडर काम कर रहा है! आपको अपने EMI भुगतान के लिए समय पर रिमाइंडर मिलेंगे।',
+        'en':
+            'EMI Reminder is working! You will receive timely reminders for your EMI payments.',
+        'ta':
+            'EMI நினைவூட்டல் வேலை செய்கிறது! உங்கள் EMI கட்டணங்களுக்கு சரியான நேரத்தில் நினைவூட்டல்களைப் பெறுவீர்கள்.',
+        'te':
+            'EMI రిమైండర్ పని చేస్తోంది! మీ EMI చెల్లింపులకు సకాలంలో రిమైండర్లు అందుకుంటారు.',
+        'hi':
+            'EMI रिमाइंडर काम कर रहा है! आपको अपने EMI भुगतान के लिए समय पर रिमाइंडर मिलेंगे।',
       },
     };
 
@@ -443,11 +515,27 @@ class NotificationService {
     final loanTypes = {
       'home loan': {'ta': 'வீட்டுக் கடன்', 'te': 'గృహ రుణం', 'hi': 'गृह ऋण'},
       'car loan': {'ta': 'வாகனக் கடன்', 'te': 'వాహన రుణం', 'hi': 'कार ऋण'},
-      'personal loan': {'ta': 'தனிநபர் கடன்', 'te': 'వ్యక్తిగత రుణం', 'hi': 'व्यक्तिगत ऋण'},
-      'education loan': {'ta': 'கல்விக் கடன்', 'te': 'విద్యా రుణం', 'hi': 'शिक्षा ऋण'},
-      'business loan': {'ta': 'தொழில் கடன்', 'te': 'వ్యాపార రుణం', 'hi': 'व्यापार ऋण'},
+      'personal loan': {
+        'ta': 'தனிநபர் கடன்',
+        'te': 'వ్యక్తిగత రుణం',
+        'hi': 'व्यक्तिगत ऋण',
+      },
+      'education loan': {
+        'ta': 'கல்விக் கடன்',
+        'te': 'విద్యా రుణం',
+        'hi': 'शिक्षा ऋण',
+      },
+      'business loan': {
+        'ta': 'தொழில் கடன்',
+        'te': 'వ్యాపార రుణం',
+        'hi': 'व्यापार ऋण',
+      },
       'gold loan': {'ta': 'நகைக்கடன்', 'te': 'బంగారు రుణం', 'hi': 'स्वर्ण ऋण'},
-      'credit card': {'ta': 'கிரெடிட் கார்டு', 'te': 'క్రెడిట్ కార్డ్', 'hi': 'क्रेडिट कार्ड'},
+      'credit card': {
+        'ta': 'கிரெடிட் கார்டு',
+        'te': 'క్రెడిట్ కార్డ్',
+        'hi': 'क्रेडिट कार्ड',
+      },
     };
 
     for (var entry in loanTypes.entries) {
@@ -471,17 +559,18 @@ class NotificationService {
 
       // Prevent scheduling past dates
       if (scheduledDate.isBefore(now)) {
-        debugPrint('⏭️ Skipping notification $id - scheduled date ($scheduledDate) is in the past');
+        debugPrint(
+          '⏭️ Skipping notification $id - scheduled date ($scheduledDate) is in the past',
+        );
         return false;
       }
 
       // Use zonedSchedule for all future notifications
-      final tzScheduledDate = tz.TZDateTime.from(
-        scheduledDate,
-        tz.local,
-      );
+      final tzScheduledDate = tz.TZDateTime.from(scheduledDate, tz.local);
 
-      debugPrint('⏰ Scheduling notification $id at $tzScheduledDate (local: $scheduledDate)');
+      debugPrint(
+        '⏰ Scheduling notification $id at $tzScheduledDate (local: $scheduledDate)',
+      );
 
       // Try alarmClock mode first (better for Chinese phones like Realme, Xiaomi, OPPO)
       try {
@@ -499,7 +588,9 @@ class NotificationService {
         debugPrint('✅ Notification $id scheduled with alarmClock mode');
         return true;
       } catch (alarmClockError) {
-        debugPrint('⚠️ alarmClock mode failed: $alarmClockError, trying exactAllowWhileIdle...');
+        debugPrint(
+          '⚠️ alarmClock mode failed: $alarmClockError, trying exactAllowWhileIdle...',
+        );
       }
 
       // Fallback to exactAllowWhileIdle
@@ -515,10 +606,14 @@ class NotificationService {
               UILocalNotificationDateInterpretation.absoluteTime,
           payload: payload,
         );
-        debugPrint('✅ Notification $id scheduled with exactAllowWhileIdle mode');
+        debugPrint(
+          '✅ Notification $id scheduled with exactAllowWhileIdle mode',
+        );
         return true;
       } catch (exactError) {
-        debugPrint('⚠️ exactAllowWhileIdle failed: $exactError, trying inexact...');
+        debugPrint(
+          '⚠️ exactAllowWhileIdle failed: $exactError, trying inexact...',
+        );
       }
 
       // Final fallback to inexact
@@ -542,7 +637,10 @@ class NotificationService {
   }
 
   /// Cancel reminders for a loan
-  Future<void> cancelLoanReminders(String loanId, {int tenureMonths = 12}) async {
+  Future<void> cancelLoanReminders(
+    String loanId, {
+    int tenureMonths = 12,
+  }) async {
     try {
       for (final id in _loanReminderIds(loanId)) {
         await _flutterLocalNotificationsPlugin.cancel(id);
@@ -585,7 +683,8 @@ class NotificationService {
     final lang = await _getCurrentLanguage();
     final nextDue = subscription.getNextDueDate();
     final now = DateTime.now();
-    final amount = '${_symbolForCurrency(subscription.currencyCode)}${subscription.amount.toStringAsFixed(0)}';
+    final amount =
+        '${_symbolForCurrency(subscription.currencyCode)}${subscription.amount.toStringAsFixed(0)}';
 
     final day3Before = nextDue.subtract(const Duration(days: 3));
     final day1Before = nextDue.subtract(const Duration(days: 1));
@@ -593,7 +692,11 @@ class NotificationService {
     final baseId = _subscriptionBaseId(subscription.id);
     int idx = 0;
 
-    Future<void> scheduleIfFuture(DateTime date, String title, String body) async {
+    Future<void> scheduleIfFuture(
+      DateTime date,
+      String title,
+      String body,
+    ) async {
       if (!date.isAfter(now)) {
         idx++;
         return;
@@ -617,9 +720,12 @@ class NotificationService {
         'te': '📅 ${subscription.name} 3 రోజుల్లో రీన్యూ అవుతుంది',
       }),
       _smartText(lang, {
-        'en': '$amount will be charged soon. Review if you still need this plan.',
-        'hi': '$amount जल्द चार्ज होगा। देखें कि यह प्लान अभी भी चाहिए या नहीं।',
-        'ta': '$amount விரைவில் பிடிக்கப்படும். இந்த திட்டம் இன்னும் தேவையா என சரிபார்க்கவும்.',
+        'en':
+            '$amount will be charged soon. Review if you still need this plan.',
+        'hi':
+            '$amount जल्द चार्ज होगा। देखें कि यह प्लान अभी भी चाहिए या नहीं।',
+        'ta':
+            '$amount விரைவில் பிடிக்கப்படும். இந்த திட்டம் இன்னும் தேவையா என சரிபார்க்கவும்.',
         'te': '$amount త్వరలో ఛార్జ్ అవుతుంది. ఈ ప్లాన్ ఇంకా అవసరమో చూడండి.',
       }),
     );
@@ -651,8 +757,10 @@ class NotificationService {
       _smartText(lang, {
         'en': '$amount is due today. Mark it paid after the charge.',
         'hi': '$amount आज देय है। चार्ज के बाद इसे पेड मार्क करें।',
-        'ta': '$amount இன்று செலுத்த வேண்டும். கட்டணம் நடந்ததும் paid ஆக குறிக்கவும்.',
-        'te': '$amount ఈరోజు చెల్లించాలి. ఛార్జ్ అయిన తర్వాత paid గా గుర్తించండి.',
+        'ta':
+            '$amount இன்று செலுத்த வேண்டும். கட்டணம் நடந்ததும் paid ஆக குறிக்கவும்.',
+        'te':
+            '$amount ఈరోజు చెల్లించాలి. ఛార్జ్ అయిన తర్వాత paid గా గుర్తించండి.',
       }),
     );
 
@@ -667,12 +775,16 @@ class NotificationService {
       _smartText(lang, {
         'en': 'Still pending? Confirm $amount renewal status tonight.',
         'hi': 'अभी भी लंबित है? आज रात $amount नवीनीकरण स्थिति जांचें।',
-        'ta': 'இன்னும் நிலுவையிலா? இன்று இரவு $amount புதுப்பிப்பு நிலையை உறுதிப்படுத்தவும்.',
-        'te': 'ఇంకా పెండింగ్‌లో ఉందా? ఈ రాత్రి $amount రీన్యువల్ స్థితి చూడండి.',
+        'ta':
+            'இன்னும் நிலுவையிலா? இன்று இரவு $amount புதுப்பிப்பு நிலையை உறுதிப்படுத்தவும்.',
+        'te':
+            'ఇంకా పెండింగ్‌లో ఉందా? ఈ రాత్రి $amount రీన్యువల్ స్థితి చూడండి.',
       }),
     );
 
-    debugPrint('✅ Subscription reminders scheduled for ${subscription.name} on $nextDue');
+    debugPrint(
+      '✅ Subscription reminders scheduled for ${subscription.name} on $nextDue',
+    );
   }
 
   Future<void> cancelSubscriptionReminders(String subscriptionId) async {
@@ -714,8 +826,8 @@ class NotificationService {
     required String loanId,
     required String personName,
     required double monthlyInterest,
-    required int dueDay,         // 1-31: day of month interest is due
-    required bool isLent,        // true = they owe you, false = you owe them
+    required int dueDay, // 1-31: day of month interest is due
+    required bool isLent, // true = they owe you, false = you owe them
   }) async {
     if (!_isInitialized) return;
 
@@ -727,13 +839,15 @@ class NotificationService {
 
     // Compute the next occurrence of dueDay
     int year = now.year, month = now.month;
-    int clampedDay(int y, int m) =>
-        dueDay.clamp(1, DateTime(y, m + 1, 0).day);
+    int clampedDay(int y, int m) => dueDay.clamp(1, DateTime(y, m + 1, 0).day);
 
     DateTime nextDue = DateTime(year, month, clampedDay(year, month));
     if (!nextDue.isAfter(now)) {
       month++;
-      if (month > 12) { month = 1; year++; }
+      if (month > 12) {
+        month = 1;
+        year++;
+      }
       nextDue = DateTime(year, month, clampedDay(year, month));
     }
 
@@ -749,15 +863,15 @@ class NotificationService {
     if (isLent) {
       // You gave the loan — remind to collect
       body = 'Collect $amtStr interest from $personName today';
-      title3Days  = '💰 Collect from $personName in 3 days';
-      title1Day   = '💰 Collect from $personName tomorrow';
+      title3Days = '💰 Collect from $personName in 3 days';
+      title1Day = '💰 Collect from $personName tomorrow';
       titleMorning = '🔔 Collect $amtStr from $personName today!';
       titleEvening = '⏰ Still pending: collect $amtStr from $personName';
     } else {
       // You took the loan — remind to pay
       body = 'You need to pay $amtStr interest to $personName today';
-      title3Days  = '💸 Pay $personName interest in 3 days';
-      title1Day   = '💸 Pay $personName interest tomorrow';
+      title3Days = '💸 Pay $personName interest in 3 days';
+      title1Day = '💸 Pay $personName interest tomorrow';
       titleMorning = '🔔 Pay $amtStr to $personName today!';
       titleEvening = '⏰ Don\'t forget: pay $amtStr to $personName';
     }
@@ -798,7 +912,9 @@ class NotificationService {
       titleEvening,
     );
 
-    debugPrint('✅ P2P reminders scheduled for $personName — next due: $nextDue');
+    debugPrint(
+      '✅ P2P reminders scheduled for $personName — next due: $nextDue',
+    );
   }
 
   /// Cancel all scheduled reminders for a P2P loan
@@ -848,7 +964,8 @@ class NotificationService {
   /// Get pending notifications count
   Future<int> getPendingNotificationsCount() async {
     try {
-      final pending = await _flutterLocalNotificationsPlugin.pendingNotificationRequests();
+      final pending = await _flutterLocalNotificationsPlugin
+          .pendingNotificationRequests();
       return pending.length;
     } catch (e) {
       debugPrint('❌ Error getting pending notifications: $e');
@@ -859,7 +976,8 @@ class NotificationService {
   /// Get list of pending notifications for debugging
   Future<List<PendingNotificationRequest>> getPendingNotifications() async {
     try {
-      return await _flutterLocalNotificationsPlugin.pendingNotificationRequests();
+      return await _flutterLocalNotificationsPlugin
+          .pendingNotificationRequests();
     } catch (e) {
       debugPrint('❌ Error getting pending notifications: $e');
       return [];
@@ -877,7 +995,8 @@ class NotificationService {
     try {
       final androidImplementation = _flutterLocalNotificationsPlugin
           .resolvePlatformSpecificImplementation<
-              AndroidFlutterLocalNotificationsPlugin>();
+            AndroidFlutterLocalNotificationsPlugin
+          >();
 
       if (androidImplementation != null) {
         permissions['notificationsEnabled'] =
@@ -885,7 +1004,8 @@ class NotificationService {
       }
 
       permissions['notifications'] = _hasPermission;
-      permissions['exactAlarms'] = true; // Assume granted if no error during init
+      permissions['exactAlarms'] =
+          true; // Assume granted if no error during init
     } catch (e) {
       debugPrint('❌ Error checking permissions: $e');
     }
@@ -898,7 +1018,8 @@ class NotificationService {
     try {
       final androidImplementation = _flutterLocalNotificationsPlugin
           .resolvePlatformSpecificImplementation<
-              AndroidFlutterLocalNotificationsPlugin>();
+            AndroidFlutterLocalNotificationsPlugin
+          >();
 
       if (androidImplementation != null) {
         return await androidImplementation.areNotificationsEnabled() ?? false;
@@ -915,10 +1036,12 @@ class NotificationService {
     try {
       final androidImplementation = _flutterLocalNotificationsPlugin
           .resolvePlatformSpecificImplementation<
-              AndroidFlutterLocalNotificationsPlugin>();
+            AndroidFlutterLocalNotificationsPlugin
+          >();
 
       if (androidImplementation != null) {
-        return await androidImplementation.canScheduleExactNotifications() ?? false;
+        return await androidImplementation.canScheduleExactNotifications() ??
+            false;
       }
       return true;
     } catch (e) {
@@ -938,7 +1061,8 @@ class NotificationService {
     buffer.writeln('Current Time: ${DateTime.now()}');
 
     try {
-      final pending = await _flutterLocalNotificationsPlugin.pendingNotificationRequests();
+      final pending = await _flutterLocalNotificationsPlugin
+          .pendingNotificationRequests();
       buffer.writeln('Pending Count: ${pending.length}');
 
       if (pending.isNotEmpty) {
@@ -961,10 +1085,14 @@ class NotificationService {
   String _getDaySuffix(int day) {
     if (day >= 11 && day <= 13) return 'th';
     switch (day % 10) {
-      case 1: return 'st';
-      case 2: return 'nd';
-      case 3: return 'rd';
-      default: return 'th';
+      case 1:
+        return 'st';
+      case 2:
+        return 'nd';
+      case 3:
+        return 'rd';
+      default:
+        return 'th';
     }
   }
 
@@ -972,37 +1100,78 @@ class NotificationService {
   // SMART NOTIFICATIONS — Engaging copy per stage
   // ─────────────────────────────────────────────
 
-  /// Returns a smart, engaging notification body based on days until due
-  String _smartBody(String loanName, String symbol, double amount, int daysLeft, String lang) {
+  /// Returns a smart, engaging notification body based on days until due.
+  String _smartBody({
+    required String loanName,
+    required String symbol,
+    required double amount,
+    required int daysLeft,
+    required String lang,
+    required int dueLoansCount,
+    required int? emisRemaining,
+  }) {
     final amt = '${symbol}${amount.toStringAsFixed(0)}';
+    final hasMultipleDue = dueLoansCount > 1;
+    final dueContext = hasMultipleDue
+        ? _smartText(lang, {
+            'en': ' You have $dueLoansCount EMIs due around this time.',
+            'hi': ' इस समय लगभग $dueLoansCount EMI देय हैं।',
+            'ta': ' இந்த நேரத்தில் சுமார் $dueLoansCount EMI செலுத்த வேண்டும்.',
+            'te': ' ఈ సమయంలో సుమారు $dueLoansCount EMIలు చెల్లించాలి.',
+          })
+        : '';
+    final remainingContext = (emisRemaining != null && emisRemaining > 0)
+        ? _smartText(lang, {
+            'en': ' $emisRemaining EMI${emisRemaining == 1 ? '' : 's'} left.',
+            'hi': ' $emisRemaining EMI शेष हैं।',
+            'ta': ' இன்னும் $emisRemaining EMI மீதமுள்ளது.',
+            'te': ' ఇంకా $emisRemaining EMIలు మిగిలి ఉన్నాయి.',
+          })
+        : '';
+
     if (daysLeft == 7) {
       return _smartText(lang, {
-        'en': '📅 $loanName EMI of $amt is due in 7 days. Plan ahead to avoid surprises!',
+        'en':
+            '📅 $loanName EMI of $amt is due in 7 days. Plan ahead to avoid surprises!',
         'hi': '📅 $loanName की $amt EMI 7 दिनों में है। अभी से तैयारी करें!',
-        'ta': '📅 $loanName EMI $amt — 7 நாட்களில் செலுத்த வேண்டும். முன்கூட்டியே திட்டமிடுங்கள்!',
-        'te': '📅 $loanName EMI $amt — 7 రోజుల్లో చెల్లించాలి. ముందే ప్లాన్ చేయండి!',
+        'ta':
+            '📅 $loanName EMI $amt — 7 நாட்களில் செலுத்த வேண்டும். முன்கூட்டியே திட்டமிடுங்கள்!',
+        'te':
+            '📅 $loanName EMI $amt — 7 రోజుల్లో చెల్లించాలి. ముందే ప్లాన్ చేయండి!',
       });
     } else if (daysLeft == 3) {
       return _smartText(lang, {
-        'en': '⚠️ $loanName EMI of $amt due in 3 days. Set aside the amount now!',
-        'hi': '⚠️ $loanName की $amt EMI 3 दिनों में है। अभी राशि तैयार रखें!',
-        'ta': '⚠️ $loanName EMI $amt — 3 நாட்களில் செலுத்த வேண்டும்!',
-        'te': '⚠️ $loanName EMI $amt — 3 రోజుల్లో చెల్లించాలి!',
-      });
+        'en':
+            '⚠️ $loanName EMI of $amt due in 3 days. Set aside the amount now!$dueContext$remainingContext',
+        'hi':
+            '⚠️ $loanName की $amt EMI 3 दिनों में है। अभी राशि तैयार रखें!$dueContext$remainingContext',
+        'ta':
+            '⚠️ $loanName EMI $amt — 3 நாட்களில் செலுத்த வேண்டும்!$dueContext$remainingContext',
+        'te':
+            '⚠️ $loanName EMI $amt — 3 రోజుల్లో చెల్లించాలి!$dueContext$remainingContext',
+      }).trim();
     } else if (daysLeft == 1) {
       return _smartText(lang, {
-        'en': '🔔 Tomorrow is the day! $loanName EMI of $amt is due. Don\'t miss it!',
-        'hi': '🔔 कल $loanName की $amt EMI देय है। भूलें नहीं!',
-        'ta': '🔔 நாளை $loanName EMI $amt செலுத்த வேண்டும். மறக்காதீர்கள்!',
-        'te': '🔔 రేపు $loanName EMI $amt చెల్లించాలి. మర్చిపోకండి!',
-      });
+        'en':
+            '🔔 Tomorrow is the day! $loanName EMI of $amt is due. Don\'t miss it!$dueContext$remainingContext',
+        'hi':
+            '🔔 कल $loanName की $amt EMI देय है। भूलें नहीं!$dueContext$remainingContext',
+        'ta':
+            '🔔 நாளை $loanName EMI $amt செலுத்த வேண்டும். மறக்காதீர்கள்!$dueContext$remainingContext',
+        'te':
+            '🔔 రేపు $loanName EMI $amt చెల్లించాలి. మర్చిపోకండి!$dueContext$remainingContext',
+      }).trim();
     } else {
       return _smartText(lang, {
-        'en': '🚨 Today is the last day! Pay $loanName EMI of $amt now to avoid late fees.',
-        'hi': '🚨 आज आखिरी दिन! $loanName की $amt EMI अभी दें — देरी शुल्क से बचें।',
-        'ta': '🚨 இன்றே கடைசி நாள்! $loanName EMI $amt இப்போதே செலுத்துங்கள்.',
-        'te': '🚨 ఈరోజే చివరి రోజు! $loanName EMI $amt ఇప్పుడే చెల్లించండి.',
-      });
+        'en':
+            '🚨 Today is the last day! Pay $loanName EMI of $amt now to avoid late fees.$dueContext$remainingContext',
+        'hi':
+            '🚨 आज आखिरी दिन! $loanName की $amt EMI अभी दें — देरी शुल्क से बचें।$dueContext$remainingContext',
+        'ta':
+            '🚨 இன்றே கடைசி நாள்! $loanName EMI $amt இப்போதே செலுத்துங்கள்.$dueContext$remainingContext',
+        'te':
+            '🚨 ఈరోజే చివరి రోజు! $loanName EMI $amt ఇప్పుడే చెల్లించండి.$dueContext$remainingContext',
+      }).trim();
     }
   }
 
@@ -1012,13 +1181,33 @@ class NotificationService {
   /// Smart title per urgency level
   String _smartTitle(int daysLeft, String lang) {
     if (daysLeft == 7) {
-      return _smartText(lang, {'en': '💡 EMI Reminder — 1 Week Left', 'hi': '💡 EMI याद — 1 सप्ताह बाकी', 'ta': '💡 EMI நினைவூட்டல் — 1 வாரம் உள்ளது', 'te': '💡 EMI రిమైండర్ — 1 వారం మిగిలింది'});
+      return _smartText(lang, {
+        'en': '💡 EMI Reminder — 1 Week Left',
+        'hi': '💡 EMI याद — 1 सप्ताह बाकी',
+        'ta': '💡 EMI நினைவூட்டல் — 1 வாரம் உள்ளது',
+        'te': '💡 EMI రిమైండర్ — 1 వారం మిగిలింది',
+      });
     } else if (daysLeft == 3) {
-      return _smartText(lang, {'en': '⚠️ EMI Due in 3 Days', 'hi': '⚠️ 3 दिनों में EMI देय', 'ta': '⚠️ 3 நாட்களில் EMI', 'te': '⚠️ 3 రోజుల్లో EMI'});
+      return _smartText(lang, {
+        'en': '⚠️ EMI Due in 3 Days',
+        'hi': '⚠️ 3 दिनों में EMI देय',
+        'ta': '⚠️ 3 நாட்களில் EMI',
+        'te': '⚠️ 3 రోజుల్లో EMI',
+      });
     } else if (daysLeft == 1) {
-      return _smartText(lang, {'en': '🔔 EMI Due Tomorrow!', 'hi': '🔔 कल EMI देय है!', 'ta': '🔔 நாளை EMI!', 'te': '🔔 రేపు EMI!'});
+      return _smartText(lang, {
+        'en': '🔔 EMI Due Tomorrow!',
+        'hi': '🔔 कल EMI देय है!',
+        'ta': '🔔 நாளை EMI!',
+        'te': '🔔 రేపు EMI!',
+      });
     } else {
-      return _smartText(lang, {'en': '🚨 EMI Due TODAY!', 'hi': '🚨 आज EMI देय है!', 'ta': '🚨 இன்று EMI!', 'te': '🚨 ఈరోజు EMI!'});
+      return _smartText(lang, {
+        'en': '🚨 EMI Due TODAY!',
+        'hi': '🚨 आज EMI देय है!',
+        'ta': '🚨 இன்று EMI!',
+        'te': '🚨 ఈరోజు EMI!',
+      });
     }
   }
 
@@ -1029,14 +1218,32 @@ class NotificationService {
     final nextDue = loan.getNextDueDate();
     final now = DateTime.now();
     final day7Before = nextDue.subtract(const Duration(days: 7));
-    final scheduled = DateTime(day7Before.year, day7Before.month, day7Before.day, 9, 0, 0);
+    final scheduled = DateTime(
+      day7Before.year,
+      day7Before.month,
+      day7Before.day,
+      9,
+      0,
+      0,
+    );
     if (scheduled.isBefore(now)) return;
 
     final baseId = loan.id.hashCode.abs() % 100000;
     await _scheduleNotification(
       id: baseId + _sevenDayReminderOffset,
       title: _smartTitle(7, lang),
-      body: _smartBody(loan.name, loan.currencySymbol, loan.emiAmount, 7, lang),
+      body: _smartBody(
+        loanName: _buildReminderLoanName(
+          loan,
+          _getTranslatedLoanName(loan.loanTypeName ?? loan.name, lang),
+        ),
+        symbol: loan.currencySymbol,
+        amount: loan.emiAmount,
+        daysLeft: 7,
+        lang: lang,
+        dueLoansCount: _countDueLoansForStage(7),
+        emisRemaining: _remainingEmis(loan),
+      ),
       scheduledDate: scheduled,
       payload: loan.id,
     );
@@ -1052,14 +1259,22 @@ class NotificationService {
     if (!_isInitialized || !_hasPermission || loans.isEmpty) return;
 
     // Cancel previous monthly summary before scheduling a fresh one.
-    await _flutterLocalNotificationsPlugin.cancel(_monthlySummaryNotificationId);
+    await _flutterLocalNotificationsPlugin.cancel(
+      _monthlySummaryNotificationId,
+    );
 
     final lang = await _getCurrentLanguage();
     final now = DateTime.now();
 
     // Schedule for 1st of next month at 8:00 AM
-    final nextMonth = DateTime(now.month == 12 ? now.year + 1 : now.year,
-        now.month == 12 ? 1 : now.month + 1, 1, 8, 0, 0);
+    final nextMonth = DateTime(
+      now.month == 12 ? now.year + 1 : now.year,
+      now.month == 12 ? 1 : now.month + 1,
+      1,
+      8,
+      0,
+      0,
+    );
 
     final totalEmi = loans.fold<double>(0, (s, l) => s + l.emiAmount);
     final loanCount = loans.length;
@@ -1067,7 +1282,9 @@ class NotificationService {
     final totalStr = '$symbol${totalEmi.toStringAsFixed(0)}';
 
     // Upcoming due loans this month
-    final dueSoon = loans.where((l) => !l.isPaid && l.daysUntilDue() <= 7).length;
+    final dueSoon = loans
+        .where((l) => !l.isPaid && l.daysUntilDue() <= 7)
+        .length;
 
     final title = _smartText(lang, {
       'en': '📊 Your Monthly EMI Summary',
@@ -1077,10 +1294,14 @@ class NotificationService {
     });
 
     final body = _smartText(lang, {
-      'en': 'You have $loanCount loans totalling $totalStr/month.${dueSoon > 0 ? ' $dueSoon payments due soon!' : ' Stay on track! 💪'}',
-      'hi': 'आपके $loanCount लोन हैं, कुल $totalStr/माह।${dueSoon > 0 ? ' $dueSoon भुगतान जल्द देय है!' : ' ट्रैक पर रहें! 💪'}',
-      'ta': 'உங்களிடம் $loanCount கடன்கள் உள்ளன, மொத்தம் $totalStr/மாதம்।${dueSoon > 0 ? ' $dueSoon கொடுப்பனவுகள் விரைவில்!' : ' தொடர்ந்து முன்னேறுங்கள்! 💪'}',
-      'te': 'మీకు $loanCount రుణాలు ఉన్నాయి, మొత్తం $totalStr/నెల।${dueSoon > 0 ? ' $dueSoon చెల్లింపులు త్వరలో!' : ' ట్రాక్‌లో ఉండండి! 💪'}',
+      'en':
+          'You have $loanCount loans totalling $totalStr/month.${dueSoon > 0 ? ' $dueSoon payments due soon!' : ' Stay on track! 💪'}',
+      'hi':
+          'आपके $loanCount लोन हैं, कुल $totalStr/माह।${dueSoon > 0 ? ' $dueSoon भुगतान जल्द देय है!' : ' ट्रैक पर रहें! 💪'}',
+      'ta':
+          'உங்களிடம் $loanCount கடன்கள் உள்ளன, மொத்தம் $totalStr/மாதம்।${dueSoon > 0 ? ' $dueSoon கொடுப்பனவுகள் விரைவில்!' : ' தொடர்ந்து முன்னேறுங்கள்! 💪'}',
+      'te':
+          'మీకు $loanCount రుణాలు ఉన్నాయి, మొత్తం $totalStr/నెల।${dueSoon > 0 ? ' $dueSoon చెల్లింపులు త్వరలో!' : ' ట్రాక్‌లో ఉండండి! 💪'}',
     });
 
     await _scheduleNotification(
@@ -1095,11 +1316,54 @@ class NotificationService {
 
   Future<void> cancelMonthSummaryNotification() async {
     try {
-      await _flutterLocalNotificationsPlugin.cancel(_monthlySummaryNotificationId);
+      await _flutterLocalNotificationsPlugin.cancel(
+        _monthlySummaryNotificationId,
+      );
       debugPrint('✅ Monthly summary notification cancelled');
     } catch (e) {
       debugPrint('❌ Error cancelling monthly summary notification: $e');
     }
   }
-}
 
+  String _buildReminderLoanName(Loan loan, String translatedLoanName) {
+    final bankName = loan.bankName?.trim();
+    if (bankName == null || bankName.isEmpty) {
+      return translatedLoanName;
+    }
+
+    return '$bankName $translatedLoanName';
+  }
+
+  int _countDueLoansForStage(int daysLeft) {
+    try {
+      if (!Hive.isBoxOpen('loans')) {
+        return 1;
+      }
+
+      final loans = Hive.box<Loan>('loans').values;
+      final dueCount = loans.where((loan) {
+        if (loan.isPaid) {
+          return false;
+        }
+        if (loan.tenureMonths != null &&
+            loan.emisPaidCount >= loan.tenureMonths!) {
+          return false;
+        }
+        return loan.daysUntilDue() == daysLeft;
+      }).length;
+
+      return dueCount > 0 ? dueCount : 1;
+    } catch (_) {
+      return 1;
+    }
+  }
+
+  int? _remainingEmis(Loan loan) {
+    if (loan.tenureMonths == null) {
+      return null;
+    }
+
+    final remaining = loan.tenureMonths! - loan.emisPaidCount;
+    return remaining > 0 ? remaining : 0;
+  }
+}

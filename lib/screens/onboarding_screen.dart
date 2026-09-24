@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'home_screen.dart';
+import '../services/analytics_service.dart';
 import '../services/loan_storage_service.dart';
 import '../services/notification_service.dart';
 
@@ -25,6 +26,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   late AnimationController _animController;
   late Animation<double> _fadeAnim;
   late Animation<Offset> _slideAnim;
+  _OnboardingGoal _selectedGoal = _OnboardingGoal.emi;
 
   final List<_OnboardPage> _pages = const [
     _OnboardPage(
@@ -70,7 +72,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     super.initState();
     _animController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 500),
+      duration: const Duration(milliseconds: 360),
     );
     _fadeAnim = CurvedAnimation(parent: _animController, curve: Curves.easeOut);
     _slideAnim = Tween<Offset>(
@@ -93,19 +95,26 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     _animController.forward();
   }
 
-  Future<void> _finish() async {
+  Future<void> _finish({_OnboardingGoal? goal}) async {
+    final selectedGoal = goal ?? _selectedGoal;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('onboarding_done', true);
+    await AnalyticsService.trackOnboardingCompleted(
+      goal: selectedGoal == _OnboardingGoal.p2p ? 'p2p' : 'emi',
+    );
     if (!mounted) return;
     Navigator.of(context).pushReplacement(
       PageRouteBuilder(
-        pageBuilder: (_, __, ___) => HomeScreen(
+        pageBuilder: (context, animation, secondaryAnimation) => HomeScreen(
           storageService: widget.storageService,
           notificationService: widget.notificationService,
+          startupAction: selectedGoal == _OnboardingGoal.p2p
+              ? HomeScreen.startupActionOpenP2P
+              : HomeScreen.startupActionAddLoan,
         ),
-        transitionsBuilder: (_, anim, __, child) =>
+        transitionsBuilder: (context, anim, secondaryAnimation, child) =>
             FadeTransition(opacity: anim, child: child),
-        transitionDuration: const Duration(milliseconds: 500),
+        transitionDuration: const Duration(milliseconds: 320),
       ),
     );
   }
@@ -117,7 +126,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
 
     return Scaffold(
       body: AnimatedContainer(
-        duration: const Duration(milliseconds: 400),
+        duration: const Duration(milliseconds: 280),
         decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topLeft,
@@ -191,7 +200,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                             _finish();
                           } else {
                             _pageController.nextPage(
-                              duration: const Duration(milliseconds: 400),
+                              duration: const Duration(milliseconds: 260),
                               curve: Curves.easeInOut,
                             );
                           }
@@ -234,6 +243,36 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                         ),
                       ),
                     ),
+                    if (isLast) ...[
+                      const SizedBox(height: 14),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _buildGoalChoice(
+                              title: 'Track EMI',
+                              subtitle: 'Add first loan now',
+                              icon: Icons.account_balance_wallet_rounded,
+                              selected: _selectedGoal == _OnboardingGoal.emi,
+                              onTap: () => setState(
+                                () => _selectedGoal = _OnboardingGoal.emi,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: _buildGoalChoice(
+                              title: 'Track P2P',
+                              subtitle: 'Start lent/borrowed',
+                              icon: Icons.people_alt_rounded,
+                              selected: _selectedGoal == _OnboardingGoal.p2p,
+                              onTap: () => setState(
+                                () => _selectedGoal = _OnboardingGoal.p2p,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -262,11 +301,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                   color: page.iconBg,
                   shape: BoxShape.circle,
                 ),
-                child: Icon(
-                  page.iconData,
-                  size: 64,
-                  color: Colors.white,
-                ),
+                child: Icon(page.iconData, size: 64, color: Colors.white),
               ),
               const SizedBox(height: 40),
               // Title
@@ -296,13 +331,17 @@ class _OnboardingScreenState extends State<OnboardingScreen>
               const SizedBox(height: 28),
               // Badge pill
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 18,
+                  vertical: 10,
+                ),
                 decoration: BoxDecoration(
                   color: Colors.white.withValues(alpha: 0.18),
                   borderRadius: BorderRadius.circular(30),
                   border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.3), width: 1),
+                    color: Colors.white.withValues(alpha: 0.3),
+                    width: 1,
+                  ),
                 ),
                 child: Text(
                   page.badge,
@@ -320,7 +359,61 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       ),
     );
   }
+
+  Widget _buildGoalChoice({
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required bool selected,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        decoration: BoxDecoration(
+          color: selected
+              ? Colors.white.withValues(alpha: 0.28)
+              : Colors.white.withValues(alpha: 0.14),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: selected
+                ? Colors.white.withValues(alpha: 0.9)
+                : Colors.white.withValues(alpha: 0.28),
+            width: selected ? 1.6 : 1,
+          ),
+        ),
+        child: Column(
+          children: [
+            Icon(icon, color: Colors.white, size: 20),
+            const SizedBox(height: 6),
+            Text(
+              title,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 12.5,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              subtitle,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: Colors.white70,
+                fontSize: 10.5,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
+
+enum _OnboardingGoal { emi, p2p }
 
 class _OnboardPage {
   final List<Color> gradient;
@@ -339,4 +432,3 @@ class _OnboardPage {
     required this.badge,
   });
 }
-
