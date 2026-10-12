@@ -1,13 +1,29 @@
 {
-  "type": "service_account",
-  "project_id": "p2p-reminder-dev",
-  "private_key_id": "placeholder_key_id",
-  "private_key": "-----BEGIN RSA PRIVATE KEY-----\nMIIEpAIBAAKCAQEA0Z3YjKn0KBNt8CDvj8EKW7D7kzqmKL8sAe7HuTfXt1FtL9La\nkT3OeLL8x4mKwc7x5z5YZ5KXzKjn5KnQ2L2K3O4P5Q6R7S8T9U0V1W2X3Y4Z5A6B\n7C8D9E0F1G2H3I4J5K6L7M8N9O0P1Q2R3S4T5U6V7W8X9Y0Z1A2B3C4D5E6F7G8H\n9I0J1K2L3M4N5O6P7Q8R9S0T1U2V3W4X5Y6Z7A8B9C0D1E2F3G4H5I6J7K8L9M0\nN1O2P3Q4R5S6T7U8V9W0X1Y2Z3A4B5C6D7E8F9G0H1I2J3K4L5M6N7O8P9Q0R1Q\nIDAQABAoIBAGJ5KTv9qY6D5n5x0sKWc2KT0L1s9r8M2kL3j4I5h6G7f8E0d9C2b3\nA4Z5Y6X7W8V9U0T1S2R3Q4P5O6N7M8L9K0J1I2H3G4F5E6D7C8B9A0Z1Y2X3W4V\n5U6T7S8R9Q0P1O2N3M4L5K6J7I8H9G0F1E2D3C4B5A6Z7Y8X9W0V1U2T3S4R5Q\n6P7O8N9M0L1K2J3I4H5G6F7E8D9C0B1A2Z3Y4X5W6V7U8T9S0R1Q2P3O4N5M6L\n7K8J9I0H1G2F3E4D5C6B7A8Z9PlaceholderKeyContentForDevelopmentOnly9RQAQK\nBgQDp7t6x5w4v3u2t1s0r9q8p7o6n5m4l3k2j1i0h9g8f7e6d5c4b3a2z1y0x9w\n8v7u6t5s4r3q2p1o0n9m8l7k6j5i4h3g2f1e0d9c8b7a6z5y4x3w2v1u0t9s8r\n7q6p5o4n3m2l1k0j9i8h7g6f5e4d3c2b1a0z9y8x7w6v5u4t3s2r1q0p9o8n7m6\nl5k4j3i2h1g0f9e8d7c6b5a4z3y2x1w0v9u8t7s6r5q4p3o2n1m0l9k8j7i6h5\ng4f3e2d1c0b9a8z7y6x5w4v3u2t1s0r9q8p7o6n5m4l3k2j1i0h9g8f7e6d5c4\nQAKBgQDU8t7s6r5q4p3o2n1m0l9k8j7i6h5g4f3e2d1c0b9a8z7y6x5w4v3u2t\n1s0r9q8p7o6n5m4l3k2j1i0h9g8f7e6d5c4b3a2z1y0x9w8v7u6t5s4r3q2p1o\n0n9m8l7k6j5i4h3g2f1e0d9c8b7a6z5y4x3w2v1u0t9s8r7q6p5o4n3m2l1k0j\n9i8h7g6f5e4d3c2b1a0z9y8x7w6v5u4t3s2r1q0p9o8n7m6l5k4j3i2h1g0f9e\n8d7c6b5a4z3y2x1w0v9u8t7s6r5q4p3o2n1m0l9k8j7i6h5g4f3e2d1c0b9a8z\n7y6PlaceholderKeyContent7QJAHKUZvqKN5hL0gJ2iM3lN4oP5qR6sT7uV8wX9yZ0aB\n1cD2eF3gH4iJ5kL6mN7oP8qR9sT0uV1wX2yZ3aB4cD5eF6gH7iJ8kL9mN0oP1qR2s\nT3uV4wX5yZ6aB7cD8eF9gH0iJ1kL2mN3oP4qR5sT6uV7wX8yZ9aB0cD1eF2gH3iJ\n4kL5mN6oP7qR8sT9uV0wX1yZ2aB3cD4eF5gH6iJ7kL8mN9oP0qR1sT2uV3wX4yZ5a\nB6cD7eF8gH9iJ0kL1mN2oP3qR4sT5uV6wX7yZ8aB9cD0eF1gH2iJ3kL4mN5oP6qR7\nsQJAXaNYxWzVuTsRqPoNmLkJiHgFgEdCcBaZ9XwYvVuStRqQoPlNmLkJiHgFgEdC\ncBaZ9XwYvVuStRqQoPlNmLkJiHgFgEdCcBaZ9XwYvVuStRqQoPlNmLkJiHgFgEdC\ncBaZ9XwYvVuStRqQoPlNmLkJiHgFgEdCcBaZ9XwYvVuStRqQoPlNmLkJiHgFgEdC\ncBaZ9XwYvVuStRqQoPlNmLkJiHgFgEdCcBaZ9XwYvVuStRqQoPlNmLkJiHgFgEdC\ncBaZ9XwYvVuStRqQoPlNmLkJiHgFgEdCcBaZ9XwYvVuStRqQoPlNmLkJiHgFgEdC\ncBaZ9Placeholder=\n-----END RSA PRIVATE KEY-----",
-  "client_email": "firebase-adminsdk-placeholder@p2p-reminder-dev.iam.gserviceaccount.com",
-  "client_id": "000000000000000000000",
-  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-  "token_uri": "https://oauth2.googleapis.com/token",
-  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
-  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/firebase-adminsdk-placeholder%40p2p-reminder-dev.iam.gserviceaccount.com"
+  "project_info": {
+    "project_number": "1079818272807",
+    "project_id": "loanledger-2f360",
+    "storage_bucket": "loanledger-2f360.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1079818272807:android:9a0463c87ec52a4e7c8e02",
+        "android_client_info": {
+          "package_name": "com.santhosh.loanledger"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBNdrhFIO9mGsDxCC14wW6IQAgvZOexj9M"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
 }
-
