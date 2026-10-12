@@ -38,7 +38,7 @@ void main() {
 
     await tester.pumpAndSettle();
 
-    expect(find.text('P2P Reminder'), findsOneWidget);
+    expect(find.text('LoanLedger'), findsOneWidget);
     expect(find.text('No dues in the next 30 days.'), findsOneWidget);
     expect(find.text('Add P2P Loan'), findsOneWidget);
   });

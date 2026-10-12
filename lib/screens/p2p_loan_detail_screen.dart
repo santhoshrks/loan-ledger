@@ -2814,7 +2814,7 @@ class _P2PLoanDetailScreenState extends State<P2PLoanDetailScreen> {
             'Hi ${loan.personName}, I will be transferring the outstanding amount of ${IndianNumberFormat.formatCompact(loan.outstanding)} to you soon. Please confirm once received. Thank you!';
       }
     }
-    msg = '$msg\n\nShared via P2P Reminder app: ${ShareService.playStoreUrl}';
+    msg = '$msg\n\nShared via LoanLedger app: ${ShareService.playStoreUrl}';
     final phone = loan.phoneNumber ?? '';
     final url = Uri.parse(
       'https://wa.me/$phone?text=${Uri.encodeComponent(msg)}',

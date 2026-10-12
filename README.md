@@ -1,4 +1,4 @@
-# P2P Reminder
+# LoanLedger
 
 ![App Logo](assets/app_icon.png)
 

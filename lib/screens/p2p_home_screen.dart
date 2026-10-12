@@ -36,7 +36,7 @@ class _P2PHomeScreenState extends State<P2PHomeScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF4F6FA),
       appBar: AppBar(
-        title: const Text('P2P Reminder'),
+        title: const Text('LoanLedger'),
         backgroundColor: AppTheme.primaryColor,
         foregroundColor: Colors.white,
         actions: [
@@ -350,7 +350,7 @@ class _P2PHomeScreenState extends State<P2PHomeScreen> {
         .fold<double>(0, (sum, l) => sum + l.outstanding);
 
     final buffer = StringBuffer()
-      ..writeln('P2P Reminder - Snapshot')
+      ..writeln('LoanLedger - Snapshot')
       ..writeln('Date: ${DateFormat('d MMM yyyy').format(DateTime.now())}')
       ..writeln('Active loans: ${active.length}')
       ..writeln('Lent outstanding: ${IndianNumberFormat.formatCompact(lent)}')
@@ -358,6 +358,9 @@ class _P2PHomeScreenState extends State<P2PHomeScreen> {
         'Borrowed outstanding: ${IndianNumberFormat.formatCompact(borrowed)}',
       );
 
-    await Share.share(buffer.toString(), subject: 'P2P Reminder Report');
+    await Share.share(buffer.toString(), subject: 'LoanLedger Report');
   }
 }
+
+
+

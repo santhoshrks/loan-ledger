@@ -829,7 +829,7 @@ class _P2PLoanScreenState extends State<P2PLoanScreen>
           ? 'Hi ${loan.personName}, I will be sending the pending interest payment of ${IndianNumberFormat.formatCompact(loan.monthlyInterestFlat * loan.interestPaymentsOverdue)} (${loan.interestPaymentsOverdue} month${loan.interestPaymentsOverdue > 1 ? 's' : ''}) shortly. Please confirm once received. Thank you!'
           : 'Hi ${loan.personName}, I will be transferring the amount of $amount to you soon. Please confirm once received. Thank you!';
     }
-    msg = '$msg\n\nShared via P2P Reminder app: ${ShareService.playStoreUrl}';
+    msg = '$msg\n\nShared via LoanLedger app: ${ShareService.playStoreUrl}';
     final phone = loan.phoneNumber ?? '';
     final url = Uri.parse(
       'https://wa.me/$phone?text=${Uri.encodeComponent(msg)}',

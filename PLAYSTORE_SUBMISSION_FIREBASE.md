@@ -84,7 +84,7 @@ flutter build appbundle --release
 1. Visit https://play.google.com/console
 2. Click **Create app**
 3. Fill in:
-   - App name: P2P Reminder
+   - App name: LoanLedger
    - Category: Finance or Personalization
    - Complete content rating questionnaire
 
@@ -102,7 +102,7 @@ flutter build appbundle --release
 
 ### Description
 ```
-P2P Reminder - Personal Loan Tracker
+LoanLedger - Personal Loan Tracker
 
 Track all your personal loans easily. Whether you've lent money 
 to friends or borrowed from family, manage every loan with 
@@ -224,5 +224,7 @@ flutter build appbundle --release
 
 Version: 1.0.0  
 Updated: October 11, 2026
+
+
 
 

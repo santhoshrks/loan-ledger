@@ -17,7 +17,7 @@
 1. In Firebase Console home, click **Android icon** to add Android app
 2. Fill in:
    - **Package name**: `com.santhosh.p2preminder`
-   - **App nickname**: `P2P Reminder`
+   - **App nickname**: `LoanLedger`
    - **SHA-1 certificate**: (See below)
 
 ### Get SHA-1 Fingerprint
@@ -90,5 +90,6 @@ This will also generate debug keys and show the SHA-1 in the error message.
 ---
 
 **⏱️ This usually takes 5-10 minutes. Once you download google-services.json, the app will build successfully!**
+
 
 

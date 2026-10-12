@@ -27,7 +27,7 @@ This guide will help you set up Firebase Authentication for the LoanLedger app.
 1. In Firebase Console, click the **Android** icon to add Android app
 2. Fill in the details:
    - **Package name**: `com.santhosh.p2preminder` (from your project)
-   - **App nickname**: `P2P Reminder` (optional)
+   - **App nickname**: `LoanLedger` (optional)
    - **SHA-1 certificate fingerprint** (see below)
 3. Click **Register app**
 
@@ -72,5 +72,6 @@ flutter run
 ---
 
 **Last Updated**: October 11, 2026
+
 
 
