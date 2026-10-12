@@ -1,27 +1,29 @@
-# EMI Reminder & Loan Tracker
+# P2P Reminder
 
 ![App Logo](assets/app_icon.png)
 
-**Never miss your loan payments!** Get timely reminders for all your EMIs.
+Track personal loans you **lent** and **borrowed** with simple reminders and repayment history.
 
-## Features
+## MVP Features
 
-- 📊 **Track Multiple Loans** - Home, Car, Personal, Education, and more
-- 🔔 **Smart Reminders** - Get notified 3 days before, 1 day before, and on due date
-- 📱 **Works Offline** - No internet required
-- 💰 **EMI Calculator** - Calculate your monthly payments
-- ✅ **Payment Tracking** - Mark EMIs as paid
-- 🎨 **Modern UI** - Clean and intuitive interface
+- 📊 Lent / Borrowed summary dashboard
+- 🔔 Interest and principal due reminders
+- ➕ Add/Edit P2P loan entries
+- ✅ Mark payments and track repayment history
+- 📤 Share simple report snapshot
+- 📱 Offline-first local storage with repository abstraction
+
+## Architecture Notes
+
+- `P2PRepository` interface is added for backend-ready migration.
+- `P2PRepositoryLocal` is used in MVP.
+- `P2PRepositoryRemote` is scaffolded for Phase 2 login/server sync.
 
 ## Getting Started
 
-This project is a starting point for a Flutter application.
+```bash
+flutter pub get
+flutter run
+```
 
-A few resources to get you started if this is your first Flutter project:
-
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+For release builds, update signing and store metadata as needed before publishing.

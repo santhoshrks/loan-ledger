@@ -1,4 +1,4 @@
-package com.santhosh.emi.emi_reminder
+package com.example.daily_rates_web
 
 import io.flutter.embedding.android.FlutterActivity
 

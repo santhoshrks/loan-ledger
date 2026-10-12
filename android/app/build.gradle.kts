@@ -16,7 +16,7 @@ if (keystorePropertiesFile.exists()) {
 }
 
 android {
-    namespace = "com.santhosh.emi.emi_reminder"
+    namespace = "com.santhosh.p2preminder"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -32,7 +32,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.santhosh.emi.emi_reminder"
+        applicationId = "com.santhosh.p2preminder"
         minSdk = 24  // Minimum SDK for better notification support
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode

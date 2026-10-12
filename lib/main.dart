@@ -75,7 +75,7 @@ Future<void> main() async {
       providers: [
         ChangeNotifierProvider<LanguageProvider>.value(value: languageProvider),
       ],
-      child: EmiReminderApp(
+      child: P2PReminderApp(
         storageService: storageService,
         notificationService: notificationService,
         showOnboarding: !onboardingDone,
@@ -84,12 +84,12 @@ Future<void> main() async {
   );
 }
 
-class EmiReminderApp extends StatelessWidget {
+class P2PReminderApp extends StatelessWidget {
   final LoanStorageService? storageService;
   final NotificationService? notificationService;
   final bool showOnboarding;
 
-  const EmiReminderApp({
+  const P2PReminderApp({
     super.key,
     this.storageService,
     this.notificationService,
@@ -102,7 +102,7 @@ class EmiReminderApp extends StatelessWidget {
       builder: (context, languageProvider, _) {
         return MaterialApp(
           debugShowCheckedModeBanner: false,
-          title: 'EMI Reminder & Loan Tracker',
+          title: 'P2P Reminder',
           theme: AppTheme.lightTheme,
           locale: languageProvider.currentLocale,
           localizationsDelegates: const [

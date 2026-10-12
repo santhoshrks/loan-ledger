@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:emi_reminder/models/loan.dart';
+import 'package:p2p_reminder/models/loan.dart';
 
 void main() {
   test('Loan with future startDate should not have reminders before start', () {

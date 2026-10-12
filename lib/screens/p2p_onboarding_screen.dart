@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/notification_service.dart';
-import 'p2p_loan_screen.dart';
+import 'p2p_home_screen.dart';
 
 const _kP2PPrefKey = 'p2p_onboarding_done';
 
@@ -19,7 +19,7 @@ Future<void> openP2PFlow(BuildContext context, NotificationService? ns) async {
     context,
     MaterialPageRoute(
       builder: (_) => seen
-          ? P2PLoanScreen(notificationService: ns)
+          ? P2PHomeScreen(notificationService: ns)
           : P2POnboardingScreen(notificationService: ns),
     ),
   );
@@ -81,13 +81,14 @@ class _P2POnboardingScreenState extends State<P2POnboardingScreen>
   void initState() {
     super.initState();
     _animController = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 500));
-    _fadeAnim =
-        CurvedAnimation(parent: _animController, curve: Curves.easeOut);
+      vsync: this,
+      duration: const Duration(milliseconds: 500),
+    );
+    _fadeAnim = CurvedAnimation(parent: _animController, curve: Curves.easeOut);
     _slideAnim = Tween<Offset>(
-            begin: const Offset(0, 0.12), end: Offset.zero)
-        .animate(
-            CurvedAnimation(parent: _animController, curve: Curves.easeOut));
+      begin: const Offset(0, 0.12),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(parent: _animController, curve: Curves.easeOut));
     _animController.forward();
   }
 
@@ -111,7 +112,7 @@ class _P2POnboardingScreenState extends State<P2POnboardingScreen>
     Navigator.of(context).pushReplacement(
       PageRouteBuilder(
         pageBuilder: (_, __, ___) =>
-            P2PLoanScreen(notificationService: widget.notificationService),
+            P2PHomeScreen(notificationService: widget.notificationService),
         transitionsBuilder: (_, anim, __, child) =>
             FadeTransition(opacity: anim, child: child),
         transitionDuration: const Duration(milliseconds: 400),
@@ -135,112 +136,119 @@ class _P2POnboardingScreenState extends State<P2POnboardingScreen>
           ),
         ),
         child: SafeArea(
-          child: Column(children: [
-            // ── Skip ──────────────────────────────────────────────
-            Align(
-              alignment: Alignment.topRight,
-              child: Padding(
-                padding: const EdgeInsets.only(top: 12, right: 20),
-                child: TextButton(
-                  onPressed: _finish,
-                  child: const Text('Skip',
+          child: Column(
+            children: [
+              // ── Skip ──────────────────────────────────────────────
+              Align(
+                alignment: Alignment.topRight,
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 12, right: 20),
+                  child: TextButton(
+                    onPressed: _finish,
+                    child: const Text(
+                      'Skip',
                       style: TextStyle(
-                          color: Colors.white70,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600)),
-                ),
-              ),
-            ),
-
-            // ── Pages ─────────────────────────────────────────────
-            Expanded(
-              child: PageView.builder(
-                controller: _pageController,
-                onPageChanged: _onPageChanged,
-                itemCount: _pages.length,
-                itemBuilder: (_, i) => _buildPage(_pages[i]),
-              ),
-            ),
-
-            // ── Bottom controls ───────────────────────────────────
-            Padding(
-              padding: const EdgeInsets.fromLTRB(28, 0, 28, 36),
-              child: Column(children: [
-                // Dots
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: List.generate(
-                    _pages.length,
-                    (i) => AnimatedContainer(
-                      duration: const Duration(milliseconds: 300),
-                      margin: const EdgeInsets.symmetric(horizontal: 4),
-                      width: _currentPage == i ? 24 : 8,
-                      height: 8,
-                      decoration: BoxDecoration(
-                        color: _currentPage == i
-                            ? Colors.white
-                            : Colors.white38,
-                        borderRadius: BorderRadius.circular(4),
+                        color: Colors.white70,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ),
                 ),
-                const SizedBox(height: 28),
-                // CTA Button
-                SizedBox(
-                  width: double.infinity,
-                  child: GestureDetector(
-                    onTap: () {
-                      if (isLast) {
-                        _finish();
-                      } else {
-                        _pageController.nextPage(
-                          duration: const Duration(milliseconds: 400),
-                          curve: Curves.easeInOut,
-                        );
-                      }
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(vertical: 18),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(18),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.15),
-                            blurRadius: 20,
-                            offset: const Offset(0, 8),
+              ),
+
+              // ── Pages ─────────────────────────────────────────────
+              Expanded(
+                child: PageView.builder(
+                  controller: _pageController,
+                  onPageChanged: _onPageChanged,
+                  itemCount: _pages.length,
+                  itemBuilder: (_, i) => _buildPage(_pages[i]),
+                ),
+              ),
+
+              // ── Bottom controls ───────────────────────────────────
+              Padding(
+                padding: const EdgeInsets.fromLTRB(28, 0, 28, 36),
+                child: Column(
+                  children: [
+                    // Dots
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: List.generate(
+                        _pages.length,
+                        (i) => AnimatedContainer(
+                          duration: const Duration(milliseconds: 300),
+                          margin: const EdgeInsets.symmetric(horizontal: 4),
+                          width: _currentPage == i ? 24 : 8,
+                          height: 8,
+                          decoration: BoxDecoration(
+                            color: _currentPage == i
+                                ? Colors.white
+                                : Colors.white38,
+                            borderRadius: BorderRadius.circular(4),
                           ),
-                        ],
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            isLast ? 'Start Tracking' : 'Continue',
-                            style: TextStyle(
-                              color: page.gradient.first,
-                              fontSize: 16,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: -0.3,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Icon(
-                            isLast
-                                ? Icons.rocket_launch_rounded
-                                : Icons.arrow_forward_rounded,
-                            color: page.gradient.first,
-                            size: 18,
-                          ),
-                        ],
+                        ),
                       ),
                     ),
-                  ),
+                    const SizedBox(height: 28),
+                    // CTA Button
+                    SizedBox(
+                      width: double.infinity,
+                      child: GestureDetector(
+                        onTap: () {
+                          if (isLast) {
+                            _finish();
+                          } else {
+                            _pageController.nextPage(
+                              duration: const Duration(milliseconds: 400),
+                              curve: Curves.easeInOut,
+                            );
+                          }
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 18),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(18),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.15),
+                                blurRadius: 20,
+                                offset: const Offset(0, 8),
+                              ),
+                            ],
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                isLast ? 'Start Tracking' : 'Continue',
+                                style: TextStyle(
+                                  color: page.gradient.first,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: -0.3,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Icon(
+                                isLast
+                                    ? Icons.rocket_launch_rounded
+                                    : Icons.arrow_forward_rounded,
+                                color: page.gradient.first,
+                                size: 18,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-              ]),
-            ),
-          ]),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -294,13 +302,17 @@ class _P2POnboardingScreenState extends State<P2POnboardingScreen>
               const SizedBox(height: 28),
               // Badge pill
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 18,
+                  vertical: 10,
+                ),
                 decoration: BoxDecoration(
                   color: Colors.white.withValues(alpha: 0.18),
                   borderRadius: BorderRadius.circular(30),
                   border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.3), width: 1),
+                    color: Colors.white.withValues(alpha: 0.3),
+                    width: 1,
+                  ),
                 ),
                 child: Text(
                   page.badge,
@@ -335,4 +347,3 @@ class _P2PPage {
     required this.badge,
   });
 }
-

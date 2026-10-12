@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'home_screen.dart';
-import 'onboarding_screen.dart';
 import '../services/loan_storage_service.dart';
 import '../services/notification_service.dart';
+import 'p2p_home_screen.dart';
+import 'p2p_onboarding_screen.dart';
 
 class SplashScreen extends StatefulWidget {
   final LoanStorageService? storageService;
@@ -100,19 +99,14 @@ class _SplashScreenState extends State<SplashScreen>
 
   Future<void> _navigate() async {
     if (!mounted) return;
-    final prefs = await SharedPreferences.getInstance();
-    final onboardingDone = prefs.getBool('onboarding_done') ?? false;
+    final onboardingDone = await hasSeenP2POnboarding();
 
     if (!mounted) return;
     Navigator.of(context).pushReplacement(
       PageRouteBuilder(
         pageBuilder: (context, animation, secondaryAnimation) => onboardingDone
-            ? HomeScreen(
-                storageService: widget.storageService,
-                notificationService: widget.notificationService,
-              )
-            : OnboardingScreen(
-                storageService: widget.storageService,
+            ? P2PHomeScreen(notificationService: widget.notificationService)
+            : P2POnboardingScreen(
                 notificationService: widget.notificationService,
               ),
         transitionsBuilder: (context, anim, secondaryAnimation, child) =>
@@ -233,7 +227,7 @@ class _SplashScreenState extends State<SplashScreen>
                         child: Column(
                           children: [
                             const Text(
-                              'EMI Reminder',
+                              'P2P Reminder',
                               style: TextStyle(
                                 fontSize: 32,
                                 fontWeight: FontWeight.w900,
@@ -254,7 +248,7 @@ class _SplashScreenState extends State<SplashScreen>
                                   borderRadius: BorderRadius.circular(20),
                                 ),
                                 child: const Text(
-                                  'Never Miss a Payment 🔔',
+                                  'Track Personal Loans Smarter 🔔',
                                   style: TextStyle(
                                     fontSize: 13,
                                     color: Colors.white,

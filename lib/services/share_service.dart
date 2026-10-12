@@ -4,11 +4,12 @@ import '../models/loan.dart';
 
 class ShareService {
   static const playStoreUrl =
-      'https://play.google.com/store/apps/details?id=com.santhosh.emi.emi_reminder';
+      'https://play.google.com/store/apps/details?id=com.santhosh.p2preminder';
 
   /// Share the app on Play Store — drives organic installs
   static Future<void> shareApp() async {
-    const message = '''💰 EMI Reminder — Never miss a loan payment!
+    const message =
+        '''💰 EMI Reminder — Never miss a loan payment!
 
 ✅ Track all your EMIs in one place
 🔔 Smart reminders before due dates
@@ -39,7 +40,9 @@ ${ShareService.playStoreUrl}
     final buffer = StringBuffer();
     buffer.writeln('📊 *${loan.name} — Loan Summary*');
     buffer.writeln('');
-    buffer.writeln('💳 EMI Amount: *$symbol${fmt.format(loan.emiAmount)}/month*');
+    buffer.writeln(
+      '💳 EMI Amount: *$symbol${fmt.format(loan.emiAmount)}/month*',
+    );
     if (loan.bankName != null) {
       buffer.writeln('🏦 Bank: ${loan.bankName}');
     }
@@ -74,7 +77,10 @@ ${ShareService.playStoreUrl}
     buffer.writeln('_Tracked with EMI Reminder App 📱_');
     buffer.writeln(ShareService.playStoreUrl);
 
-    await Share.share(buffer.toString(), subject: '${loan.name} — Loan Summary');
+    await Share.share(
+      buffer.toString(),
+      subject: '${loan.name} — Loan Summary',
+    );
   }
 
   /// Share all loans overview — monthly summary
@@ -85,7 +91,9 @@ ${ShareService.playStoreUrl}
     final totalEmi = loans.fold<double>(0, (s, l) => s + l.emiAmount);
     final paid = loans.where((l) => l.isPaid).length;
     final overdue = loans.where((l) => l.isOverdue()).length;
-    final dueSoon = loans.where((l) => !l.isPaid && l.daysUntilDue() <= 3).length;
+    final dueSoon = loans
+        .where((l) => !l.isPaid && l.daysUntilDue() <= 3)
+        .length;
 
     final buffer = StringBuffer();
     buffer.writeln('📊 *My Monthly EMI Overview*');
@@ -99,8 +107,14 @@ ${ShareService.playStoreUrl}
     buffer.writeln('');
     buffer.writeln('*Loan Breakdown:*');
     for (final loan in loans) {
-      final status = loan.isPaid ? '✅' : loan.isOverdue() ? '🚨' : '⏳';
-      buffer.writeln('$status ${loan.name}: $symbol${fmt.format(loan.emiAmount)}');
+      final status = loan.isPaid
+          ? '✅'
+          : loan.isOverdue()
+          ? '🚨'
+          : '⏳';
+      buffer.writeln(
+        '$status ${loan.name}: $symbol${fmt.format(loan.emiAmount)}',
+      );
     }
     buffer.writeln('');
     buffer.writeln('_Tracked with EMI Reminder App 📱_');

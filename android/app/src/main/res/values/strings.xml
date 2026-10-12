@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">EMI Reminder</string>
-    <string name="app_full_name">EMI Reminder &amp; Loan Tracker</string>
-    <string name="app_tagline">Loan Tracker</string>
+    <string name="app_name">P2P Reminder</string>
+    <string name="app_full_name">P2P Reminder &amp; Loan Tracker</string>
+    <string name="app_tagline">Lent &amp; Borrowed Tracker</string>
 </resources>
