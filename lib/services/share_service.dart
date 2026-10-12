@@ -4,7 +4,7 @@ import '../models/loan.dart';
 
 class ShareService {
   static const playStoreUrl =
-      'https://play.google.com/store/apps/details?id=com.santhosh.p2preminder';
+      'https://play.google.com/store/apps/details?id=com.santhosh.loanledger';
 
   /// Share the app on Play Store — drives organic installs
   static Future<void> shareApp() async {

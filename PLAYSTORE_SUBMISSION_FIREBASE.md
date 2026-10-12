@@ -15,7 +15,7 @@ Complete guide to prepare and submit the LoanLedger app to Google Play Store.
 
 ### ✅ App Configuration
 - [x] App name: LoanLedger
-- [x] Package name: com.santhosh.p2preminder
+- [x] Package name: com.santhosh.loanledger
 - [x] Minimum SDK: API 24
 - [x] Target SDK: Latest
 - [ ] Version code incremented
@@ -224,6 +224,7 @@ flutter build appbundle --release
 
 Version: 1.0.0  
 Updated: October 11, 2026
+
 
 
 

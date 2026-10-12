@@ -17,7 +17,7 @@ if (keystorePropertiesFile.exists()) {
 }
 
 android {
-    namespace = "com.santhosh.p2preminder"
+    namespace = "com.santhosh.loanledger"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -33,7 +33,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.santhosh.p2preminder"
+        applicationId = "com.santhosh.loanledger"
         minSdk = 24  // Minimum SDK for better notification support
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
