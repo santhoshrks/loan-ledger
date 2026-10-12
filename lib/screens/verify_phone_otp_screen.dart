@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../services/auth_service.dart';
+import 'splash_screen.dart';
 
 class VerifyPhoneOtpScreen extends StatefulWidget {
   final String verificationId;
@@ -70,7 +71,9 @@ class _VerifyPhoneOtpScreenState extends State<VerifyPhoneOtpScreen> {
       await AuthService.signInWithPhoneCredential(credential: credential);
 
       if (mounted) {
-        Navigator.of(context).pushReplacementNamed('/home');
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (_) => const SplashScreen()),
+        );
       }
     } on FirebaseAuthException catch (e) {
       setState(() {
@@ -269,4 +272,3 @@ class _VerifyPhoneOtpScreenState extends State<VerifyPhoneOtpScreen> {
     );
   }
 }
-

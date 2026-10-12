@@ -34,6 +34,20 @@ Future<void> main() async {
   NotificationService? notificationService;
   final languageProvider = LanguageProvider();
 
+  // Initialize Firebase FIRST
+  debugPrint('🔄 Initializing Firebase...');
+  await Future.wait([
+    () async {
+      try {
+        await AuthService.initializeFirebase();
+        debugPrint('✅ Firebase Auth initialized');
+      } catch (e) {
+        debugPrint('❌ Firebase Auth init error: $e');
+      }
+    }(),
+  ]);
+
+  // Then initialize other services
   await Future.wait([
     () async {
       try {
@@ -59,14 +73,6 @@ Future<void> main() async {
         debugPrint('✅ Language provider initialized');
       } catch (e) {
         debugPrint('❌ Language provider error: $e');
-      }
-    }(),
-    () async {
-      try {
-        await AuthService.initializeFirebase();
-        debugPrint('✅ Firebase initialized');
-      } catch (e) {
-        debugPrint('❌ Firebase initialization error: $e');
       }
     }(),
   ]);

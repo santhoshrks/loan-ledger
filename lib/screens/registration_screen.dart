@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/auth_provider.dart';
 import 'login_screen.dart';
+import 'splash_screen.dart';
 
 class RegistrationScreen extends StatefulWidget {
   const RegistrationScreen({super.key});
@@ -77,18 +78,25 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
     );
 
     if (success && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Registration successful! Please verify your email.'),
-          duration: Duration(seconds: 2),
-        ),
-      );
-      Navigator.of(context).pushReplacementNamed('/home');
-    } else if (mounted && authProvider.errorMessage != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(authProvider.errorMessage!)),
-      );
-    }
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Registration successful! Please verify your email.'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (_) => const SplashScreen()),
+        );
+      } else if (mounted && authProvider.errorMessage != null) {
+        debugPrint('🔴 Registration Error: ${authProvider.errorMessage}');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(authProvider.errorMessage!),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
   }
 
   @override
@@ -322,4 +330,3 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
     );
   }
 }
-

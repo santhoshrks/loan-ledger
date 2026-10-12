@@ -11,6 +11,7 @@ import '../services/language_provider.dart';
 import '../services/notification_service.dart';
 import '../services/region_preferences_service.dart';
 import '../services/auth_provider.dart';
+import 'login_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   final LoanStorageService storageService;
@@ -66,7 +67,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
               final authProvider = context.read<AuthProvider>();
               await authProvider.logout();
               if (context.mounted) {
-                Navigator.of(context).pushReplacementNamed('/login');
+                Navigator.of(context).pushAndRemoveUntil(
+                  MaterialPageRoute(builder: (_) => const LoginScreen()),
+                  (route) => false,
+                );
               }
             },
             style: ElevatedButton.styleFrom(

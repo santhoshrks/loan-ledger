@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../firebase_options.dart';
 
 class AuthService {
   static final FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
@@ -8,10 +9,20 @@ class AuthService {
   /// Initialize Firebase
   static Future<void> initializeFirebase() async {
     try {
-      await Firebase.initializeApp();
+      if (Firebase.apps.isEmpty) {
+        await Firebase.initializeApp(
+          options: DefaultFirebaseOptions.currentPlatform,
+        );
+      }
+
+      // Verify Firebase Auth is initialized
+      final auth = FirebaseAuth.instance;
       debugPrint('✅ Firebase initialized successfully');
+      debugPrint('✅ Firebase Auth instance: ${auth.currentUser}');
+
     } catch (e) {
       debugPrint('❌ Firebase initialization error: $e');
+      rethrow;
     }
   }
 
@@ -38,10 +49,14 @@ class AuthService {
     required String displayName,
   }) async {
     try {
+      debugPrint('🔄 Starting registration for: $email');
+
       final userCredential = await _firebaseAuth.createUserWithEmailAndPassword(
         email: email,
         password: password,
       );
+
+      debugPrint('✅ User credential created: ${userCredential.user?.uid}');
 
       // Update display name
       await userCredential.user?.updateDisplayName(displayName);
@@ -50,7 +65,10 @@ class AuthService {
       debugPrint('✅ User registered successfully: ${userCredential.user?.email}');
       return userCredential;
     } on FirebaseAuthException catch (e) {
-      debugPrint('❌ Registration error: ${e.code} - ${e.message}');
+      debugPrint('❌ Firebase Auth Error: ${e.code} - ${e.message}');
+      rethrow;
+    } catch (e) {
+      debugPrint('❌ Unexpected Registration error: $e');
       rethrow;
     }
   }
@@ -215,4 +233,3 @@ class AuthService {
     }
   }
 }
-

@@ -14,6 +14,18 @@ class AuthProvider extends ChangeNotifier {
 
   AuthProvider() {
     _listenToAuthState();
+    _debugFirebaseStatus();
+  }
+
+  void _debugFirebaseStatus() {
+    try {
+      final auth = FirebaseAuth.instance;
+      debugPrint('🔍 Firebase Auth Status:');
+      debugPrint('   Current User: ${auth.currentUser}');
+      debugPrint('   App Configured: ✅');
+    } catch (e) {
+      debugPrint('🔍 Firebase Auth Status: ❌ Error - $e');
+    }
   }
 
   void _listenToAuthState() {
@@ -33,24 +45,33 @@ class AuthProvider extends ChangeNotifier {
       _errorMessage = null;
       notifyListeners();
 
+      debugPrint('📝 Registration Step 1: Validating inputs');
+      debugPrint('   Email: $email, Name: $displayName');
+
+      debugPrint('📝 Registration Step 2: Calling AuthService.registerWithEmail');
       await AuthService.registerWithEmail(
         email: email,
         password: password,
         displayName: displayName,
       );
 
-      // Send verification email
+      debugPrint('📝 Registration Step 3: Sending verification email');
       await AuthService.sendEmailVerification();
 
+      debugPrint('✅ Registration completed successfully');
       _isLoading = false;
       notifyListeners();
       return true;
+
     } on FirebaseAuthException catch (e) {
+      debugPrint('❌ FirebaseAuthException: Code=${e.code}, Message=${e.message}');
       _errorMessage = _getErrorMessage(e.code);
       _isLoading = false;
       notifyListeners();
       return false;
+
     } catch (e) {
+      debugPrint('❌ Unexpected Exception: Type=${e.runtimeType}, Message=$e');
       _errorMessage = 'Error: ${e.toString()}';
       _isLoading = false;
       notifyListeners();
@@ -152,12 +173,15 @@ class AuthProvider extends ChangeNotifier {
       case 'network-request-failed':
         return 'Network error. Check your internet connection.';
       case 'operation-not-allowed':
-        return 'This sign-in method is not enabled. Contact support.';
+        return 'Email/Password auth is not enabled. Contact admin.';
       default:
-        return 'Authentication failed: $errorCode';
+        return 'Authentication failed. Error: $errorCode';
     }
   }
 }
+
+
+
 
 
 

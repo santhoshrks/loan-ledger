@@ -4,6 +4,7 @@ import '../services/auth_provider.dart';
 import 'registration_screen.dart';
 import 'forgot_password_screen.dart';
 import 'phone_login_screen.dart';
+import 'splash_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -46,7 +47,9 @@ class _LoginScreenState extends State<LoginScreen> {
     );
 
     if (success && mounted) {
-      Navigator.of(context).pushReplacementNamed('/home');
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => const SplashScreen()),
+      );
     } else if (mounted && authProvider.errorMessage != null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(authProvider.errorMessage!)),
@@ -244,5 +247,3 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 }
-
-
