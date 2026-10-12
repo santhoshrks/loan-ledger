@@ -1,6 +1,6 @@
-# Firebase Setup Guide for P2P Reminder App
+# Firebase Setup Guide for LoanLedger App
 
-This guide will help you set up Firebase Authentication for the P2P Reminder app.
+This guide will help you set up Firebase Authentication for the LoanLedger app.
 
 ## Prerequisites
 
@@ -14,7 +14,7 @@ This guide will help you set up Firebase Authentication for the P2P Reminder app
 
 1. Go to [Firebase Console](https://console.firebase.google.com/)
 2. Click **Create a project**
-3. Enter project name: `P2PReminderApp` (or any name)
+3. Enter project name: `LoanLedger` (or any name)
 4. Click **Continue**
 5. Enable/Disable Google Analytics (optional)
 6. Click **Create project**
@@ -72,4 +72,5 @@ flutter run
 ---
 
 **Last Updated**: October 11, 2026
+
 

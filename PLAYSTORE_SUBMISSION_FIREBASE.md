@@ -1,6 +1,6 @@
-# Play Store Submission Guide - P2P Reminder with Firebase Authentication
+# Play Store Submission Guide - LoanLedger with Firebase Authentication
 
-Complete guide to prepare and submit the P2P Reminder app to Google Play Store.
+Complete guide to prepare and submit the LoanLedger app to Google Play Store.
 
 ---
 
@@ -14,7 +14,7 @@ Complete guide to prepare and submit the P2P Reminder app to Google Play Store.
 - [ ] SHA-1 fingerprint registered in Firebase Console
 
 ### ✅ App Configuration
-- [x] App name: P2P Reminder
+- [x] App name: LoanLedger
 - [x] Package name: com.santhosh.p2preminder
 - [x] Minimum SDK: API 24
 - [x] Target SDK: Latest
@@ -224,4 +224,5 @@ flutter build appbundle --release
 
 Version: 1.0.0  
 Updated: October 11, 2026
+
 

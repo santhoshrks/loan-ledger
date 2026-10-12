@@ -69,7 +69,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 children: [
                   SizedBox(height: MediaQuery.of(context).size.height * 0.1),
                   const Text(
-                    'P2P Reminder',
+                    'LoanLedger',
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 32,
@@ -244,4 +244,5 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 }
+
 

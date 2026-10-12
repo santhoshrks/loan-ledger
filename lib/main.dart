@@ -113,7 +113,7 @@ class P2PReminderApp extends StatelessWidget {
       builder: (context, languageProvider, _) {
         return MaterialApp(
           debugShowCheckedModeBanner: false,
-          title: 'P2P Reminder',
+          title: 'LoanLedger',
           theme: AppTheme.lightTheme,
           locale: languageProvider.currentLocale,
           localizationsDelegates: const [
