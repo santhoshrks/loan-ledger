@@ -2,6 +2,8 @@ import 'dart:math';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'region_preferences_service.dart';
+
 class ReminderExperimentService {
   static const String _bucketKey = 'reminder_timing_bucket';
   static const String _seedKey = 'reminder_experiment_seed';
@@ -13,6 +15,49 @@ class ReminderExperimentService {
     'A': [9, 13, 17, 21],
     // Variant schedule to test morning vs evening engagement.
     'B': [8, 12, 18, 21],
+  };
+
+  static const Map<String, Map<String, List<int>>> _countryBucketHours = {
+    // India default behavior remains unchanged.
+    'IN': {
+      'A': [9, 13, 17, 21],
+      'B': [8, 12, 18, 21],
+    },
+    // Pakistan + Bangladesh: late afternoon tends to perform better.
+    'PK': {
+      'A': [9, 14, 18, 21],
+      'B': [8, 13, 19, 21],
+    },
+    'BD': {
+      'A': [9, 14, 18, 21],
+      'B': [8, 12, 18, 21],
+    },
+    // Philippines + Malaysia: commute-evening patterns.
+    'PH': {
+      'A': [8, 12, 18, 21],
+      'B': [9, 13, 19, 21],
+    },
+    'MY': {
+      'A': [8, 12, 18, 21],
+      'B': [9, 13, 19, 21],
+    },
+    // Gulf countries: later evening reminders are common.
+    'AE': {
+      'A': [9, 14, 19, 22],
+      'B': [8, 13, 18, 21],
+    },
+    'QA': {
+      'A': [9, 14, 19, 22],
+      'B': [8, 13, 18, 21],
+    },
+    'MM': {
+      'A': [8, 12, 17, 20],
+      'B': [9, 13, 18, 21],
+    },
+    'US': {
+      'A': [8, 12, 17, 20],
+      'B': [9, 13, 18, 21],
+    },
   };
 
   static Future<String> getOrAssignBucket() async {
@@ -35,6 +80,27 @@ class ReminderExperimentService {
 
   static List<int> getHoursForBucket(String bucket) {
     return _bucketHours[bucket] ?? _bucketHours['A']!;
+  }
+
+  static Future<List<int>> getHoursForResolvedRegion(String bucket) async {
+    final countryCode = await RegionPreferencesService.resolveCountryCode();
+    return getHoursForBucketAndCountry(
+      bucket: bucket,
+      countryCode: countryCode,
+    );
+  }
+
+  static List<int> getHoursForBucketAndCountry({
+    required String bucket,
+    required String countryCode,
+  }) {
+    final upperCountry = countryCode.toUpperCase();
+    final profile = _countryBucketHours[upperCountry];
+    if (profile == null) {
+      return getHoursForBucket(bucket);
+    }
+
+    return profile[bucket] ?? profile['A'] ?? getHoursForBucket(bucket);
   }
 
   static int stableHashForTesting(String seed) => _stableHash(seed);

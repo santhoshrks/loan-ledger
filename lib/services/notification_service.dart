@@ -283,9 +283,8 @@ class NotificationService {
     debugPrint('   Current time: $now');
 
     final bucket = await ReminderExperimentService.getOrAssignBucket();
-    final notificationHours = ReminderExperimentService.getHoursForBucket(
-      bucket,
-    );
+    final notificationHours =
+        await ReminderExperimentService.getHoursForResolvedRegion(bucket);
     final dueIn3DaysCount = _countDueLoansForStage(3);
     final dueTomorrowCount = _countDueLoansForStage(1);
     final dueTodayCount = _countDueLoansForStage(0);
@@ -436,24 +435,34 @@ class NotificationService {
 
   /// Get localized text for notifications
   String _getLocalizedText(String key, String lang) {
+    final normalizedLang = _normalizeLang(lang);
     final translations = {
       'emiDueIn3Days': {
         'en': 'EMI Due in 3 Days',
         'ta': '3 நாட்களில் EMI செலுத்த வேண்டும்',
         'te': '3 రోజుల్లో EMI చెల్లించాలి',
         'hi': '3 दिनों में EMI देय है',
+        'ur': 'EMI 3 din mein due hai',
+        'bn': '3 diner moddhe EMI due',
+        'fil': 'EMI due in 3 days',
       },
       'emiDueTomorrow': {
         'en': 'EMI Due Tomorrow',
         'ta': 'நாளை EMI செலுத்த வேண்டும்',
         'te': 'రేపు EMI చెల్లించాలి',
         'hi': 'कल EMI देय है',
+        'ur': 'Kal EMI due hai',
+        'bn': 'Kal EMI due',
+        'fil': 'EMI is due tomorrow',
       },
       'emiDueToday': {
         'en': 'EMI Due Today!',
         'ta': 'இன்று EMI செலுத்த வேண்டும்!',
         'te': 'ఈరోజు EMI చెల్లించాలి!',
         'hi': 'आज EMI देय है!',
+        'ur': 'Aaj EMI due hai!',
+        'bn': 'Aj EMI due!',
+        'fil': 'EMI is due today!',
       },
       'dueOn': {
         'en': 'due on',
@@ -480,18 +489,27 @@ class NotificationService {
         'ta': 'EMI நினைவூட்டல் சோதனை',
         'te': 'EMI రిమైండర్ టెస్ట్',
         'hi': 'EMI रिमाइंडर टेस्ट',
+        'ur': 'EMI reminder test',
+        'bn': 'EMI reminder test',
+        'fil': 'EMI reminder test',
       },
       'notificationWorking': {
         'en': 'notification is working!',
         'ta': 'அறிவிப்பு வேலை செய்கிறது!',
         'te': 'నోటిఫికేషన్ పని చేస్తోంది!',
         'hi': 'नोटिफिकेशन काम कर रहा है!',
+        'ur': 'Notification kaam kar raha hai!',
+        'bn': 'Notification kaj korche!',
+        'fil': 'Gumagana ang notification!',
       },
       'testNotification': {
         'en': 'Test Notification',
         'ta': 'சோதனை அறிவிப்பு',
         'te': 'టెస్ట్ నోటిఫికేషన్',
         'hi': 'टेस्ट नोटिफिकेशन',
+        'ur': 'Test notification',
+        'bn': 'Test notification',
+        'fil': 'Test notification',
       },
       'testNotificationBody': {
         'en':
@@ -502,10 +520,18 @@ class NotificationService {
             'EMI రిమైండర్ పని చేస్తోంది! మీ EMI చెల్లింపులకు సకాలంలో రిమైండర్లు అందుకుంటారు.',
         'hi':
             'EMI रिमाइंडर काम कर रहा है! आपको अपने EMI भुगतान के लिए समय पर रिमाइंडर मिलेंगे।',
+        'ur':
+            'EMI reminder kaam kar raha hai! Aap ko EMI payments ke liye waqt par reminders milenge.',
+        'bn':
+            'EMI reminder kaj korche! Apni EMI payment er jonno somoy moto reminder paben.',
+        'fil':
+            'Gumagana ang EMI Reminder! Makakatanggap ka ng paalala para sa EMI payments mo.',
       },
     };
 
-    return translations[key]?[lang] ?? translations[key]?['en'] ?? key;
+    return translations[key]?[normalizedLang] ??
+        translations[key]?['en'] ??
+        key;
   }
 
   /// Get translated loan type name
@@ -802,18 +828,7 @@ class NotificationService {
   }
 
   String _symbolForCurrency(String code) {
-    switch (code) {
-      case 'INR':
-        return 'Rs ';
-      case 'USD':
-        return '\$';
-      case 'EUR':
-        return 'EUR ';
-      case 'GBP':
-        return 'GBP ';
-      default:
-        return '$code ';
-    }
+    return '${CurrencyHelper.getSymbol(code)} ';
   }
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -1118,6 +1133,9 @@ class NotificationService {
             'hi': ' इस समय लगभग $dueLoansCount EMI देय हैं।',
             'ta': ' இந்த நேரத்தில் சுமார் $dueLoansCount EMI செலுத்த வேண்டும்.',
             'te': ' ఈ సమయంలో సుమారు $dueLoansCount EMIలు చెల్లించాలి.',
+            'ur': ' Is waqt qareeban $dueLoansCount EMI due hain.',
+            'bn': ' Ei somoy pray $dueLoansCount ta EMI due ache.',
+            'fil': ' May $dueLoansCount EMI kang due sa panahon na ito.',
           })
         : '';
     final remainingContext = (emisRemaining != null && emisRemaining > 0)
@@ -1126,6 +1144,9 @@ class NotificationService {
             'hi': ' $emisRemaining EMI शेष हैं।',
             'ta': ' இன்னும் $emisRemaining EMI மீதமுள்ளது.',
             'te': ' ఇంకా $emisRemaining EMIలు మిగిలి ఉన్నాయి.',
+            'ur': ' $emisRemaining EMI baki hain.',
+            'bn': ' $emisRemaining ta EMI baki ache.',
+            'fil': ' May $emisRemaining EMI pa na natitira.',
           })
         : '';
 
@@ -1138,6 +1159,12 @@ class NotificationService {
             '📅 $loanName EMI $amt — 7 நாட்களில் செலுத்த வேண்டும். முன்கூட்டியே திட்டமிடுங்கள்!',
         'te':
             '📅 $loanName EMI $amt — 7 రోజుల్లో చెల్లించాలి. ముందే ప్లాన్ చేయండి!',
+        'ur':
+            '📅 $loanName ki $amt EMI 7 din mein due hai. Pehle se plan karein!',
+        'bn':
+            '📅 $loanName er $amt EMI 7 diner moddhe due. Agey theke plan korun!',
+        'fil':
+            '📅 Ang $amt na EMI ng $loanName ay due sa loob ng 7 araw. Magplano nang maaga!',
       });
     } else if (daysLeft == 3) {
       return _smartText(lang, {
@@ -1149,6 +1176,12 @@ class NotificationService {
             '⚠️ $loanName EMI $amt — 3 நாட்களில் செலுத்த வேண்டும்!$dueContext$remainingContext',
         'te':
             '⚠️ $loanName EMI $amt — 3 రోజుల్లో చెల్లించాలి!$dueContext$remainingContext',
+        'ur':
+            '⚠️ $loanName ki $amt EMI 3 din mein due hai!$dueContext$remainingContext',
+        'bn':
+            '⚠️ $loanName er $amt EMI 3 diner moddhe due!$dueContext$remainingContext',
+        'fil':
+            '⚠️ Ang $amt na EMI ng $loanName ay due in 3 days!$dueContext$remainingContext',
       }).trim();
     } else if (daysLeft == 1) {
       return _smartText(lang, {
@@ -1160,6 +1193,12 @@ class NotificationService {
             '🔔 நாளை $loanName EMI $amt செலுத்த வேண்டும். மறக்காதீர்கள்!$dueContext$remainingContext',
         'te':
             '🔔 రేపు $loanName EMI $amt చెల్లించాలి. మర్చిపోకండి!$dueContext$remainingContext',
+        'ur':
+            '🔔 Kal $loanName ki $amt EMI due hai. Bhoolna mat!$dueContext$remainingContext',
+        'bn':
+            '🔔 Kal $loanName er $amt EMI due. Vulben na!$dueContext$remainingContext',
+        'fil':
+            '🔔 Bukas due ang $amt na EMI ng $loanName. Huwag kalimutan!$dueContext$remainingContext',
       }).trim();
     } else {
       return _smartText(lang, {
@@ -1171,12 +1210,29 @@ class NotificationService {
             '🚨 இன்றே கடைசி நாள்! $loanName EMI $amt இப்போதே செலுத்துங்கள்.$dueContext$remainingContext',
         'te':
             '🚨 ఈరోజే చివరి రోజు! $loanName EMI $amt ఇప్పుడే చెల్లించండి.$dueContext$remainingContext',
+        'ur':
+            '🚨 Aaj aakhri din hai! $loanName ki $amt EMI abhi pay karein.$dueContext$remainingContext',
+        'bn':
+            '🚨 Aj sesh din! $loanName er $amt EMI ekhoni pay korun.$dueContext$remainingContext',
+        'fil':
+            '🚨 Last day na ngayon! Bayaran ang $amt na EMI ng $loanName ngayon.$dueContext$remainingContext',
       }).trim();
     }
   }
 
   String _smartText(String lang, Map<String, String> map) =>
-      map[lang] ?? map['en'] ?? '';
+      map[_normalizeLang(lang)] ?? map['en'] ?? '';
+
+  String _normalizeLang(String lang) {
+    final normalized = lang.toLowerCase();
+    if (normalized.contains('_')) {
+      return normalized.split('_').first;
+    }
+    if (normalized.contains('-')) {
+      return normalized.split('-').first;
+    }
+    return normalized;
+  }
 
   /// Smart title per urgency level
   String _smartTitle(int daysLeft, String lang) {
@@ -1186,6 +1242,9 @@ class NotificationService {
         'hi': '💡 EMI याद — 1 सप्ताह बाकी',
         'ta': '💡 EMI நினைவூட்டல் — 1 வாரம் உள்ளது',
         'te': '💡 EMI రిమైండర్ — 1 వారం మిగిలింది',
+        'ur': '💡 EMI reminder — 1 hafta baqi',
+        'bn': '💡 EMI reminder — 1 soptaho baki',
+        'fil': '💡 EMI reminder — 1 linggo na lang',
       });
     } else if (daysLeft == 3) {
       return _smartText(lang, {
@@ -1193,6 +1252,9 @@ class NotificationService {
         'hi': '⚠️ 3 दिनों में EMI देय',
         'ta': '⚠️ 3 நாட்களில் EMI',
         'te': '⚠️ 3 రోజుల్లో EMI',
+        'ur': '⚠️ EMI 3 din mein due',
+        'bn': '⚠️ EMI 3 diner moddhe due',
+        'fil': '⚠️ EMI due in 3 days',
       });
     } else if (daysLeft == 1) {
       return _smartText(lang, {
@@ -1200,6 +1262,9 @@ class NotificationService {
         'hi': '🔔 कल EMI देय है!',
         'ta': '🔔 நாளை EMI!',
         'te': '🔔 రేపు EMI!',
+        'ur': '🔔 Kal EMI due hai!',
+        'bn': '🔔 Kal EMI due!',
+        'fil': '🔔 EMI due tomorrow!',
       });
     } else {
       return _smartText(lang, {
@@ -1207,6 +1272,9 @@ class NotificationService {
         'hi': '🚨 आज EMI देय है!',
         'ta': '🚨 இன்று EMI!',
         'te': '🚨 ఈరోజు EMI!',
+        'ur': '🚨 Aaj EMI due hai!',
+        'bn': '🚨 Aj EMI due!',
+        'fil': '🚨 EMI due today!',
       });
     }
   }
@@ -1218,11 +1286,16 @@ class NotificationService {
     final nextDue = loan.getNextDueDate();
     final now = DateTime.now();
     final day7Before = nextDue.subtract(const Duration(days: 7));
+    final bucket = await ReminderExperimentService.getOrAssignBucket();
+    final hours = await ReminderExperimentService.getHoursForResolvedRegion(
+      bucket,
+    );
+    final reminderHour = hours.first;
     final scheduled = DateTime(
       day7Before.year,
       day7Before.month,
       day7Before.day,
-      9,
+      reminderHour,
       0,
       0,
     );

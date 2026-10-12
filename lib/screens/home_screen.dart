@@ -307,7 +307,9 @@ class _HomeScreenState extends State<HomeScreen>
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('🔥 $streak-day streak! Keep checking your EMIs daily.'),
+          content: Text(
+            '🔥 $streak-day streak! Keep checking your EMIs daily.',
+          ),
           duration: const Duration(seconds: 4),
           behavior: SnackBarBehavior.floating,
           action: SnackBarAction(
@@ -538,7 +540,10 @@ class _HomeScreenState extends State<HomeScreen>
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.16),
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.22), width: 1),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.22),
+          width: 1,
+        ),
       ),
       child: Text(
         '🔥 $_currentStreak day streak',
@@ -2331,7 +2336,14 @@ class _HomeScreenState extends State<HomeScreen>
 
   Future<void> _shareReferralInvite(String source) async {
     try {
-      final inviteCount = await ReferralService.shareInvite(source: source);
+      final languageCode = context
+          .read<LanguageProvider>()
+          .currentLocale
+          .languageCode;
+      final inviteCount = await ReferralService.shareInvite(
+        source: source,
+        languageCode: languageCode,
+      );
       if (!mounted) return;
       _showSuccessSnackBar(
         inviteCount == 1

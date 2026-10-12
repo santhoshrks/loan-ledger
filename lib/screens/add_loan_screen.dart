@@ -8,6 +8,7 @@ import '../services/analytics_service.dart';
 import '../services/loan_template_service.dart';
 import '../services/loan_storage_service.dart';
 import '../services/notification_service.dart';
+import '../services/region_preferences_service.dart';
 import '../theme/app_theme.dart';
 import '../localization/app_localizations.dart';
 
@@ -47,6 +48,8 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
   String _selectedLoanType = 'Other';
   String _selectedCurrency =
       'INR'; // Default currency (overridden from locale on init)
+  List<LoanQuickTemplate> _quickTemplates =
+      LoanTemplateService.firstLoanTemplates();
 
   final List<Map<String, dynamic>> _loanTypes = [
     {'name': 'Home Loan', 'icon': Icons.home_rounded},
@@ -94,6 +97,25 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
     } else {
       _selectedStartDate = DateTime.now();
     }
+    _loadRegionalDefaults();
+  }
+
+  Future<void> _loadRegionalDefaults() async {
+    if (widget.existingLoan != null) {
+      return;
+    }
+
+    final currency = await RegionPreferencesService.resolveCurrencyCode();
+    final countryCode = await RegionPreferencesService.resolveCountryCode();
+    if (!mounted) return;
+
+    setState(() {
+      _selectedCurrency = currency;
+      _quickTemplates = LoanTemplateService.templatesForCountry(
+        countryCode: countryCode,
+        currencyCode: currency,
+      );
+    });
   }
 
   void _initializeControllers() {
@@ -521,21 +543,10 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
   }
 
   Widget _buildCurrencySelector() {
-    final currencies = [
-      // Primary markets
-      'INR', 'PKR', 'PHP', 'BDT',
-      // Spanish-speaking markets
-      'MXN', 'COP', 'ARS', 'PEN', 'CLP',
-      // Other major currencies
-      'USD', 'EUR', 'GBP', 'AED', 'SAR', 'SGD', 'AUD', 'CAD',
-      'MYR', 'IDR', 'THB', 'JPY', 'CNY', 'KRW',
-      'BRL', 'ZAR', 'TRY', 'RUB', 'CHF', 'HKD', 'NZD',
-    ];
-
     return Expanded(
       flex: 1,
       child: GestureDetector(
-        onTap: () => _showCurrencyPicker(currencies),
+        onTap: _showCurrencyPicker,
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
           decoration: BoxDecoration(
@@ -585,7 +596,7 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
     );
   }
 
-  void _showCurrencyPicker(List<String> currencies) {
+  void _showCurrencyPicker() {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -1061,10 +1072,10 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
           height: 128,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
-            itemCount: LoanTemplateService.firstLoanTemplates.length,
+            itemCount: _quickTemplates.length,
             separatorBuilder: (context, index) => const SizedBox(width: 10),
             itemBuilder: (context, index) {
-              final template = LoanTemplateService.firstLoanTemplates[index];
+              final template = _quickTemplates[index];
               return InkWell(
                 borderRadius: BorderRadius.circular(16),
                 onTap: () => _applyTemplate(template),
@@ -1159,6 +1170,10 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
       _dueDayController.text = template.suggestedDueDay.toString();
       _interestRateController.text = template.suggestedInterestRate
           .toStringAsFixed(1);
+      if (template.suggestedCurrencyCode != null &&
+          template.suggestedCurrencyCode!.isNotEmpty) {
+        _selectedCurrency = template.suggestedCurrencyCode!;
+      }
       _selectedStartDate = DateTime.now();
       _emisPaidController.text = '0';
     });

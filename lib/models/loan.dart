@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:hive/hive.dart';
 import 'package:intl/intl.dart';
 
@@ -76,7 +78,8 @@ class Loan extends HiveObject {
   String get currencySymbol => CurrencyHelper.getSymbol(currencyCode);
 
   /// Get formatted EMI amount with currency symbol
-  String get formattedEmi => '$currencySymbol${emiAmount.toStringAsFixed(0)}';
+  String get formattedEmi =>
+      CurrencyHelper.formatAmount(emiAmount, currencyCode: currencyCode);
 
   /// Calculate next due date from today
   /// If current month's EMI is unpaid and overdue, it still shows current month's due date
@@ -181,7 +184,11 @@ class Loan extends HiveObject {
     if (isPaid) return false; // Already paid, not overdue
     final currentDue = getCurrentDueDate();
     final now = DateTime.now();
-    final normalizedDue = DateTime(currentDue.year, currentDue.month, currentDue.day);
+    final normalizedDue = DateTime(
+      currentDue.year,
+      currentDue.month,
+      currentDue.day,
+    );
     final normalizedNow = DateTime(now.year, now.month, now.day);
     return normalizedNow.isAfter(normalizedDue);
   }
@@ -204,8 +211,8 @@ class Loan extends HiveObject {
     if (tenureMonths == null) return 0;
     // Calculate months elapsed since start date
     final now = DateTime.now();
-    final monthsElapsed = ((now.year - startDate.year) * 12) +
-        (now.month - startDate.month);
+    final monthsElapsed =
+        ((now.year - startDate.year) * 12) + (now.month - startDate.month);
     final remaining = tenureMonths! - monthsElapsed;
     return remaining > 0 ? remaining : 0;
   }
@@ -215,42 +222,44 @@ class Loan extends HiveObject {
 class CurrencyHelper {
   static const Map<String, String> _currencySymbols = {
     // Primary markets
-    'INR': '₹',    // Indian Rupee
-    'PKR': '₨',    // Pakistani Rupee (distinct symbol)
-    'PHP': '₱',    // Philippine Peso
-    'BDT': '৳',    // Bangladeshi Taka
+    'INR': '₹', // Indian Rupee
+    'PKR': '₨', // Pakistani Rupee (distinct symbol)
+    'PHP': '₱', // Philippine Peso
+    'BDT': '৳', // Bangladeshi Taka
     // Spanish-speaking markets
     'MXN': 'MX\$', // Mexican Peso
-    'COP': 'COL\$',// Colombian Peso
+    'COP': 'COL\$', // Colombian Peso
     'ARS': 'AR\$', // Argentine Peso
-    'PEN': 'S/',   // Peruvian Sol
+    'PEN': 'S/', // Peruvian Sol
     'CLP': 'CL\$', // Chilean Peso
     // Global
-    'USD': '\$',   // US Dollar
-    'EUR': '€',    // Euro
-    'GBP': '£',    // British Pound
-    'JPY': '¥',    // Japanese Yen
-    'CNY': '¥',    // Chinese Yuan
-    'AUD': 'A\$',  // Australian Dollar
-    'CAD': 'C\$',  // Canadian Dollar
-    'SGD': 'S\$',  // Singapore Dollar
-    'MYR': 'RM',   // Malaysian Ringgit
-    'THB': '฿',    // Thai Baht
-    'IDR': 'Rp',   // Indonesian Rupiah
-    'VND': '₫',    // Vietnamese Dong
-    'KRW': '₩',    // Korean Won
-    'LKR': 'Rs',   // Sri Lankan Rupee
-    'NPR': 'रू',   // Nepalese Rupee
-    'AED': 'د.إ',  // UAE Dirham
-    'SAR': '﷼',   // Saudi Riyal
-    'ZAR': 'R',    // South African Rand
-    'BRL': 'R\$',  // Brazilian Real
-    'RUB': '₽',    // Russian Ruble
-    'TRY': '₺',    // Turkish Lira
-    'CHF': 'Fr',   // Swiss Franc
-    'SEK': 'kr',   // Swedish Krona
-    'NOK': 'kr',   // Norwegian Krone
-    'DKK': 'kr',   // Danish Krone
+    'USD': '\$', // US Dollar
+    'EUR': '€', // Euro
+    'GBP': '£', // British Pound
+    'JPY': '¥', // Japanese Yen
+    'CNY': '¥', // Chinese Yuan
+    'AUD': 'A\$', // Australian Dollar
+    'CAD': 'C\$', // Canadian Dollar
+    'SGD': 'S\$', // Singapore Dollar
+    'MYR': 'RM', // Malaysian Ringgit
+    'THB': '฿', // Thai Baht
+    'IDR': 'Rp', // Indonesian Rupiah
+    'VND': '₫', // Vietnamese Dong
+    'KRW': '₩', // Korean Won
+    'LKR': 'Rs', // Sri Lankan Rupee
+    'NPR': 'रू', // Nepalese Rupee
+    'AED': 'د.إ', // UAE Dirham
+    'QAR': 'ر.ق', // Qatari Riyal
+    'MMK': 'K', // Myanmar Kyat
+    'SAR': '﷼', // Saudi Riyal
+    'ZAR': 'R', // South African Rand
+    'BRL': 'R\$', // Brazilian Real
+    'RUB': '₽', // Russian Ruble
+    'TRY': '₺', // Turkish Lira
+    'CHF': 'Fr', // Swiss Franc
+    'SEK': 'kr', // Swedish Krona
+    'NOK': 'kr', // Norwegian Krone
+    'DKK': 'kr', // Danish Krone
     'NZD': 'NZ\$', // New Zealand Dollar
     'HKD': 'HK\$', // Hong Kong Dollar
     'TWD': 'NT\$', // Taiwan Dollar
@@ -282,6 +291,8 @@ class CurrencyHelper {
     'LKR': 'Sri Lankan Rupee (Rs)',
     'NPR': 'Nepalese Rupee (रू)',
     'AED': 'UAE Dirham (د.إ)',
+    'QAR': 'Qatari Riyal (ر.ق)',
+    'MMK': 'Myanmar Kyat (K)',
     'SAR': 'Saudi Riyal (﷼)',
     'ZAR': 'South African Rand (R)',
     'BRL': 'Brazilian Real (R\$)',
@@ -309,29 +320,105 @@ class CurrencyHelper {
   /// Get all supported currencies
   static List<String> get supportedCurrencies => _currencySymbols.keys.toList();
 
+  /// Format monetary value using locale-friendly grouping with optional currency symbol.
+  static String formatAmount(
+    double amount, {
+    required String currencyCode,
+    String? locale,
+    int decimalDigits = 0,
+  }) {
+    final symbol = getSymbol(currencyCode);
+
+    try {
+      final formatter = NumberFormat.currency(
+        locale: locale,
+        symbol: symbol,
+        decimalDigits: decimalDigits,
+      );
+      return formatter.format(amount);
+    } catch (_) {
+      final fallback = NumberFormat('#,##0', locale).format(amount);
+      return '$symbol$fallback';
+    }
+  }
+
   /// Get currency code from device locale
   static String getDefaultCurrency() {
+    final raw = Intl.getCurrentLocale();
+    final parts = raw.replaceAll('-', '_').split('_');
+    if (parts.length >= 2) {
+      return getDefaultCurrencyForLocale(
+        Locale.fromSubtags(languageCode: parts[0], countryCode: parts[1]),
+      );
+    }
+    return getDefaultCurrencyForLocale(Locale(parts.first));
+  }
+
+  /// Get currency code from locale (language + country).
+  static String getDefaultCurrencyForLocale(Locale locale) {
     try {
-      final locale = Intl.getCurrentLocale();
-      final localeLower = locale.toLowerCase();
+      final language = locale.languageCode.toLowerCase();
+      final country = locale.countryCode?.toUpperCase();
+      final localeLower = locale.toString().toLowerCase();
+
+      if (country != null && country.isNotEmpty) {
+        switch (country) {
+          case 'IN':
+            return 'INR';
+          case 'PK':
+            return 'PKR';
+          case 'PH':
+            return 'PHP';
+          case 'BD':
+            return 'BDT';
+          case 'AE':
+            return 'AED';
+          case 'QA':
+            return 'QAR';
+          case 'MY':
+            return 'MYR';
+          case 'MM':
+            return 'MMK';
+          case 'US':
+            return 'USD';
+        }
+      }
 
       // India (primary market) — INR
-      if (localeLower.startsWith('hi') || localeLower.startsWith('ta') ||
-          localeLower.startsWith('te') || localeLower.startsWith('kn') ||
-          localeLower.startsWith('ml') || localeLower.startsWith('mr') ||
-          localeLower.startsWith('gu') || localeLower.startsWith('pa') ||
-          localeLower.contains('en_in') || localeLower == 'en_in') return 'INR';
+      if (language == 'hi' ||
+          language == 'ta' ||
+          language == 'te' ||
+          language == 'kn' ||
+          language == 'ml' ||
+          language == 'mr' ||
+          language == 'gu' ||
+          language == 'pa' ||
+          localeLower.contains('en_in') ||
+          localeLower == 'en_in')
+        return 'INR';
 
       // Pakistan — PKR
-      if (localeLower.startsWith('ur') || localeLower.contains('en_pk') ||
-          localeLower.contains('ur_pk')) return 'PKR';
+      if (language == 'ur' ||
+          localeLower.contains('en_pk') ||
+          localeLower.contains('ur_pk'))
+        return 'PKR';
 
       // Philippines — PHP
-      if (localeLower.startsWith('fil') || localeLower.startsWith('tl') ||
-          localeLower.contains('en_ph')) return 'PHP';
+      if (language == 'fil' ||
+          language == 'tl' ||
+          localeLower.contains('en_ph'))
+        return 'PHP';
 
       // Bangladesh — BDT
-      if (localeLower.startsWith('bn') || localeLower.contains('en_bd')) return 'BDT';
+      if (language == 'bn' || localeLower.contains('en_bd')) return 'BDT';
+
+      // Gulf + Myanmar + Malaysia
+      if (localeLower.contains('ar_ae') || localeLower.contains('en_ae'))
+        return 'AED';
+      if (localeLower.contains('ar_qa') || localeLower.contains('en_qa'))
+        return 'QAR';
+      if (localeLower.contains('my_mm')) return 'MMK';
+      if (language == 'ms' || localeLower.contains('en_my')) return 'MYR';
 
       // Spanish-speaking countries
       if (localeLower.contains('es_mx')) return 'MXN'; // Mexico
@@ -340,23 +427,26 @@ class CurrencyHelper {
       if (localeLower.contains('es_pe')) return 'PEN'; // Peru
       if (localeLower.contains('es_cl')) return 'CLP'; // Chile
       if (localeLower.contains('es_es')) return 'EUR'; // Spain
-      if (localeLower.startsWith('es')) return 'USD';  // Other Spanish (many use USD)
+      if (localeLower.startsWith('es'))
+        return 'USD'; // Other Spanish (many use USD)
 
       // Other regions
-      if (localeLower.contains('en_us') || localeLower.startsWith('en_us')) return 'USD';
+      if (localeLower.contains('en_us') || localeLower.startsWith('en_us'))
+        return 'USD';
       if (localeLower.contains('en_gb')) return 'GBP';
-      if (localeLower.startsWith('de') || localeLower.startsWith('fr') ||
-          localeLower.startsWith('it')) return 'EUR';
+      if (localeLower.startsWith('de') ||
+          localeLower.startsWith('fr') ||
+          localeLower.startsWith('it'))
+        return 'EUR';
       if (localeLower.startsWith('ja')) return 'JPY';
       if (localeLower.startsWith('zh')) return 'CNY';
       if (localeLower.contains('en_au')) return 'AUD';
       if (localeLower.contains('en_ca')) return 'CAD';
-      if (localeLower.contains('en_sg') || localeLower.contains('zh_sg')) return 'SGD';
-      if (localeLower.startsWith('ms') || localeLower.contains('en_my')) return 'MYR';
+      if (localeLower.contains('en_sg') || localeLower.contains('zh_sg'))
+        return 'SGD';
       if (localeLower.startsWith('id')) return 'IDR';
       if (localeLower.startsWith('th')) return 'THB';
       if (localeLower.startsWith('ko')) return 'KRW';
-      if (localeLower.contains('ar_ae') || localeLower.contains('en_ae')) return 'AED';
       if (localeLower.contains('ar_sa')) return 'SAR';
       if (localeLower.contains('pt_br')) return 'BRL';
       if (localeLower.startsWith('tr')) return 'TRY';
@@ -365,4 +455,3 @@ class CurrencyHelper {
     return 'INR'; // Default to INR (primary market)
   }
 }
-

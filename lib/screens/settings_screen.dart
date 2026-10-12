@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:app_settings/app_settings.dart';
+import '../models/loan.dart';
 import '../theme/app_theme.dart';
 import '../localization/app_localizations.dart';
 import '../services/backup_service.dart';
@@ -8,6 +9,7 @@ import '../services/backup_reminder_service.dart';
 import '../services/loan_storage_service.dart';
 import '../services/language_provider.dart';
 import '../services/notification_service.dart';
+import '../services/region_preferences_service.dart';
 
 class SettingsScreen extends StatefulWidget {
   final LoanStorageService storageService;
@@ -30,6 +32,21 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   bool _isExporting = false;
   bool _isImporting = false;
+  String? _selectedCurrencyOverride;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCurrencyOverride();
+  }
+
+  Future<void> _loadCurrencyOverride() async {
+    final selected = await RegionPreferencesService.getPreferredCurrency();
+    if (!mounted) return;
+    setState(() {
+      _selectedCurrencyOverride = selected;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -97,10 +114,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   const SizedBox(height: 8),
                   Text(
                     l.backupDescription,
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: Colors.grey[600],
-                    ),
+                    style: TextStyle(fontSize: 13, color: Colors.grey[600]),
                   ),
                   const SizedBox(height: 16),
 
@@ -250,6 +264,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
                   const SizedBox(height: 24),
 
+                  const Text(
+                    'Currency',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: AppTheme.textDark,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  _buildCurrencyOverrideCard(),
+
+                  const SizedBox(height: 24),
+
                   // Notification Settings Section
                   Text(
                     l.notificationSettings,
@@ -333,10 +360,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   const SizedBox(height: 4),
                   Text(
                     subtitle,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey[600],
-                    ),
+                    style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                   ),
                 ],
               ),
@@ -354,19 +378,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Widget _buildLanguageSelector(BuildContext context) {
     final languages = [
-      {'code': 'en',  'name': 'English',           'nativeName': 'English'},
-      {'code': 'hi',  'name': 'Hindi',              'nativeName': 'हिन्दी'},
-      {'code': 'ta',  'name': 'Tamil',              'nativeName': 'தமிழ்'},
-      {'code': 'te',  'name': 'Telugu',             'nativeName': 'తెలుగు'},
-      {'code': 'kn',  'name': 'Kannada',            'nativeName': 'ಕನ್ನಡ'},
-      {'code': 'ml',  'name': 'Malayalam',          'nativeName': 'മലയാളം'},
-      {'code': 'mr',  'name': 'Marathi',            'nativeName': 'मराठी'},
-      {'code': 'bn',  'name': 'Bengali',            'nativeName': 'বাংলা'},
-      {'code': 'gu',  'name': 'Gujarati',           'nativeName': 'ગુજરાતી'},
-      {'code': 'ur',  'name': 'Urdu',               'nativeName': 'اردو'},
-      {'code': 'id',  'name': 'Bahasa Indonesia',   'nativeName': 'Indonesia'},
-      {'code': 'fil', 'name': 'Filipino',           'nativeName': 'Filipino'},
-      {'code': 'es',  'name': 'Spanish',            'nativeName': 'Español'},
+      {'code': 'en', 'name': 'English', 'nativeName': 'English'},
+      {'code': 'hi', 'name': 'Hindi', 'nativeName': 'हिन्दी'},
+      {'code': 'ta', 'name': 'Tamil', 'nativeName': 'தமிழ்'},
+      {'code': 'te', 'name': 'Telugu', 'nativeName': 'తెలుగు'},
+      {'code': 'kn', 'name': 'Kannada', 'nativeName': 'ಕನ್ನಡ'},
+      {'code': 'ml', 'name': 'Malayalam', 'nativeName': 'മലയാളം'},
+      {'code': 'mr', 'name': 'Marathi', 'nativeName': 'मराठी'},
+      {'code': 'bn', 'name': 'Bengali', 'nativeName': 'বাংলা'},
+      {'code': 'gu', 'name': 'Gujarati', 'nativeName': 'ગુજરાતી'},
+      {'code': 'ur', 'name': 'Urdu', 'nativeName': 'اردو'},
+      {'code': 'id', 'name': 'Bahasa Indonesia', 'nativeName': 'Indonesia'},
+      {'code': 'fil', 'name': 'Filipino', 'nativeName': 'Filipino'},
+      {'code': 'es', 'name': 'Spanish', 'nativeName': 'Español'},
     ];
 
     return Consumer<LanguageProvider>(
@@ -396,12 +420,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 },
                 borderRadius: BorderRadius.circular(12),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 14,
+                  ),
                   decoration: BoxDecoration(
-                    color: isSelected ? AppTheme.primaryColor.withValues(alpha: 0.08) : null,
+                    color: isSelected
+                        ? AppTheme.primaryColor.withValues(alpha: 0.08)
+                        : null,
                     border: Border(
                       bottom: lang != languages.last
-                          ? BorderSide(color: Colors.grey.withValues(alpha: 0.1))
+                          ? BorderSide(
+                              color: Colors.grey.withValues(alpha: 0.1),
+                            )
                           : BorderSide.none,
                     ),
                   ),
@@ -422,7 +453,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             style: TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
-                              color: isSelected ? AppTheme.primaryColor : Colors.grey[600],
+                              color: isSelected
+                                  ? AppTheme.primaryColor
+                                  : Colors.grey[600],
                             ),
                           ),
                         ),
@@ -437,7 +470,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               style: TextStyle(
                                 fontWeight: FontWeight.w600,
                                 fontSize: 15,
-                                color: isSelected ? AppTheme.primaryColor : AppTheme.textDark,
+                                color: isSelected
+                                    ? AppTheme.primaryColor
+                                    : AppTheme.textDark,
                               ),
                             ),
                             Text(
@@ -467,7 +502,83 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Widget _buildNotificationSettingsCard(BuildContext context, AppLocalizations l) {
+  Widget _buildCurrencyOverrideCard() {
+    final currencies = CurrencyHelper.supportedCurrencies..sort();
+    final dropdownItems = <DropdownMenuItem<String?>>[
+      const DropdownMenuItem<String?>(
+        value: null,
+        child: Text('Auto (device locale)'),
+      ),
+      ...currencies.map(
+        (code) => DropdownMenuItem<String?>(
+          value: code,
+          child: Text('$code - ${CurrencyHelper.getName(code)}'),
+        ),
+      ),
+    ];
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Default currency for new loans',
+            style: TextStyle(
+              fontWeight: FontWeight.w600,
+              fontSize: 14,
+              color: AppTheme.textDark,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Set a currency for your country or keep auto-detection.',
+            style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+          ),
+          const SizedBox(height: 12),
+          DropdownButtonFormField<String?>(
+            initialValue: _selectedCurrencyOverride,
+            isExpanded: true,
+            decoration: InputDecoration(
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 12,
+                vertical: 10,
+              ),
+            ),
+            items: dropdownItems,
+            onChanged: _onCurrencyOverrideChanged,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _onCurrencyOverrideChanged(String? value) async {
+    await RegionPreferencesService.setPreferredCurrency(value);
+    if (!mounted) return;
+    setState(() {
+      _selectedCurrencyOverride = value;
+    });
+  }
+
+  Widget _buildNotificationSettingsCard(
+    BuildContext context,
+    AppLocalizations l,
+  ) {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -484,7 +595,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
         children: [
           // Notifications Status - Tap to open notification settings
           InkWell(
-            onTap: () => AppSettings.openAppSettings(type: AppSettingsType.notification),
+            onTap: () =>
+                AppSettings.openAppSettings(type: AppSettingsType.notification),
             borderRadius: const BorderRadius.only(
               topLeft: Radius.circular(12),
               topRight: Radius.circular(12),
@@ -510,7 +622,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
           // Exact Alarms - Tap to open alarm settings
           InkWell(
-            onTap: () => AppSettings.openAppSettings(type: AppSettingsType.alarm),
+            onTap: () =>
+                AppSettings.openAppSettings(type: AppSettingsType.alarm),
             child: FutureBuilder<bool>(
               future: _checkExactAlarmPermission(),
               builder: (context, snapshot) {
@@ -659,11 +772,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
-  Future<void> _showPendingReminders(BuildContext context, AppLocalizations l) async {
+  Future<void> _showPendingReminders(
+    BuildContext context,
+    AppLocalizations l,
+  ) async {
     if (widget.notificationService == null) return;
 
     try {
-      final pending = await widget.notificationService!.getPendingNotifications();
+      final pending = await widget.notificationService!
+          .getPendingNotifications();
 
       if (!mounted) return;
 
@@ -696,7 +813,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: Row(
                   children: [
-                    Icon(Icons.schedule_rounded, color: Colors.orange, size: 24),
+                    Icon(
+                      Icons.schedule_rounded,
+                      color: Colors.orange,
+                      size: 24,
+                    ),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Text(
@@ -722,8 +843,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.notifications_off_rounded,
-                                 size: 48, color: Colors.grey[400]),
+                            Icon(
+                              Icons.notifications_off_rounded,
+                              size: 48,
+                              color: Colors.grey[400],
+                            ),
                             const SizedBox(height: 12),
                             Text(
                               l.noRemindersScheduled,
@@ -741,13 +865,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             margin: const EdgeInsets.only(bottom: 8),
                             child: ListTile(
                               leading: CircleAvatar(
-                                backgroundColor: Colors.orange.withValues(alpha: 0.1),
-                                child: const Icon(Icons.notifications_rounded,
-                                                  color: Colors.orange, size: 20),
+                                backgroundColor: Colors.orange.withValues(
+                                  alpha: 0.1,
+                                ),
+                                child: const Icon(
+                                  Icons.notifications_rounded,
+                                  color: Colors.orange,
+                                  size: 20,
+                                ),
                               ),
                               title: Text(
                                 notification.title ?? 'EMI Reminder',
-                                style: const TextStyle(fontWeight: FontWeight.w600),
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                ),
                               ),
                               subtitle: Text(
                                 notification.body ?? '',
@@ -765,9 +896,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
       );
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error loading reminders: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error loading reminders: $e')));
       }
     }
   }
@@ -775,7 +906,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Future<int> _getPendingRemindersCount() async {
     if (widget.notificationService == null) return 0;
     try {
-      final pending = await widget.notificationService!.getPendingNotifications();
+      final pending = await widget.notificationService!
+          .getPendingNotifications();
       return pending.length;
     } catch (e) {
       return 0;
@@ -817,7 +949,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
         if (savedPath != null) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(AppLocalizations.of(context).backupCreatedSuccessfully),
+              content: Text(
+                AppLocalizations.of(context).backupCreatedSuccessfully,
+              ),
               backgroundColor: Colors.green,
             ),
           );
@@ -872,7 +1006,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
           widget.onDataChanged();
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('${AppLocalizations.of(context).importedSuccessfully}: $importedCount ${AppLocalizations.of(context).loans}'),
+              content: Text(
+                '${AppLocalizations.of(context).importedSuccessfully}: $importedCount ${AppLocalizations.of(context).loans}',
+              ),
               backgroundColor: Colors.green,
             ),
           );
@@ -899,4 +1035,3 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 }
-

@@ -40,5 +40,21 @@ void main() {
     test('falls back to default hours for unknown bucket', () {
       expect(ReminderExperimentService.getHoursForBucket('Z'), [9, 13, 17, 21]);
     });
+
+    test('returns country-specific hours when profile exists', () {
+      final hours = ReminderExperimentService.getHoursForBucketAndCountry(
+        bucket: 'A',
+        countryCode: 'AE',
+      );
+      expect(hours, [9, 14, 19, 22]);
+    });
+
+    test('falls back to bucket defaults for unknown country profile', () {
+      final hours = ReminderExperimentService.getHoursForBucketAndCountry(
+        bucket: 'B',
+        countryCode: 'ZZ',
+      );
+      expect(hours, [8, 12, 18, 21]);
+    });
   });
 }
