@@ -4,6 +4,7 @@ import java.io.FileInputStream
 plugins {
     id("com.android.application")
     id("kotlin-android")
+    id("com.google.gms.google-services")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
 }
@@ -103,6 +104,13 @@ dependencies {
 
     // Multidex support
     implementation("androidx.multidex:multidex:2.0.1")
+
+    // Firebase BOM for version management
+    implementation(platform("com.google.firebase:firebase-bom:33.0.0"))
+
+    // Firebase dependencies
+    implementation("com.google.firebase:firebase-auth")
+    implementation("com.google.firebase:firebase-analytics")
 }
 
 flutter {

@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
 import '../services/loan_storage_service.dart';
 import '../services/notification_service.dart';
+import '../services/auth_provider.dart';
 import 'p2p_home_screen.dart';
 import 'p2p_onboarding_screen.dart';
+import 'login_screen.dart';
 
 class SplashScreen extends StatefulWidget {
   final LoanStorageService? storageService;
@@ -99,6 +102,25 @@ class _SplashScreenState extends State<SplashScreen>
 
   Future<void> _navigate() async {
     if (!mounted) return;
+
+    // Check if user is logged in
+    final authProvider = context.read<AuthProvider>();
+    final isUserLoggedIn = authProvider.isLoggedIn;
+
+    if (!isUserLoggedIn) {
+      if (!mounted) return;
+      Navigator.of(context).pushReplacement(
+        PageRouteBuilder(
+          pageBuilder: (context, animation, secondaryAnimation) => const LoginScreen(),
+          transitionsBuilder: (context, anim, secondaryAnimation, child) =>
+              FadeTransition(opacity: anim, child: child),
+          transitionDuration: const Duration(milliseconds: 320),
+        ),
+      );
+      return;
+    }
+
+    // User is logged in, proceed with onboarding check
     final onboardingDone = await hasSeenP2POnboarding();
 
     if (!mounted) return;

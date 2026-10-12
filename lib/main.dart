@@ -8,6 +8,8 @@ import 'services/analytics_service.dart';
 import 'services/loan_storage_service.dart';
 import 'services/notification_service.dart';
 import 'services/language_provider.dart';
+import 'services/auth_service.dart';
+import 'services/auth_provider.dart';
 import 'theme/app_theme.dart';
 import 'localization/app_localizations.dart';
 
@@ -59,6 +61,14 @@ Future<void> main() async {
         debugPrint('❌ Language provider error: $e');
       }
     }(),
+    () async {
+      try {
+        await AuthService.initializeFirebase();
+        debugPrint('✅ Firebase initialized');
+      } catch (e) {
+        debugPrint('❌ Firebase initialization error: $e');
+      }
+    }(),
   ]);
 
   final prefs = await SharedPreferences.getInstance();
@@ -74,6 +84,7 @@ Future<void> main() async {
     MultiProvider(
       providers: [
         ChangeNotifierProvider<LanguageProvider>.value(value: languageProvider),
+        ChangeNotifierProvider<AuthProvider>(create: (_) => AuthProvider()),
       ],
       child: P2PReminderApp(
         storageService: storageService,
