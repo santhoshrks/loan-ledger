@@ -1,5 +1,5 @@
 import 'package:flutter/foundation.dart';
-import 'package:hive/hive.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import '../models/p2p_loan.dart';
 import 'p2p_repository.dart';
 
@@ -42,3 +42,5 @@ class P2PRepositoryRemote implements P2PRepository {
     throw UnimplementedError(_notReady);
   }
 }
+
+
