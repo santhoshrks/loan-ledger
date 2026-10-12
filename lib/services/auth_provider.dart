@@ -50,6 +50,11 @@ class AuthProvider extends ChangeNotifier {
       _isLoading = false;
       notifyListeners();
       return false;
+    } catch (e) {
+      _errorMessage = 'Error: ${e.toString()}';
+      _isLoading = false;
+      notifyListeners();
+      return false;
     }
   }
 
@@ -75,6 +80,11 @@ class AuthProvider extends ChangeNotifier {
       _isLoading = false;
       notifyListeners();
       return false;
+    } catch (e) {
+      _errorMessage = 'Error: ${e.toString()}';
+      _isLoading = false;
+      notifyListeners();
+      return false;
     }
   }
 
@@ -91,6 +101,11 @@ class AuthProvider extends ChangeNotifier {
       return true;
     } on FirebaseAuthException catch (e) {
       _errorMessage = _getErrorMessage(e.code);
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    } catch (e) {
+      _errorMessage = 'Error: ${e.toString()}';
       _isLoading = false;
       notifyListeners();
       return false;
@@ -134,9 +149,17 @@ class AuthProvider extends ChangeNotifier {
         return 'This account has been disabled.';
       case 'too-many-requests':
         return 'Too many login attempts. Please try later.';
+      case 'network-request-failed':
+        return 'Network error. Check your internet connection.';
+      case 'operation-not-allowed':
+        return 'This sign-in method is not enabled. Contact support.';
       default:
         return 'Authentication failed: $errorCode';
     }
   }
 }
+
+
+
+
 
