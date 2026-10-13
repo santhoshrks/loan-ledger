@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../models/p2p_loan.dart';
 import '../services/notification_service.dart';
+import '../services/p2p_cloud_sync_service.dart';
 import '../services/share_service.dart';
 import '../theme/app_theme.dart';
 import '../utils/indian_number_format.dart';
@@ -22,7 +23,13 @@ class P2PLoanDetailScreen extends StatefulWidget {
 }
 
 class _P2PLoanDetailScreenState extends State<P2PLoanDetailScreen> {
+  final P2PCloudSyncService _cloudSync = P2PCloudSyncService();
   P2PLoan get loan => widget.loan;
+
+  Future<void> _saveLoanAndSync() async {
+    await loan.save();
+    await _cloudSync.upsertLoan(loan);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1001,7 +1008,7 @@ class _P2PLoanDetailScreenState extends State<P2PLoanDetailScreen> {
     );
     if (confirmed == true) {
       loan.removePaymentAt(index);
-      await loan.save();
+      await _saveLoanAndSync();
       if (mounted) setState(() {});
     }
     return confirmed;
@@ -1155,7 +1162,7 @@ class _P2PLoanDetailScreenState extends State<P2PLoanDetailScreen> {
                     final amt = double.tryParse(amtCtrl.text) ?? 0;
                     if (amt <= 0) return;
                     loan.updatePaymentAt(index, paymentDate, amt);
-                    await loan.save();
+                    await _saveLoanAndSync();
                     if (mounted) {
                       Navigator.pop(context);
                       setState(() {});
@@ -2075,7 +2082,7 @@ class _P2PLoanDetailScreenState extends State<P2PLoanDetailScreen> {
                     if (amt <= 0) return;
                     loan.repaidAmount += amt;
                     loan.addPaymentEntry(paymentDate, amt, 'I');
-                    await loan.save();
+                    await _saveLoanAndSync();
                     if (mounted) {
                       Navigator.pop(context);
                       setState(() {});
@@ -2236,7 +2243,7 @@ class _P2PLoanDetailScreenState extends State<P2PLoanDetailScreen> {
                       loan.amount,
                     );
                     loan.addPaymentEntry(paymentDate, amt, 'P');
-                    await loan.save();
+                    await _saveLoanAndSync();
                     if (mounted) {
                       Navigator.pop(context);
                       setState(() {});
@@ -2400,7 +2407,7 @@ class _P2PLoanDetailScreenState extends State<P2PLoanDetailScreen> {
                       loan.amount,
                     );
                     loan.addPaymentEntry(paymentDate, amt, 'I');
-                    await loan.save();
+                    await _saveLoanAndSync();
                     if (mounted) {
                       Navigator.pop(context);
                       setState(() {});
@@ -2466,7 +2473,7 @@ class _P2PLoanDetailScreenState extends State<P2PLoanDetailScreen> {
         loan.addPaymentEntry(monthDate, monthlyInt, 'I');
       }
     }
-    await loan.save();
+    await _saveLoanAndSync();
     if (mounted) setState(() {});
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -2707,7 +2714,7 @@ class _P2PLoanDetailScreenState extends State<P2PLoanDetailScreen> {
                         : notesCtrl.text.trim();
                     loan.dueDate = dueDate;
                     loan.interestPeriod = interestPeriod;
-                    await loan.save();
+                    await _saveLoanAndSync();
                     if (mounted) {
                       Navigator.pop(context);
                       setState(() {});
@@ -2847,7 +2854,9 @@ class _P2PLoanDetailScreenState extends State<P2PLoanDetailScreen> {
           ),
           TextButton(
             onPressed: () async {
+              final loanId = loan.id;
               await loan.delete();
+              await _cloudSync.deleteLoanById(loanId);
               if (mounted) Navigator.pop(context);
               if (mounted) Navigator.pop(context);
             },

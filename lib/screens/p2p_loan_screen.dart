@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../models/p2p_loan.dart';
 import '../services/notification_service.dart';
+import '../services/p2p_cloud_sync_service.dart';
 import '../services/share_service.dart';
 import '../theme/app_theme.dart';
 import '../utils/indian_number_format.dart';
@@ -22,6 +23,8 @@ class _P2PLoanScreenState extends State<P2PLoanScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tab;
   late Box<P2PLoan> _box;
+  final P2PCloudSyncService _cloudSync = P2PCloudSyncService();
+  bool _cloudWarningShown = false;
   String _sortBy = 'overdue'; // 'overdue', 'amount', 'name', 'date'
 
   // ── Search ──────────────────────────────────────────────────────
@@ -37,6 +40,26 @@ class _P2PLoanScreenState extends State<P2PLoanScreen>
     _searchCtrl.addListener(
       () => setState(() => _query = _searchCtrl.text.trim().toLowerCase()),
     );
+    _restoreAndSyncCloud();
+  }
+
+  Future<void> _restoreAndSyncCloud() async {
+    try {
+      await _cloudSync.pullFromCloudIfLocalEmpty(_box);
+      await _cloudSync.pushAllToCloud(_box);
+      if (mounted && !_cloudSync.isSyncAvailable && !_cloudWarningShown) {
+        _cloudWarningShown = true;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Cloud backup is currently unavailable. Your data is saved only on this device until Firestore is enabled.',
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('☁️ P2P screen sync skipped: $e');
+    }
   }
 
   void _startSearch() => setState(() {
@@ -543,7 +566,9 @@ class _P2PLoanScreenState extends State<P2PLoanScreen>
             notificationService: widget.notificationService,
           ),
         ),
-      ),
+      ).then((_) async {
+        await _cloudSync.pushAllToCloud(_box);
+      }),
       child: Container(
         margin: const EdgeInsets.only(bottom: 10),
         decoration: BoxDecoration(
@@ -1544,7 +1569,8 @@ class _P2PLoanScreenState extends State<P2PLoanScreen>
                         interestPeriod: interestPeriod,
                         monthlyDueDay: monthlyDueDay,
                       );
-                      await _box.add(p2p);
+                      await _box.put(p2p.id, p2p);
+                      await _cloudSync.upsertLoan(p2p);
                       // Schedule P2P interest reminder if due day set
                       if (isFlat &&
                           monthlyDueDay != null &&

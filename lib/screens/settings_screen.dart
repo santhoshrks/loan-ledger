@@ -83,6 +83,32 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
+  Future<void> _handlePasswordReset(BuildContext context) async {
+    final authProvider = context.read<AuthProvider>();
+    final email = authProvider.user?.email;
+
+    if (email == null || email.isEmpty) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No email address is linked to this account.')),
+      );
+      return;
+    }
+
+    final success = await authProvider.sendPasswordReset(email);
+    if (!context.mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          success
+              ? 'Password reset link sent to $email'
+              : authProvider.errorMessage ?? 'Unable to send password reset link',
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context);
@@ -131,6 +157,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
 
             const SizedBox(height: 20),
+
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: _buildQuickActionsCard(context, l),
+              ),
+
+              const SizedBox(height: 20),
 
             // Backup & Restore Section
             Padding(
@@ -330,7 +363,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
                   // User Account Section
                   Text(
-                    'Account',
+                    'Account & Security',
                     style: const TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
@@ -339,27 +372,27 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                   const SizedBox(height: 12),
 
-                  // User Info Card
                   Consumer<AuthProvider>(
                     builder: (context, authProvider, _) {
                       final user = authProvider.user;
-                      return Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(12),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.05),
-                              blurRadius: 10,
-                              offset: const Offset(0, 2),
+                      final email = user?.email ?? user?.phoneNumber ?? 'No linked email';
+
+                      return Column(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(12),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.05),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
                             ),
-                          ],
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
+                            child: Row(
                               children: [
                                 Container(
                                   padding: const EdgeInsets.all(12),
@@ -388,7 +421,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                       ),
                                       const SizedBox(height: 4),
                                       Text(
-                                        user?.email ?? user?.phoneNumber ?? 'No email',
+                                        email,
                                         style: TextStyle(
                                           fontSize: 13,
                                           color: Colors.grey[600],
@@ -400,19 +433,28 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 16),
-                            ElevatedButton.icon(
-                              onPressed: () => _handleLogout(context),
-                              icon: const Icon(Icons.logout),
-                              label: const Text('Logout'),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.red,
-                                foregroundColor: Colors.white,
-                                minimumSize: const Size(double.infinity, 48),
-                              ),
-                            ),
-                          ],
-                        ),
+                          ),
+                          const SizedBox(height: 12),
+                          _buildSecurityAction(
+                            icon: Icons.password_rounded,
+                            iconColor: AppTheme.primaryColor,
+                            title: 'Reset password',
+                            subtitle: user?.email == null
+                                ? 'No email linked to this account'
+                                : 'Send reset link to ${user!.email}',
+                            onTap: user?.email == null
+                                ? null
+                                : () => _handlePasswordReset(context),
+                          ),
+                          const SizedBox(height: 10),
+                          _buildSecurityAction(
+                            icon: Icons.logout_rounded,
+                            iconColor: AppTheme.statusError,
+                            title: 'Logout',
+                            subtitle: 'Sign out of this device',
+                            onTap: () => _handleLogout(context),
+                          ),
+                        ],
                       );
                     },
                   ),
@@ -481,6 +523,176 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       fontWeight: FontWeight.w600,
                       fontSize: 15,
                       color: onTap == null ? Colors.grey : AppTheme.textDark,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    subtitle,
+                    style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                  ),
+                ],
+              ),
+            ),
+            Icon(
+              Icons.arrow_forward_ios_rounded,
+              size: 16,
+              color: onTap == null ? Colors.grey[300] : Colors.grey[400],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildQuickActionsCard(BuildContext context, AppLocalizations l) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF4F46E5), Color(0xFF6366F1)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: AppTheme.softShadow,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(Icons.tune_rounded, color: Colors.white, size: 18),
+              SizedBox(width: 8),
+              Text(
+                'Quick Actions',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Common account and device options',
+            style: TextStyle(color: Colors.white.withValues(alpha: 0.8), fontSize: 12),
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(
+                child: _quickActionButton(
+                  icon: Icons.password_rounded,
+                  title: 'Reset',
+                  onTap: () => _handlePasswordReset(context),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _quickActionButton(
+                  icon: Icons.settings_applications_rounded,
+                  title: 'App Settings',
+                  onTap: () => AppSettings.openAppSettings(),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _quickActionButton(
+                  icon: Icons.logout_rounded,
+                  title: 'Logout',
+                  destructive: true,
+                  onTap: () => _handleLogout(context),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _quickActionButton({
+    required IconData icon,
+    required String title,
+    required VoidCallback onTap,
+    bool destructive = false,
+  }) {
+    final color = destructive ? const Color(0xFFFFD9DF) : Colors.white;
+    final iconColor = destructive ? Colors.white : AppTheme.primaryColor;
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 10),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: destructive ? 0.18 : 0.14),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.16)),
+        ),
+        child: Column(
+          children: [
+            Icon(icon, color: iconColor, size: 22),
+            const SizedBox(height: 8),
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: destructive ? Colors.white : Colors.white,
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSecurityAction({
+    required IconData icon,
+    required Color iconColor,
+    required String title,
+    required String subtitle,
+    required VoidCallback? onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: iconColor.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(icon, color: iconColor, size: 24),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 15,
+                      color: AppTheme.textDark,
                     ),
                   ),
                   const SizedBox(height: 4),

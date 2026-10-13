@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import 'package:provider/provider.dart';
+import '../models/p2p_loan.dart';
 import '../services/loan_storage_service.dart';
 import '../services/notification_service.dart';
 import '../services/auth_provider.dart';
+import '../services/p2p_cloud_sync_service.dart';
 import 'p2p_home_screen.dart';
 import 'p2p_onboarding_screen.dart';
 import 'login_screen.dart';
@@ -118,6 +121,16 @@ class _SplashScreenState extends State<SplashScreen>
         ),
       );
       return;
+    }
+
+    // Restore cloud data after reinstall and keep cloud data fresh.
+    try {
+      final p2pBox = Hive.box<P2PLoan>('p2p_loans');
+      final cloudSync = P2PCloudSyncService();
+      await cloudSync.pullFromCloudIfLocalEmpty(p2pBox);
+      await cloudSync.pushAllToCloud(p2pBox);
+    } catch (e) {
+      debugPrint('☁️ P2P cloud sync skipped: $e');
     }
 
     // User is logged in, proceed with onboarding check
