@@ -63,7 +63,7 @@ class _P2PHomeScreenState extends State<P2PHomeScreen> {
               physics: const AlwaysScrollableScrollPhysics(),
               slivers: [
                 SliverAppBar(
-                  expandedHeight: 250,
+                  expandedHeight: 176,
                   pinned: true,
                   elevation: 0,
                   backgroundColor: const Color(0xFF4F46E5),
@@ -96,8 +96,8 @@ class _P2PHomeScreenState extends State<P2PHomeScreen> {
                 ),
                 SliverToBoxAdapter(
                   child: Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 18, 16, 0),
-                    child: _buildStatGrid(
+                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                    child: _buildBentoSummary(
                       activeCount: activeLoans.length,
                       lent: lent,
                       borrowed: borrowed,
@@ -171,7 +171,7 @@ class _P2PHomeScreenState extends State<P2PHomeScreen> {
     return Container(
       decoration: const BoxDecoration(
         gradient: LinearGradient(
-          colors: [Color(0xFF4F46E5), Color(0xFF6366F1), Color(0xFF818CF8)],
+          colors: [Color(0xFF18181B), Color(0xFF312E81), Color(0xFF4F46E5)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -179,11 +179,11 @@ class _P2PHomeScreenState extends State<P2PHomeScreen> {
       child: Stack(
         children: [
           Positioned(
-            top: -70,
-            right: -40,
+            top: -40,
+            right: -30,
             child: Container(
-              width: 180,
-              height: 180,
+              width: 140,
+              height: 140,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 color: Colors.white.withValues(alpha: 0.08),
@@ -191,11 +191,11 @@ class _P2PHomeScreenState extends State<P2PHomeScreen> {
             ),
           ),
           Positioned(
-            bottom: -40,
-            left: -30,
+            bottom: -35,
+            left: -20,
             child: Container(
-              width: 120,
-              height: 120,
+              width: 90,
+              height: 90,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 color: Colors.white.withValues(alpha: 0.06),
@@ -205,26 +205,25 @@ class _P2PHomeScreenState extends State<P2PHomeScreen> {
           SafeArea(
             bottom: false,
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 14),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
-                  const SizedBox(height: 12),
                   Row(
                     children: [
                       Container(
-                        width: 52,
-                        height: 52,
+                        width: 44,
+                        height: 44,
                         decoration: BoxDecoration(
                           color: Colors.white.withValues(alpha: 0.16),
-                          borderRadius: BorderRadius.circular(16),
+                          borderRadius: BorderRadius.circular(14),
                           border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
                         ),
                         child: const Icon(
                           Icons.account_balance_wallet_rounded,
-                          color: Colors.white,
-                          size: 28,
+                           color: Colors.white,
+                           size: 24,
                         ),
                       ),
                       const SizedBox(width: 14),
@@ -236,69 +235,41 @@ class _P2PHomeScreenState extends State<P2PHomeScreen> {
                               'LoanLedger',
                               style: TextStyle(
                                 color: Colors.white,
-                                fontSize: 24,
+                                fontSize: 20,
                                 fontWeight: FontWeight.w900,
                                 letterSpacing: -0.5,
                               ),
                             ),
                             SizedBox(height: 4),
                             Text(
-                              'A cleaner view of lending, borrowing, and repayment.',
-                              style: TextStyle(color: Colors.white70, fontSize: 12.5),
+                              'Compact money tracker for personal loans.',
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(color: Colors.white70, fontSize: 10.8),
                             ),
                           ],
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 22),
-                  Row(
+                  const SizedBox(height: 12),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
                     children: [
-                      Expanded(
-                        child: _heroMiniTile(
-                          label: 'Net Position',
-                          value: IndianNumberFormat.formatCompact(net.abs()),
-                          icon: net >= 0 ? Icons.trending_up_rounded : Icons.trending_down_rounded,
-                        ),
+                      _heroChip(
+                        icon: net >= 0 ? Icons.trending_up_rounded : Icons.trending_down_rounded,
+                        label: 'Net ${IndianNumberFormat.formatCompact(net.abs())}',
                       ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: _heroMiniTile(
-                          label: 'Active Loans',
-                          value: activeCount.toString(),
-                          icon: Icons.circle_rounded,
-                        ),
+                      _heroChip(
+                        icon: Icons.layers_rounded,
+                        label: '$activeCount active',
+                      ),
+                      _heroChip(
+                        icon: Icons.south_west_rounded,
+                        label: 'Pay ${IndianNumberFormat.formatCompact(borrowed)}',
                       ),
                     ],
-                  ),
-                  const SizedBox(height: 10),
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(18),
-                      border: Border.all(color: Colors.white.withValues(alpha: 0.14)),
-                    ),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: _heroCompactStat(
-                            'Will receive',
-                            IndianNumberFormat.formatCompact(lent),
-                            const Color(0xFFDCFCE7),
-                          ),
-                        ),
-                        Container(width: 1, height: 34, color: Colors.white.withValues(alpha: 0.2)),
-                        Expanded(
-                          child: _heroCompactStat(
-                            'Need to pay',
-                            IndianNumberFormat.formatCompact(borrowed),
-                            const Color(0xFFFFF7CC),
-                          ),
-                        ),
-                      ],
-                    ),
                   ),
                 ],
               ),
@@ -309,141 +280,110 @@ class _P2PHomeScreenState extends State<P2PHomeScreen> {
     );
   }
 
-  Widget _heroMiniTile({
-    required String label,
-    required String value,
-    required IconData icon,
-  }) {
+  Widget _heroChip({required IconData icon, required String label}) {
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 7),
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(999),
         border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, color: Colors.white70, size: 18),
-          const SizedBox(height: 10),
-          Text(
-            label,
-            style: const TextStyle(color: Colors.white70, fontSize: 11),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            value,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 18,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
+          Icon(icon, color: Colors.white70, size: 14),
+          const SizedBox(width: 5),
+          Text(label, style: const TextStyle(color: Colors.white, fontSize: 10.5, fontWeight: FontWeight.w700)),
         ],
       ),
     );
   }
 
-  Widget _heroCompactStat(String label, String value, Color color) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 4),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(label, style: const TextStyle(color: Colors.white70, fontSize: 11)),
-          const SizedBox(height: 4),
-          Text(
-            value,
-            style: TextStyle(color: color, fontSize: 18, fontWeight: FontWeight.w900),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStatGrid({
+  Widget _buildBentoSummary({
     required int activeCount,
     required double lent,
     required double borrowed,
     required double net,
   }) {
     final netColor = net >= 0 ? AppTheme.statusSuccess : AppTheme.accentOrange;
-    return Row(
+    return Column(
       children: [
-        Expanded(
-          child: _glassStatCard(
-            title: 'Will receive',
-            amount: lent,
-            accent: const Color(0xFF10B981),
-            subtitle: '$activeCount active loan${activeCount == 1 ? '' : 's'}',
-            icon: Icons.arrow_circle_up_rounded,
-          ),
+        _overviewStrip(
+          activeCount: activeCount,
+          lent: lent,
+          borrowed: borrowed,
+          net: net,
         ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: _glassStatCard(
-            title: 'Need to pay',
-            amount: borrowed,
-            accent: const Color(0xFFF59E0B),
-            subtitle: 'Net ${IndianNumberFormat.formatCompact(net.abs())}',
-            icon: Icons.arrow_circle_down_rounded,
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: _glassStatCard(
-            title: 'Net position',
-            amount: net.abs(),
-            accent: netColor,
-            subtitle: net >= 0 ? 'Positive' : 'Negative',
-            icon: net >= 0 ? Icons.trending_up_rounded : Icons.trending_down_rounded,
-          ),
+        const SizedBox(height: 10),
+        Row(
+          children: [
+            Expanded(
+              child: _bentoCard(
+                title: 'Net position',
+                amount: IndianNumberFormat.formatCompact(net.abs()),
+                subtitle: net >= 0 ? 'Positive cashflow' : 'More payable now',
+                icon: net >= 0 ? Icons.trending_up_rounded : Icons.trending_down_rounded,
+                accent: netColor,
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: _bentoCard(
+                title: 'Status',
+                amount: net >= 0 ? 'Healthy' : 'Watch',
+                subtitle: net >= 0 ? 'Collection is higher' : 'Payments need focus',
+                icon: Icons.auto_graph_rounded,
+                accent: const Color(0xFF6366F1),
+              ),
+            ),
+          ],
         ),
       ],
     );
   }
 
-  Widget _glassStatCard({
+  Widget _bentoCard({
     required String title,
-    required double amount,
+    required String amount,
     required Color accent,
     required String subtitle,
     required IconData icon,
+    bool large = false,
   }) {
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: EdgeInsets.all(large ? 16 : 14),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
         boxShadow: AppTheme.softShadow,
-        border: Border.all(color: accent.withValues(alpha: 0.08)),
+        border: Border.all(color: accent.withValues(alpha: 0.08), width: 1),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            width: 38,
-            height: 38,
+            width: 34,
+            height: 34,
             decoration: BoxDecoration(
               color: accent.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(10),
             ),
-            child: Icon(icon, color: accent, size: 20),
+            child: Icon(icon, color: accent, size: 18),
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: large ? 14 : 10),
           Text(
             title,
             style: const TextStyle(
-              fontSize: 12,
+              fontSize: 11.5,
               color: AppTheme.textLight,
               fontWeight: FontWeight.w600,
             ),
           ),
           const SizedBox(height: 4),
           Text(
-            IndianNumberFormat.formatCompact(amount),
+            amount,
             style: TextStyle(
-              fontSize: 20,
+              fontSize: large ? 21 : 16,
               fontWeight: FontWeight.w900,
               color: accent,
             ),
@@ -451,7 +391,140 @@ class _P2PHomeScreenState extends State<P2PHomeScreen> {
           const SizedBox(height: 2),
           Text(
             subtitle,
-            style: const TextStyle(fontSize: 11, color: AppTheme.textLight),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontSize: 10.5, color: AppTheme.textLight),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _overviewStrip({
+    required int activeCount,
+    required double lent,
+    required double borrowed,
+    required double net,
+  }) {
+    final accent = net >= 0 ? const Color(0xFF10B981) : const Color(0xFFF59E0B);
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: AppTheme.softShadow,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 34,
+                height: 34,
+                decoration: BoxDecoration(
+                  color: accent.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(
+                  net >= 0 ? Icons.south_west_rounded : Icons.north_east_rounded,
+                  size: 18,
+                  color: accent,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Portfolio balance',
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w600,
+                        color: AppTheme.textLight,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      IndianNumberFormat.formatCompact(net.abs()),
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w900,
+                        color: accent,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                decoration: BoxDecoration(
+                  color: AppTheme.bgLight,
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Text(
+                  '$activeCount active',
+                  style: const TextStyle(
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w700,
+                    color: AppTheme.textDark,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: _miniMetric(
+                  'Receive',
+                  IndianNumberFormat.formatCompact(lent),
+                  const Color(0xFF10B981),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _miniMetric(
+                  'Pay',
+                  IndianNumberFormat.formatCompact(borrowed),
+                  const Color(0xFFF59E0B),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _miniMetric(String label, String value, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 10.5,
+              fontWeight: FontWeight.w700,
+              color: color,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w900,
+              color: color,
+            ),
           ),
         ],
       ),
@@ -461,11 +534,11 @@ class _P2PHomeScreenState extends State<P2PHomeScreen> {
   Widget _buildActionGrid() {
     return GridView.count(
       crossAxisCount: 2,
-      crossAxisSpacing: 12,
-      mainAxisSpacing: 12,
+      crossAxisSpacing: 10,
+      mainAxisSpacing: 10,
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      childAspectRatio: 1.65,
+      childAspectRatio: 2.15,
       children: [
         _actionCard(
           icon: Icons.menu_book_rounded,
@@ -513,24 +586,24 @@ class _P2PHomeScreenState extends State<P2PHomeScreen> {
         onTap: onTap,
         borderRadius: BorderRadius.circular(18),
         child: Container(
-          padding: const EdgeInsets.all(14),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(18),
+            borderRadius: BorderRadius.circular(16),
             boxShadow: AppTheme.softShadow,
             border: Border.all(color: color.withValues(alpha: 0.08)),
           ),
           child: Row(
             children: [
               Container(
-                width: 44,
-                height: 44,
+                width: 38,
+                height: 38,
                 decoration: BoxDecoration(
                   color: color.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius: BorderRadius.circular(12),
                 ),
-                child: Icon(icon, color: color),
+                child: Icon(icon, color: color, size: 19),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 10),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -539,20 +612,22 @@ class _P2PHomeScreenState extends State<P2PHomeScreen> {
                     Text(
                       title,
                       style: const TextStyle(
-                        fontSize: 14,
+                        fontSize: 13,
                         fontWeight: FontWeight.w800,
                         color: AppTheme.textDark,
                       ),
                     ),
-                    const SizedBox(height: 3),
+                    const SizedBox(height: 2),
                     Text(
                       subtitle,
-                      style: const TextStyle(fontSize: 11.5, color: AppTheme.textLight),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontSize: 10.5, color: AppTheme.textLight),
                     ),
                   ],
                 ),
               ),
-              Icon(Icons.chevron_right_rounded, color: color.withValues(alpha: 0.7)),
+              Icon(Icons.arrow_outward_rounded, size: 16, color: color.withValues(alpha: 0.7)),
             ],
           ),
         ),
@@ -998,6 +1073,8 @@ class _P2PHomeScreenState extends State<P2PHomeScreen> {
     );
   }
 }
+
+
 
 
 

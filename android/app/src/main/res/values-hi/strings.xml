@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">EMI रिमाइंडर</string>
-    <string name="app_full_name">EMI रिमाइंडर &amp; ऋण ट्रैकर</string>
-    <string name="app_tagline">ऋण ट्रैकर</string>
+    <string name="app_name">LoanLedger</string>
+    <string name="app_full_name">LoanLedger</string>
+    <string name="app_tagline">LoanLedger</string>
 </resources>
 

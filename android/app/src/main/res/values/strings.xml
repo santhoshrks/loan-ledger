@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">P2P Reminder</string>
-    <string name="app_full_name">P2P Reminder &amp; Loan Tracker</string>
-    <string name="app_tagline">Lent &amp; Borrowed Tracker</string>
+    <string name="app_name">LoanLedger</string>
+    <string name="app_full_name">LoanLedger</string>
+    <string name="app_tagline">LoanLedger</string>
 </resources>
