@@ -1,19 +1,25 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'auth_service.dart';
 
 class AuthProvider extends ChangeNotifier {
   User? _user;
   bool _isLoading = false;
   String? _errorMessage;
+  bool _isPersistentLoggedIn = false;
 
-  User? get user => _user;
+  User? get user => _user ?? FirebaseAuth.instance.currentUser;
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
-  bool get isLoggedIn => _user != null;
+  bool get isLoggedIn =>
+      _user != null ||
+      FirebaseAuth.instance.currentUser != null ||
+      _isPersistentLoggedIn;
 
   AuthProvider() {
     _listenToAuthState();
+    _checkPrefsLogin();
     _debugFirebaseStatus();
   }
 
@@ -28,9 +34,28 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
+  Future<void> _checkPrefsLogin() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      _isPersistentLoggedIn = prefs.getBool('is_user_logged_in') ?? false;
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Error checking prefs login: $e');
+    }
+  }
+
   void _listenToAuthState() {
-    AuthService.authStateStream.listen((user) {
+    AuthService.authStateStream.listen((user) async {
       _user = user;
+      if (user != null) {
+        _isPersistentLoggedIn = true;
+        try {
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setBool('is_user_logged_in', true);
+        } catch (e) {
+          debugPrint('Error saving login state: $e');
+        }
+      }
       notifyListeners();
     });
   }
@@ -45,33 +70,27 @@ class AuthProvider extends ChangeNotifier {
       _errorMessage = null;
       notifyListeners();
 
-      debugPrint('📝 Registration Step 1: Validating inputs');
-      debugPrint('   Email: $email, Name: $displayName');
-
-      debugPrint('📝 Registration Step 2: Calling AuthService.registerWithEmail');
       await AuthService.registerWithEmail(
         email: email,
         password: password,
         displayName: displayName,
       );
 
-      debugPrint('📝 Registration Step 3: Sending verification email');
       await AuthService.sendEmailVerification();
 
-      debugPrint('✅ Registration completed successfully');
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('is_user_logged_in', true);
+      _isPersistentLoggedIn = true;
+
       _isLoading = false;
       notifyListeners();
       return true;
-
     } on FirebaseAuthException catch (e) {
-      debugPrint('❌ FirebaseAuthException: Code=${e.code}, Message=${e.message}');
       _errorMessage = _getErrorMessage(e.code);
       _isLoading = false;
       notifyListeners();
       return false;
-
     } catch (e) {
-      debugPrint('❌ Unexpected Exception: Type=${e.runtimeType}, Message=$e');
       _errorMessage = 'Error: ${e.toString()}';
       _isLoading = false;
       notifyListeners();
@@ -92,6 +111,10 @@ class AuthProvider extends ChangeNotifier {
         email: email,
         password: password,
       );
+
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('is_user_logged_in', true);
+      _isPersistentLoggedIn = true;
 
       _isLoading = false;
       notifyListeners();
@@ -138,6 +161,10 @@ class AuthProvider extends ChangeNotifier {
       _isLoading = true;
       notifyListeners();
 
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('is_user_logged_in', false);
+      _isPersistentLoggedIn = false;
+
       await AuthService.logout();
 
       _isLoading = false;
@@ -179,11 +206,3 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 }
-
-
-
-
-
-
-
-

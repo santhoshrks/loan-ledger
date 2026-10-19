@@ -717,7 +717,7 @@ class _HomeScreenState extends State<HomeScreen>
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           const Text(
-                            'P2P overview',
+                            'LoanBook overview',
                             style: TextStyle(
                               fontSize: 13,
                               fontWeight: FontWeight.w700,
@@ -1377,7 +1377,7 @@ class _HomeScreenState extends State<HomeScreen>
       ),
       _QuickAction(
         Icons.people_rounded,
-        'P2P',
+        'LoanBook',
         const Color(0xFF3B82F6),
         () => openP2PFlow(context, _notificationService),
       ),

@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:p2p_reminder/models/subscription.dart';
+import 'package:loan_ledger/models/subscription.dart';
 
 void main() {
   group('Subscription model', () {

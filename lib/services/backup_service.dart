@@ -76,7 +76,7 @@ class BackupService {
       await Share.shareXFiles(
         [XFile(savedPath)],
         subject: 'EMI Reminder Backup',
-        text: 'My EMI Reminder backup - ${loans.length} EMI loans, ${p2pLoans.length} P2P loans',
+        text: 'My LoanLedger backup - ${loans.length} EMI loans, ${p2pLoans.length} LoanBook entries',
       );
 
       return savedPath;

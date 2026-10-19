@@ -1,4 +1,4 @@
-import 'package:p2p_reminder/services/retention_streak_service.dart';
+import 'package:loan_ledger/services/retention_streak_service.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 

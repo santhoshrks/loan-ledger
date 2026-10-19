@@ -261,7 +261,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                           const SizedBox(width: 10),
                           Expanded(
                             child: _buildGoalChoice(
-                              title: 'Track P2P',
+                              title: 'Track LoanBook',
                               subtitle: 'Start lent/borrowed',
                               icon: Icons.people_alt_rounded,
                               selected: _selectedGoal == _OnboardingGoal.p2p,

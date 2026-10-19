@@ -1,7 +1,7 @@
 import 'dart:ui';
 
-import 'package:p2p_reminder/models/loan.dart';
-import 'package:p2p_reminder/services/region_preferences_service.dart';
+import 'package:loan_ledger/models/loan.dart';
+import 'package:loan_ledger/services/region_preferences_service.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

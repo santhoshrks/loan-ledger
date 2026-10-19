@@ -1,15 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:firebase_auth/firebase_auth.dart' hide AuthProvider;
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/p2p_loan.dart';
 import '../services/loan_storage_service.dart';
 import '../services/notification_service.dart';
 import '../services/auth_provider.dart';
 import '../services/p2p_cloud_sync_service.dart';
+import '../services/security_service.dart';
 import 'p2p_home_screen.dart';
 import 'p2p_onboarding_screen.dart';
 import 'login_screen.dart';
+import 'pin_setup_screen.dart';
+import 'pin_lock_screen.dart';
 
 class SplashScreen extends StatefulWidget {
   final LoanStorageService? storageService;
@@ -107,8 +112,13 @@ class _SplashScreenState extends State<SplashScreen>
     if (!mounted) return;
 
     // Check if user is logged in
+    final prefs = await SharedPreferences.getInstance();
+    final isPersistentlyLoggedIn = prefs.getBool('is_user_logged_in') ?? false;
+    if (!mounted) return;
     final authProvider = context.read<AuthProvider>();
-    final isUserLoggedIn = authProvider.isLoggedIn;
+    final fbUser = FirebaseAuth.instance.currentUser;
+
+    final isUserLoggedIn = authProvider.isLoggedIn || fbUser != null || isPersistentlyLoggedIn;
 
     if (!isUserLoggedIn) {
       if (!mounted) return;
@@ -125,6 +135,9 @@ class _SplashScreenState extends State<SplashScreen>
 
     // Restore cloud data after reinstall and keep cloud data fresh.
     try {
+      if (!Hive.isBoxOpen('p2p_loans')) {
+        await Hive.openBox<P2PLoan>('p2p_loans');
+      }
       final p2pBox = Hive.box<P2PLoan>('p2p_loans');
       final cloudSync = P2PCloudSyncService();
       await cloudSync.pullFromCloudIfLocalEmpty(p2pBox);
@@ -133,22 +146,61 @@ class _SplashScreenState extends State<SplashScreen>
       debugPrint('☁️ P2P cloud sync skipped: $e');
     }
 
+    // Check security status (PIN / Biometrics)
+    final securityService = SecurityService();
+    final isPinSet = await securityService.isPinSet();
+    final isPinEnabled = await securityService.isPinEnabled();
+
     // User is logged in, proceed with onboarding check
     final onboardingDone = await hasSeenP2POnboarding();
 
+    final targetScreen = onboardingDone
+        ? P2PHomeScreen(notificationService: widget.notificationService)
+        : P2POnboardingScreen(
+            notificationService: widget.notificationService,
+          );
+
     if (!mounted) return;
-    Navigator.of(context).pushReplacement(
-      PageRouteBuilder(
-        pageBuilder: (context, animation, secondaryAnimation) => onboardingDone
-            ? P2PHomeScreen(notificationService: widget.notificationService)
-            : P2POnboardingScreen(
-                notificationService: widget.notificationService,
-              ),
-        transitionsBuilder: (context, anim, secondaryAnimation, child) =>
-            FadeTransition(opacity: anim, child: child),
-        transitionDuration: const Duration(milliseconds: 320),
-      ),
-    );
+
+    if (!isPinSet) {
+      // Prompt 1st time PIN Setup
+      Navigator.of(context).pushReplacement(
+        PageRouteBuilder(
+          pageBuilder: (context, animation, secondaryAnimation) => PinSetupScreen(
+            notificationService: widget.notificationService,
+          ),
+          transitionsBuilder: (context, anim, secondaryAnimation, child) =>
+              FadeTransition(opacity: anim, child: child),
+          transitionDuration: const Duration(milliseconds: 320),
+        ),
+      );
+    } else if (isPinEnabled) {
+      // Require PIN & Biometric Fingerprint lock
+      Navigator.of(context).pushReplacement(
+        PageRouteBuilder(
+          pageBuilder: (context, animation, secondaryAnimation) => PinLockScreen(
+            onUnlocked: () {
+              Navigator.of(context).pushReplacement(
+                MaterialPageRoute(builder: (_) => targetScreen),
+              );
+            },
+          ),
+          transitionsBuilder: (context, anim, secondaryAnimation, child) =>
+              FadeTransition(opacity: anim, child: child),
+          transitionDuration: const Duration(milliseconds: 320),
+        ),
+      );
+    } else {
+      // Proceed directly
+      Navigator.of(context).pushReplacement(
+        PageRouteBuilder(
+          pageBuilder: (context, animation, secondaryAnimation) => targetScreen,
+          transitionsBuilder: (context, anim, secondaryAnimation, child) =>
+              FadeTransition(opacity: anim, child: child),
+          transitionDuration: const Duration(milliseconds: 320),
+        ),
+      );
+    }
   }
 
   @override

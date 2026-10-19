@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive/hive.dart';
 import 'dart:io';
-import 'package:p2p_reminder/models/p2p_loan.dart';
-import 'package:p2p_reminder/screens/p2p_home_screen.dart';
+import 'package:loan_ledger/models/p2p_loan.dart';
+import 'package:loan_ledger/screens/p2p_home_screen.dart';
 
 void main() {
   // Initialize a pure-Dart Hive instance for widget tests so Hive.box('p2p_loans') exists.

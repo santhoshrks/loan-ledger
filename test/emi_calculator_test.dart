@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:p2p_reminder/utils/emi_calculator.dart';
+import 'package:loan_ledger/utils/emi_calculator.dart';
 
 void main() {
   test('EMI relations: total amount = emi * tenure and interest = total - principal', () {

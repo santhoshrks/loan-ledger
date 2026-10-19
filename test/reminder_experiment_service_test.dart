@@ -1,4 +1,4 @@
-import 'package:p2p_reminder/services/reminder_experiment_service.dart';
+import 'package:loan_ledger/services/reminder_experiment_service.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 

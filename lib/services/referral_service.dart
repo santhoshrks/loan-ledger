@@ -134,7 +134,7 @@ Codigo de referido: $referralCode
 ''';
       default:
         return '''
-I use EMI Reminder to track EMIs, P2P loans, and reminders in one place.
+I use LoanLedger to track EMIs, personal loans (LoanBook), and reminders in one place.
 
 Install it here:
 $referralUrl

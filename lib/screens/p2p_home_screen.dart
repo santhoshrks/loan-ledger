@@ -1,18 +1,26 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:app_settings/app_settings.dart';
 import 'package:hive/hive.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/p2p_loan.dart';
 import '../repositories/p2p_repository.dart';
 import '../repositories/p2p_repository_factory.dart';
 import '../services/auth_provider.dart';
 import '../services/notification_service.dart';
+import '../services/loan_storage_service.dart';
+import '../services/backup_service.dart';
 import '../theme/app_theme.dart';
 import '../utils/indian_number_format.dart';
 import 'login_screen.dart';
 import 'p2p_loan_screen.dart';
+import 'p2p_loan_detail_screen.dart';
+import 'emi_calculator_screen.dart';
+import 'expense_tracker_screen.dart';
+import 'ai_advisor_screen.dart';
+import 'settings_screen.dart';
 
 class P2PHomeScreen extends StatefulWidget {
   final NotificationService? notificationService;
@@ -26,6 +34,9 @@ class P2PHomeScreen extends StatefulWidget {
 
 class _P2PHomeScreenState extends State<P2PHomeScreen> {
   late final P2PRepository _repository;
+  bool _showWelcomeGuide = false;
+  bool _isBoxReady = false;
+  StreamSubscription? _boxSubscription;
 
   @override
   void initState() {
@@ -33,10 +44,71 @@ class _P2PHomeScreenState extends State<P2PHomeScreen> {
     _repository =
         widget.repository ??
         P2PRepositoryFactory.create(source: P2PDataSource.local);
+    _checkWelcomeGuide();
+    _initBox();
+  }
+
+  @override
+  void dispose() {
+    _boxSubscription?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _initBox() async {
+    try {
+      if (!Hive.isBoxOpen('p2p_loans')) {
+        await Hive.openBox<P2PLoan>('p2p_loans');
+      }
+      final box = Hive.box<P2PLoan>('p2p_loans');
+      _boxSubscription?.cancel();
+      _boxSubscription = box.watch().listen((_) {
+        if (mounted) {
+          setState(() {});
+        }
+      });
+    } catch (e) {
+      debugPrint('❌ Error initializing p2p_loans box: $e');
+    }
+    if (mounted) {
+      setState(() {
+        _isBoxReady = true;
+      });
+    }
+  }
+
+  Future<void> _checkWelcomeGuide() async {
+    final prefs = await SharedPreferences.getInstance();
+    final dismissed = prefs.getBool('welcome_guide_dismissed') ?? false;
+    if (mounted) {
+      setState(() {
+        _showWelcomeGuide = !dismissed;
+      });
+    }
+  }
+
+  Future<void> _dismissWelcomeGuide() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('welcome_guide_dismissed', true);
+    if (mounted) {
+      setState(() {
+        _showWelcomeGuide = false;
+      });
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    if (!_isBoxReady || !Hive.isBoxOpen('p2p_loans')) {
+      return const Scaffold(
+        backgroundColor: Color(0xFFF4F7FB),
+        body: Center(
+          child: CircularProgressIndicator(
+            color: AppTheme.primaryColor,
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: const Color(0xFFF4F7FB),
       floatingActionButton: FloatingActionButton.extended(
@@ -63,7 +135,7 @@ class _P2PHomeScreenState extends State<P2PHomeScreen> {
               physics: const AlwaysScrollableScrollPhysics(),
               slivers: [
                 SliverAppBar(
-                  expandedHeight: 176,
+                  expandedHeight: 100,
                   pinned: true,
                   elevation: 0,
                   backgroundColor: const Color(0xFF4F46E5),
@@ -76,7 +148,7 @@ class _P2PHomeScreenState extends State<P2PHomeScreen> {
                     ),
                     IconButton(
                       tooltip: 'Settings',
-                      onPressed: _showAccountSheet,
+                      onPressed: _openSettings,
                       icon: const Icon(Icons.settings_rounded),
                     ),
                     IconButton(
@@ -92,6 +164,19 @@ class _P2PHomeScreenState extends State<P2PHomeScreen> {
                       borrowed: borrowed,
                       net: net,
                     ),
+                  ),
+                ),
+                if (_showWelcomeGuide)
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                      child: _buildWelcomeGuideCard(),
+                    ),
+                  ),
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                    child: _buildFeaturedLoanBookCard(),
                   ),
                 ),
                 SliverToBoxAdapter(
@@ -171,7 +256,7 @@ class _P2PHomeScreenState extends State<P2PHomeScreen> {
     return Container(
       decoration: const BoxDecoration(
         gradient: LinearGradient(
-          colors: [Color(0xFF18181B), Color(0xFF312E81), Color(0xFF4F46E5)],
+          colors: [Color(0xFF1E1B4B), Color(0xFF312E81), Color(0xFF4F46E5)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -205,71 +290,51 @@ class _P2PHomeScreenState extends State<P2PHomeScreen> {
           SafeArea(
             bottom: false,
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 14),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.end,
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 18),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  Row(
-                    children: [
-                      Container(
-                        width: 44,
-                        height: 44,
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.16),
-                          borderRadius: BorderRadius.circular(14),
-                          border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
-                        ),
-                        child: const Icon(
-                          Icons.account_balance_wallet_rounded,
-                           color: Colors.white,
-                           size: 24,
-                        ),
-                      ),
-                      const SizedBox(width: 14),
-                      const Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'LoanLedger',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 20,
-                                fontWeight: FontWeight.w900,
-                                letterSpacing: -0.5,
-                              ),
-                            ),
-                            SizedBox(height: 4),
-                            Text(
-                              'Compact money tracker for personal loans.',
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(color: Colors.white70, fontSize: 10.8),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
+                  Container(
+                    width: 48,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.16),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+                    ),
+                    child: const Icon(
+                      Icons.account_balance_wallet_rounded,
+                      color: Colors.white,
+                      size: 26,
+                    ),
                   ),
-                  const SizedBox(height: 12),
-                  Wrap(
-                    spacing: 6,
-                    runSpacing: 6,
-                    children: [
-                      _heroChip(
-                        icon: net >= 0 ? Icons.trending_up_rounded : Icons.trending_down_rounded,
-                        label: 'Net ${IndianNumberFormat.formatCompact(net.abs())}',
-                      ),
-                      _heroChip(
-                        icon: Icons.layers_rounded,
-                        label: '$activeCount active',
-                      ),
-                      _heroChip(
-                        icon: Icons.south_west_rounded,
-                        label: 'Pay ${IndianNumberFormat.formatCompact(borrowed)}',
-                      ),
-                    ],
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Text(
+                          'LoanLedger',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 22,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: -0.5,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'Smart Personal Loan & Debt Manager',
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.85),
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),
@@ -280,24 +345,7 @@ class _P2PHomeScreenState extends State<P2PHomeScreen> {
     );
   }
 
-  Widget _heroChip({required IconData icon, required String label}) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 7),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, color: Colors.white70, size: 14),
-          const SizedBox(width: 5),
-          Text(label, style: const TextStyle(color: Colors.white, fontSize: 10.5, fontWeight: FontWeight.w700)),
-        ],
-      ),
-    );
-  }
+
 
   Widget _buildBentoSummary({
     required int activeCount,
@@ -305,7 +353,6 @@ class _P2PHomeScreenState extends State<P2PHomeScreen> {
     required double borrowed,
     required double net,
   }) {
-    final netColor = net >= 0 ? AppTheme.statusSuccess : AppTheme.accentOrange;
     return Column(
       children: [
         _overviewStrip(
@@ -319,11 +366,11 @@ class _P2PHomeScreenState extends State<P2PHomeScreen> {
           children: [
             Expanded(
               child: _bentoCard(
-                title: 'Net position',
-                amount: IndianNumberFormat.formatCompact(net.abs()),
-                subtitle: net >= 0 ? 'Positive cashflow' : 'More payable now',
-                icon: net >= 0 ? Icons.trending_up_rounded : Icons.trending_down_rounded,
-                accent: netColor,
+                title: 'Active Loans',
+                amount: '$activeCount Accounts',
+                subtitle: activeCount == 0 ? 'No active dues' : 'Currently being tracked',
+                icon: Icons.account_balance_rounded,
+                accent: const Color(0xFF0EA5E9),
               ),
             ),
             const SizedBox(width: 10),
@@ -542,31 +589,48 @@ class _P2PHomeScreenState extends State<P2PHomeScreen> {
       children: [
         _actionCard(
           icon: Icons.menu_book_rounded,
-          title: 'Loan Book',
-          subtitle: 'Open all P2P entries',
+          title: 'LoanBook',
+          subtitle: 'Open all LoanBook entries',
           color: const Color(0xFF4F46E5),
           onTap: _openP2PTracker,
         ),
         _actionCard(
-          icon: Icons.ios_share_rounded,
-          title: 'Share Snapshot',
-          subtitle: 'Send summary text',
+          icon: Icons.calculate_rounded,
+          title: 'EMI Calculator',
+          subtitle: 'Calculate EMI & interest',
+          color: const Color(0xFF0EA5E9),
+          onTap: () {
+            Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const EMICalculatorScreen()),
+            );
+          },
+        ),
+        _actionCard(
+          icon: Icons.account_balance_wallet_rounded,
+          title: 'Expense Tracker',
+          subtitle: 'Track daily expenses',
+          color: const Color(0xFF8B5CF6),
+          onTap: () {
+            Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const ExpenseTrackerScreen()),
+            );
+          },
+        ),
+        _actionCard(
+          icon: Icons.psychology_rounded,
+          title: 'AI Advisor',
+          subtitle: 'Smart debt payoff plan',
           color: const Color(0xFF10B981),
-          onTap: _shareSummary,
-        ),
-        _actionCard(
-          icon: Icons.settings_rounded,
-          title: 'Settings',
-          subtitle: 'Password, app and device',
-          color: const Color(0xFFF59E0B),
-          onTap: _showAccountSheet,
-        ),
-        _actionCard(
-          icon: Icons.logout_rounded,
-          title: 'Logout',
-          subtitle: 'Sign out safely',
-          color: AppTheme.statusError,
-          onTap: _handleLogout,
+          onTap: () {
+            final storageService = LoanStorageService();
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => AiAdvisorScreen(
+                  loans: storageService.getAllLoans(),
+                ),
+              ),
+            );
+          },
         ),
       ],
     );
@@ -681,60 +745,67 @@ class _P2PHomeScreenState extends State<P2PHomeScreen> {
   Widget _dueTile(P2PDueItem due) {
     final isLoanIn = due.dueType == P2PDueType.interest;
     final accent = due.isOverdue ? AppTheme.statusError : AppTheme.primaryColor;
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: due.isOverdue ? AppTheme.statusError.withValues(alpha: 0.06) : AppTheme.bgLight,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => _openLoanDetailById(due.loanId),
         borderRadius: BorderRadius.circular(16),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 42,
-            height: 42,
-            decoration: BoxDecoration(
-              color: accent.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(isLoanIn ? Icons.percent_rounded : Icons.account_balance_wallet_rounded, color: accent),
+        child: Container(
+          margin: const EdgeInsets.only(bottom: 10),
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: due.isOverdue ? AppTheme.statusError.withValues(alpha: 0.06) : AppTheme.bgLight,
+            borderRadius: BorderRadius.circular(16),
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  due.personName,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w800,
-                    color: AppTheme.textDark,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  isLoanIn ? 'Interest due' : 'Principal due',
-                  style: const TextStyle(fontSize: 12, color: AppTheme.textLight),
-                ),
-              ],
-            ),
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
+          child: Row(
             children: [
-              Text(
-                DateFormat('d MMM').format(due.dueDate),
-                style: const TextStyle(fontSize: 12, color: AppTheme.textMedium),
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: accent.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(isLoanIn ? Icons.percent_rounded : Icons.account_balance_wallet_rounded, color: accent),
               ),
-              const SizedBox(height: 4),
-              Text(
-                IndianNumberFormat.formatCompact(due.amount),
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: accent),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      due.personName,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w800,
+                        color: AppTheme.textDark,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      isLoanIn ? 'Interest due' : 'Principal due',
+                      style: const TextStyle(fontSize: 12, color: AppTheme.textLight),
+                    ),
+                  ],
+                ),
+              ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    DateFormat('d MMM').format(due.dueDate),
+                    style: const TextStyle(fontSize: 12, color: AppTheme.textMedium),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    IndianNumberFormat.formatCompact(due.amount),
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: accent),
+                  ),
+                ],
               ),
             ],
           ),
-        ],
+        ),
       ),
     );
   }
@@ -761,53 +832,88 @@ class _P2PHomeScreenState extends State<P2PHomeScreen> {
     );
   }
 
+  Future<void> _openLoanDetailById(String loanId) async {
+    if (!Hive.isBoxOpen('p2p_loans')) return;
+    final box = Hive.box<P2PLoan>('p2p_loans');
+    final loan = box.values.firstWhere(
+      (l) => l.id == loanId,
+      orElse: () => P2PLoan(
+        id: '',
+        personName: '',
+        amount: 0,
+        isLent: true,
+        date: DateTime.now(),
+      ),
+    );
+
+    if (loan.id.isNotEmpty) {
+      await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => P2PLoanDetailScreen(
+            loan: loan,
+            notificationService: widget.notificationService,
+          ),
+        ),
+      );
+      if (mounted) setState(() {});
+    }
+  }
+
   Widget _historyTile(P2PPaymentRecord record) {
     final isInterest = record.type == P2PPaymentType.interest;
     final accent = isInterest ? AppTheme.statusSuccess : AppTheme.primaryColor;
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: AppTheme.bgLight,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => _openLoanDetailById(record.loanId),
         borderRadius: BorderRadius.circular(16),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 42,
-            height: 42,
-            decoration: BoxDecoration(
-              color: accent.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(isInterest ? Icons.payments_rounded : Icons.account_balance_rounded, color: accent),
+        child: Container(
+          margin: const EdgeInsets.only(bottom: 10),
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: AppTheme.bgLight,
+            borderRadius: BorderRadius.circular(16),
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  record.personName,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w800,
-                    color: AppTheme.textDark,
-                  ),
+          child: Row(
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: accent.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(12),
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  DateFormat('d MMM yyyy').format(record.date),
-                  style: const TextStyle(fontSize: 12, color: AppTheme.textLight),
+                child: Icon(isInterest ? Icons.payments_rounded : Icons.account_balance_rounded, color: accent),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      record.personName,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w800,
+                        color: AppTheme.textDark,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      DateFormat('d MMM yyyy').format(record.date),
+                      style: const TextStyle(fontSize: 12, color: AppTheme.textLight),
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+              Text(
+                IndianNumberFormat.formatCompact(record.amount),
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: accent),
+              ),
+            ],
           ),
-          Text(
-            IndianNumberFormat.formatCompact(record.amount),
-            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: accent),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -862,6 +968,21 @@ class _P2PHomeScreenState extends State<P2PHomeScreen> {
     if (mounted) setState(() {});
   }
 
+  void _openSettings() {
+    final storageService = LoanStorageService();
+    final backupService = BackupService(storageService);
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => SettingsScreen(
+          storageService: storageService,
+          backupService: backupService,
+          notificationService: widget.notificationService,
+          onDataChanged: () => setState(() {}),
+        ),
+      ),
+    );
+  }
+
   Future<void> _shareSummary() async {
     final loans = await _repository.getLoans();
     final active = loans.where((l) => !l.isSettled).toList();
@@ -878,168 +999,238 @@ class _P2PHomeScreenState extends State<P2PHomeScreen> {
     await Share.share(buffer.toString(), subject: 'LoanLedger Snapshot');
   }
 
-  Future<void> _showAccountSheet() async {
-    if (!mounted) return;
-    final auth = context.read<AuthProvider>();
-    final user = auth.user;
-
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.white,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+  Widget _buildWelcomeGuideCard() {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFFEEF2FF), Color(0xFFE0E7FF)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: const Color(0xFF6366F1).withValues(alpha: 0.25)),
+        boxShadow: AppTheme.softShadow,
       ),
-      builder: (sheetContext) {
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Center(
-                  child: Container(
-                    width: 44,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: AppTheme.textLight.withValues(alpha: 0.25),
-                      borderRadius: BorderRadius.circular(999),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                const Text(
-                  'Settings & Account',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  user?.email ?? user?.phoneNumber ?? 'Signed in account',
-                  style: const TextStyle(color: AppTheme.textLight, fontSize: 12.5),
-                ),
-                const SizedBox(height: 16),
-                _sheetAction(
-                  icon: Icons.password_rounded,
-                  title: 'Reset password',
-                  subtitle: user?.email == null
-                      ? 'No email linked to this account'
-                      : 'Send a reset link to ${user!.email}',
-                  onTap: user?.email == null
-                      ? null
-                      : () async {
-                          Navigator.pop(sheetContext);
-                          final success = await auth.sendPasswordReset(user!.email!);
-                          if (!mounted) return;
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                success
-                                    ? 'Password reset link sent to ${user.email}'
-                                    : auth.errorMessage ?? 'Unable to send reset link',
-                              ),
-                            ),
-                          );
-                        },
-                ),
-                const SizedBox(height: 10),
-                _sheetAction(
-                  icon: Icons.notifications_rounded,
-                  title: 'Notification settings',
-                  subtitle: 'Open Android notification settings',
-                  onTap: () {
-                    Navigator.pop(sheetContext);
-                    AppSettings.openAppSettings(type: AppSettingsType.notification);
-                  },
-                ),
-                const SizedBox(height: 10),
-                _sheetAction(
-                  icon: Icons.settings_applications_rounded,
-                  title: 'App settings',
-                  subtitle: 'Open system app settings',
-                  onTap: () {
-                    Navigator.pop(sheetContext);
-                    AppSettings.openAppSettings();
-                  },
-                ),
-                const SizedBox(height: 10),
-                _sheetAction(
-                  icon: Icons.logout_rounded,
-                  title: 'Logout',
-                  subtitle: 'Sign out from this device',
-                  destructive: true,
-                  onTap: () {
-                    Navigator.pop(sheetContext);
-                    _handleLogout();
-                  },
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _sheetAction({
-    required IconData icon,
-    required String title,
-    required String subtitle,
-    required VoidCallback? onTap,
-    bool destructive = false,
-  }) {
-    final color = destructive ? AppTheme.statusError : AppTheme.primaryColor;
-    return Material(
-      color: color.withValues(alpha: 0.06),
-      borderRadius: BorderRadius.circular(18),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(18),
-        child: Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: color.withValues(alpha: 0.1)),
-          ),
-          child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
             children: [
               Container(
-                width: 44,
-                height: 44,
+                padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.14),
+                  color: const Color(0xFF6366F1),
                   borderRadius: BorderRadius.circular(14),
                 ),
-                child: Icon(icon, color: color),
+                child: const Icon(
+                  Icons.stars_rounded,
+                  color: Colors.white,
+                  size: 22,
+                ),
               ),
               const SizedBox(width: 12),
-              Expanded(
+              const Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      title,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w800,
-                        color: AppTheme.textDark,
+                      'Welcome to LoanLedger 👋',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF1E1B4B),
                       ),
                     ),
-                    const SizedBox(height: 2),
                     Text(
-                      subtitle,
-                      style: const TextStyle(fontSize: 12, color: AppTheme.textLight),
+                      'Smart loan tracking & payment reminders',
+                      style: TextStyle(fontSize: 12, color: Color(0xFF4338CA)),
                     ),
                   ],
                 ),
               ),
-              Icon(Icons.chevron_right_rounded, color: color.withValues(alpha: 0.7)),
+              IconButton(
+                icon: const Icon(Icons.close_rounded, size: 20, color: Color(0xFF6366F1)),
+                onPressed: _dismissWelcomeGuide,
+              ),
             ],
+          ),
+          const SizedBox(height: 12),
+          const Text(
+            'LoanLedger is your personal digital loan notebook. Track money lent to or borrowed from friends & family, compute interest, and send instant WhatsApp payment reminders.',
+            style: TextStyle(fontSize: 13, height: 1.45, color: Color(0xFF312E81)),
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              ElevatedButton.icon(
+                onPressed: () {
+                  _dismissWelcomeGuide();
+                  _openP2PTracker();
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF4F46E5),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  elevation: 2,
+                ),
+                icon: const Icon(Icons.menu_book_rounded, size: 18),
+                label: const Text(
+                  'Explore LoanBook',
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                ),
+              ),
+              const SizedBox(width: 10),
+              TextButton(
+                onPressed: _dismissWelcomeGuide,
+                child: const Text('Dismiss', style: TextStyle(color: Color(0xFF4F46E5), fontWeight: FontWeight.w600)),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFeaturedLoanBookCard() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(22),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF4F46E5).withValues(alpha: 0.08),
+            blurRadius: 18,
+            offset: const Offset(0, 6),
+          ),
+        ],
+        border: Border.all(
+          color: const Color(0xFF6366F1).withValues(alpha: 0.12),
+          width: 1,
+        ),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(22),
+        child: InkWell(
+          onTap: _openP2PTracker,
+          borderRadius: BorderRadius.circular(22),
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Row(
+              children: [
+                Container(
+                  width: 52,
+                  height: 52,
+                  decoration: BoxDecoration(
+                    gradient: AppTheme.primaryGradient,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppTheme.primaryColor.withValues(alpha: 0.28),
+                        blurRadius: 12,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: const Icon(
+                    Icons.menu_book_rounded,
+                    color: Colors.white,
+                    size: 28,
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Row(
+                        children: [
+                          Text(
+                            'Digital LoanBook',
+                            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 16,
+                                  color: AppTheme.textDark,
+                                ),
+                          ),
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFEEF2FF),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: const Text(
+                              'CORE',
+                              style: TextStyle(
+                                fontSize: 9.5,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF4F46E5),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        'Track personal loans, interest & WhatsApp reminders',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey[600],
+                          height: 1.25,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  decoration: BoxDecoration(
+                    gradient: AppTheme.primaryGradient,
+                    borderRadius: BorderRadius.circular(14),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppTheme.primaryColor.withValues(alpha: 0.25),
+                        blurRadius: 8,
+                        offset: const Offset(0, 3),
+                      ),
+                    ],
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'Open',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
+                        ),
+                      ),
+                      SizedBox(width: 4),
+                      Icon(
+                        Icons.arrow_forward_rounded,
+                        color: Colors.white,
+                        size: 16,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
     );
   }
+
+
 
   Future<void> _handleLogout() async {
     final navigator = Navigator.of(context);

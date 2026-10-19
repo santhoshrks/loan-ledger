@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../services/auth_service.dart';
+import '../services/security_service.dart';
+import 'pin_setup_screen.dart';
 import 'splash_screen.dart';
 
 class VerifyPhoneOtpScreen extends StatefulWidget {
@@ -71,9 +73,20 @@ class _VerifyPhoneOtpScreenState extends State<VerifyPhoneOtpScreen> {
       await AuthService.signInWithPhoneCredential(credential: credential);
 
       if (mounted) {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const SplashScreen()),
-        );
+        final securityService = SecurityService();
+        final isPinSet = await securityService.isPinSet();
+
+        if (!mounted) return;
+
+        if (!isPinSet) {
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(builder: (_) => const PinSetupScreen()),
+          );
+        } else {
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(builder: (_) => const SplashScreen()),
+          );
+        }
       }
     } on FirebaseAuthException catch (e) {
       setState(() {

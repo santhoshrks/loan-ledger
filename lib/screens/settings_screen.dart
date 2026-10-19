@@ -10,8 +10,10 @@ import '../services/loan_storage_service.dart';
 import '../services/language_provider.dart';
 import '../services/notification_service.dart';
 import '../services/region_preferences_service.dart';
+import '../services/security_service.dart';
 import '../services/auth_provider.dart';
 import 'login_screen.dart';
+import 'pin_setup_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   final LoanStorageService storageService;
@@ -35,11 +37,32 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _isExporting = false;
   bool _isImporting = false;
   String? _selectedCurrencyOverride;
+  bool _isPinLockEnabled = false;
+  bool _isBiometricEnabled = false;
+  bool _canUseBiometrics = false;
+  int _autoLockTimeout = 60;
 
   @override
   void initState() {
     super.initState();
     _loadCurrencyOverride();
+    _loadSecuritySettings();
+  }
+
+  Future<void> _loadSecuritySettings() async {
+    final securityService = SecurityService();
+    final pinEnabled = await securityService.isPinEnabled();
+    final bioEnabled = await securityService.isBiometricEnabled();
+    final bioAvailable = await securityService.isBiometricsAvailable();
+    final timeout = await securityService.getAutoLockTimeout();
+
+    if (!mounted) return;
+    setState(() {
+      _isPinLockEnabled = pinEnabled;
+      _isBiometricEnabled = bioEnabled;
+      _canUseBiometrics = bioAvailable;
+      _autoLockTimeout = timeout;
+    });
   }
 
   Future<void> _loadCurrencyOverride() async {
@@ -434,6 +457,155 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               ],
                             ),
                           ),
+                          const SizedBox(height: 12),
+
+                          // App Lock & Biometrics Security Card
+                          Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(12),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.05),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            child: Column(
+                              children: [
+                                SwitchListTile(
+                                  contentPadding: EdgeInsets.zero,
+                                  title: const Text(
+                                    'App Lock (4-Digit PIN)',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 15,
+                                    ),
+                                  ),
+                                  subtitle: const Text(
+                                    'Require PIN code to open LoanLedger',
+                                    style: TextStyle(fontSize: 12),
+                                  ),
+                                  value: _isPinLockEnabled,
+                                  activeTrackColor: AppTheme.primaryColor,
+                                  onChanged: (val) async {
+                                    final securityService = SecurityService();
+                                    final isPinSet = await securityService.isPinSet();
+                                    if (!isPinSet && val) {
+                                      if (!context.mounted) return;
+                                      Navigator.of(context).push(
+                                        MaterialPageRoute(
+                                          builder: (_) => PinSetupScreen(
+                                            onComplete: () {
+                                              Navigator.of(context).pop();
+                                              _loadSecuritySettings();
+                                            },
+                                          ),
+                                        ),
+                                      );
+                                    } else {
+                                      await securityService.setPinEnabled(val);
+                                      _loadSecuritySettings();
+                                    }
+                                  },
+                                ),
+                                if (_isPinLockEnabled && _canUseBiometrics) ...[
+                                  const Divider(),
+                                  SwitchListTile(
+                                    contentPadding: EdgeInsets.zero,
+                                    title: const Text(
+                                      'Fingerprint / Biometric Unlock',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: 15,
+                                      ),
+                                    ),
+                                    subtitle: const Text(
+                                      'Unlock app using fingerprint or face ID',
+                                      style: TextStyle(fontSize: 12),
+                                    ),
+                                    value: _isBiometricEnabled,
+                                    activeTrackColor: AppTheme.primaryColor,
+                                    onChanged: (val) async {
+                                      final securityService = SecurityService();
+                                      await securityService.setBiometricEnabled(val);
+                                      _loadSecuritySettings();
+                                    },
+                                  ),
+                                ],
+                                if (_isPinLockEnabled) ...[
+                                  const Divider(),
+                                  ListTile(
+                                    contentPadding: EdgeInsets.zero,
+                                    title: const Text(
+                                      'Auto-Lock Timeout',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: 15,
+                                      ),
+                                    ),
+                                    subtitle: Text(
+                                      _autoLockTimeout == 0
+                                          ? 'Immediately when switching apps'
+                                          : 'After ${_autoLockTimeout ~/ 60} min of background',
+                                      style: const TextStyle(fontSize: 12),
+                                    ),
+                                    trailing: DropdownButton<int>(
+                                      value: _autoLockTimeout,
+                                      underline: const SizedBox.shrink(),
+                                      icon: const Icon(Icons.arrow_drop_down_rounded),
+                                      items: const [
+                                        DropdownMenuItem(
+                                          value: 0,
+                                          child: Text('Immediately', style: TextStyle(fontSize: 13)),
+                                        ),
+                                        DropdownMenuItem(
+                                          value: 60,
+                                          child: Text('After 1 min', style: TextStyle(fontSize: 13)),
+                                        ),
+                                        DropdownMenuItem(
+                                          value: 300,
+                                          child: Text('After 5 min', style: TextStyle(fontSize: 13)),
+                                        ),
+                                      ],
+                                      onChanged: (val) async {
+                                        if (val != null) {
+                                          final securityService = SecurityService();
+                                          await securityService.setAutoLockTimeout(val);
+                                          _loadSecuritySettings();
+                                        }
+                                      },
+                                    ),
+                                  ),
+                                  const Divider(),
+                                  ListTile(
+                                    contentPadding: EdgeInsets.zero,
+                                    leading: const Icon(Icons.edit_outlined, color: AppTheme.primaryColor),
+                                    title: const Text(
+                                      'Change PIN Code',
+                                      style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                                    ),
+                                    trailing: const Icon(Icons.chevron_right_rounded),
+                                    onTap: () {
+                                      Navigator.of(context).push(
+                                        MaterialPageRoute(
+                                          builder: (_) => PinSetupScreen(
+                                            onComplete: () {
+                                              Navigator.of(context).pop();
+                                              _loadSecuritySettings();
+                                            },
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+
                           const SizedBox(height: 12),
                           _buildSecurityAction(
                             icon: Icons.password_rounded,
@@ -1123,7 +1295,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       if (!mounted) return;
 
       showModalBottomSheet(
-        context: context,
+        context: this.context,
         isScrollControlled: true,
         backgroundColor: Colors.white,
         shape: const RoundedRectangleBorder(
@@ -1235,7 +1407,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(
-          context,
+          this.context,
         ).showSnackBar(SnackBar(content: Text('Error loading reminders: $e')));
       }
     }

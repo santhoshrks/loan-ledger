@@ -4,6 +4,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'screens/splash_screen.dart';
+import 'widgets/app_security_wrapper.dart';
 import 'services/analytics_service.dart';
 import 'services/loan_storage_service.dart';
 import 'services/notification_service.dart';
@@ -122,6 +123,11 @@ class P2PReminderApp extends StatelessWidget {
           title: 'LoanLedger',
           theme: AppTheme.lightTheme,
           locale: languageProvider.currentLocale,
+          builder: (context, child) {
+            return AppSecurityWrapper(
+              child: child ?? const SizedBox.shrink(),
+            );
+          },
           localizationsDelegates: const [
             AppLocalizations.delegate,
             GlobalMaterialLocalizations.delegate,

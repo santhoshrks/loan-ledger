@@ -97,6 +97,9 @@ dependencies:
   firebase_auth: ^5.2.0
   cloud_firestore: ^5.4.4
 
+  # Local Authentication (Biometrics / Fingerprint)
+  local_auth: ^2.3.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

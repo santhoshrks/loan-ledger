@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/auth_provider.dart';
+import '../services/security_service.dart';
 import 'login_screen.dart';
+import 'pin_setup_screen.dart';
 import 'splash_screen.dart';
 
 class RegistrationScreen extends StatefulWidget {
@@ -84,9 +86,20 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
             duration: Duration(seconds: 2),
           ),
         );
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const SplashScreen()),
-        );
+        final securityService = SecurityService();
+        final isPinSet = await securityService.isPinSet();
+
+        if (!mounted) return;
+
+        if (!isPinSet) {
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(builder: (_) => const PinSetupScreen()),
+          );
+        } else {
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(builder: (_) => const SplashScreen()),
+          );
+        }
       } else if (mounted && authProvider.errorMessage != null) {
         debugPrint('🔴 Registration Error: ${authProvider.errorMessage}');
         ScaffoldMessenger.of(context).showSnackBar(

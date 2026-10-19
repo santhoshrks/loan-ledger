@@ -186,7 +186,7 @@ class _P2PLoanScreenState extends State<P2PLoanScreen>
                     ),
                   ),
                 )
-              : const Text('P2P Loan Tracker'),
+              : const Text('LoanBook'),
           actions: _isSearching
               ? []
               : [
@@ -929,12 +929,12 @@ class _P2PLoanScreenState extends State<P2PLoanScreen>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
-                  'Add P2P Loan Entry',
+                  'Add LoanBook Entry',
                   style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 4),
                 const Text(
-                  'Track person-to-person loans',
+                  'Track personal loans',
                   style: TextStyle(fontSize: 12, color: AppTheme.textLight),
                 ),
                 const SizedBox(height: 16),
@@ -1591,7 +1591,7 @@ class _P2PLoanScreenState extends State<P2PLoanScreen>
                               );
                         }
                       }
-                      if (mounted) Navigator.pop(context);
+                      if (mounted) Navigator.pop(this.context);
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppTheme.primaryColor,
