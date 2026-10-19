@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Privacy Policy - LoanLedger: Personal Loan Tracker</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            line-height: 1.6;
+            color: #1f2937;
+            background-color: #f8fafc;
+            padding: 20px;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: #ffffff;
+            padding: 40px;
+            border-radius: 16px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+        }
+        h1 {
+            color: #1e1b4b;
+            font-size: 30px;
+            margin-bottom: 8px;
+            text-align: center;
+        }
+        .app-name {
+            color: #4f46e5;
+            font-size: 18px;
+            text-align: center;
+            font-weight: 600;
+        }
+        .last-updated {
+            color: #64748b;
+            font-size: 14px;
+            text-align: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #e2e8f0;
+        }
+        h2 {
+            color: #1e1b4b;
+            font-size: 20px;
+            margin-top: 30px;
+            margin-bottom: 12px;
+            padding-bottom: 6px;
+            border-bottom: 2px solid #6366f1;
+        }
+        h3 {
+            color: #334155;
+            font-size: 16px;
+            margin-top: 18px;
+            margin-bottom: 8px;
+        }
+        p { margin-bottom: 14px; }
+        ul { margin-left: 20px; margin-bottom: 15px; }
+        li { margin-bottom: 8px; }
+        .highlight {
+            background: #eef2ff;
+            padding: 16px;
+            border-radius: 10px;
+            border-left: 4px solid #4f46e5;
+            margin: 20px 0;
+            color: #1e1b4b;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        th {
+            background: #4f46e5;
+            color: white;
+            border-radius: 4px 4px 0 0;
+        }
+        .contact {
+            background: #f1f5f9;
+            padding: 24px;
+            border-radius: 12px;
+            text-align: center;
+            margin-top: 30px;
+        }
+        .contact a {
+            color: #4f46e5;
+            text-decoration: none;
+            font-weight: bold;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 2px solid #e2e8f0;
+            color: #64748b;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Privacy Policy</h1>
+        <p class="app-name"><strong>LoanLedger: Personal Loan Tracker</strong></p>
+        <p class="last-updated">Last Updated: October 17, 2026</p>
+
+        <h2>1. Introduction</h2>
+        <p>Welcome to LoanLedger ("we," "our," or "us"). We are committed to maintaining the trust and privacy of our users. This Privacy Policy explains how our mobile application handles user information and security.</p>
+
+        <h2>2. Information We Collect and Process</h2>
+        <h3>A. Account & Authentication Data</h3>
+        <p>If you register or log in using Email or Phone Number, authentication is managed securely via Firebase Authentication. We process:</p>
+        <ul>
+            <li>Email address or phone number (for account creation & login verification)</li>
+            <li>Display Name / Profile Name</li>
+        </ul>
+
+        <h3>B. Local Financial & Loan Entries</h3>
+        <p>All loan details, borrower/lender names, payment records, and expense entries are stored encrypted locally on your device database (Hive). Optionally, if signed in, entries are synced to your private Cloud Firestore backup so you do not lose data when upgrading devices.</p>
+
+        <h3>C. Biometrics & Security PIN</h3>
+        <p>Your 4-digit security PIN and Biometric (Fingerprint/Face ID) unlock credentials are processed <strong>strictly on-device</strong> using standard Android/iOS security hardware. Biometric data is never transmitted off your device.</p>
+
+        <div class="highlight">
+            <strong>Data Ownership & Privacy:</strong> We do NOT sell, rent, or share your financial data, phone number, or contacts with third-party advertisers or data brokers.
+        </div>
+
+        <h2>3. How We Use Information</h2>
+        <ul>
+            <li>To manage your account, sign-in state, and security PIN lock</li>
+            <li>To schedule local payment reminders on your device</li>
+            <li>To format WhatsApp payment reminder messages upon your action</li>
+            <li>To sync your loan records across your devices via encrypted cloud storage</li>
+        </ul>
+
+        <h2>4. Permissions Requested</h2>
+        <table>
+            <tr>
+                <th>Permission</th>
+                <th>Purpose</th>
+            </tr>
+            <tr>
+                <td><strong>Notifications</strong></td>
+                <td>To trigger due payment reminders on schedule</td>
+            </tr>
+            <tr>
+                <td><strong>Biometrics / Fingerprint</strong></td>
+                <td>To allow instant app unlock via local hardware sensor</td>
+            </tr>
+            <tr>
+                <td><strong>Exact Alarm & Boot Completed</strong></td>
+                <td>To restore scheduled due reminders after device reboot</td>
+            </tr>
+            <tr>
+                <td><strong>Internet</strong></td>
+                <td>For Firebase user authentication and cloud backup sync</td>
+            </tr>
+        </table>
+
+        <h2>5. Children's Privacy</h2>
+        <p>LoanLedger does not knowingly collect personal information from children under 13 years of age. The application is intended for personal financial management by adults.</p>
+
+        <h2>6. Your Data Choices & Account Deletion</h2>
+        <p>You have full control over your data. You can edit, clear, or export your backup entries anytime from the Settings menu. You may also request complete deletion of your Firebase user account directly in Settings or by contacting us.</p>
+
+        <div class="contact">
+            <h2>Contact Us</h2>
+            <p>If you have any questions or concerns regarding this Privacy Policy, please email us at:</p>
+            <p>📧 <a href="mailto:rksocialstudio@gmail.com">rksocialstudio@gmail.com</a></p>
+        </div>
+
+        <div class="footer">
+            <p>© 2026 LoanLedger. All rights reserved.</p>
+        </div>
+    </div>
+</body>
+</html>
